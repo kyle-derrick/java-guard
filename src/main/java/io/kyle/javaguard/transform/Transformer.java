@@ -1,6 +1,7 @@
 package io.kyle.javaguard.transform;
 
 import io.kyle.javaguard.bean.TransformInfo;
+import io.kyle.javaguard.exception.TransformException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,8 +19,8 @@ public interface Transformer {
     };
 
     boolean isSupport(String name);
-    boolean encrypt(final InputStream in, final OutputStream out) throws IOException;
-    boolean decrypt(final InputStream in, final OutputStream out) throws IOException;
+    boolean encrypt(final InputStream in, final OutputStream out) throws TransformException;
+    boolean decrypt(final InputStream in, final OutputStream out) throws TransformException;
 
     interface TransformCreator {
         Transformer create(TransformInfo transformInfo);

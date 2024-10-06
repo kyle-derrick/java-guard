@@ -3,10 +3,13 @@ package io.kyle.javaguard.transform;
 import io.kyle.javaguard.bean.ClassTransformInfo;
 import io.kyle.javaguard.bean.TransformInfo;
 import io.kyle.javaguard.constant.ClassAttribute;
+import io.kyle.javaguard.constant.DefaultReturn;
+import io.kyle.javaguard.exception.TransformException;
+import io.kyle.javaguard.exception.TransformRuntimeException;
 import javassist.bytecode.*;
 import javassist.bytecode.annotation.Annotation;
 import javassist.bytecode.annotation.AnnotationExt;
-import org.apache.commons.compress.utils.ByteUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.*;
@@ -17,6 +20,7 @@ import java.util.ListIterator;
  * 2024/9/30 14:17
  */
 public class ClassTransformer extends AbstractTransformer {
+    public static final int CLASS_ENCRYPT_FLAG = 1 << 15;
 
     public ClassTransformer(TransformInfo transformInfo) {
         super(transformInfo);
@@ -28,8 +32,13 @@ public class ClassTransformer extends AbstractTransformer {
     }
 
     @Override
-    public boolean encrypt(InputStream in, OutputStream out) throws IOException {
-        ClassFile classFile = new ClassFile(new DataInputStream(in));
+    public boolean encrypt(InputStream in, OutputStream out) throws TransformException {
+        ClassFile classFile = null;
+        try {
+            classFile = new ClassFile(new DataInputStream(in));
+        } catch (IOException e) {
+            throw new TransformException("analysis class byte failed", e);
+        }
         ConstPool constPool = classFile.getConstPool();
         ClassTransformInfo classTransformInfo = new ClassTransformInfo(constPool);
         for (FieldInfo field : classFile.getFields()) {
@@ -53,15 +62,41 @@ public class ClassTransformer extends AbstractTransformer {
         JavassistExt.retainClassInfoConst(classTransformInfo.getConstPool(), classTransformInfo.getRetainConst());
 
         byte[] bytes = ClassTransformUtils.toBytes(classTransformInfo);
-        classFile.addAttribute(new SecretBoxAttribute(constPool, bytes));
+        try {
+            classFile.addAttribute(new SecretBoxAttribute(constPool, encrypt(bytes)));
+        } catch (Exception e) {
+            throw new TransformException("class encrypt failed", e);
+        }
 
-        classFile.write(new DataOutputStream(out));
+        try {
+            classFile.setMinorVersion(classFile.getMinorVersion() | CLASS_ENCRYPT_FLAG);
+            classFile.write(new DataOutputStream(out));
+        } catch (IOException e) {
+            throw new TransformException("write class byte failed", e);
+        }
         return true;
     }
 
     @Override
-    public boolean decrypt(InputStream in, OutputStream out) throws IOException {
-
+    public boolean decrypt(InputStream in, OutputStream out) throws TransformException {
+        byte[] classByte;
+        try {
+            classByte = IOUtils.toByteArray(in);
+        } catch (IOException e) {
+            throw new TransformException("read class data failed", e);
+        }
+        byte[] bytes = ClassDecryption.decryptClass(classByte, data -> {
+            try {
+                return this.decrypt(data);
+            } catch (Exception e) {
+                throw new TransformRuntimeException("decrypt failed", e);
+            }
+        });
+        try {
+            out.write(bytes);
+        } catch (IOException e) {
+            throw new TransformException("decrypt class data failed", e);
+        }
         return true;
     }
 
@@ -76,6 +111,30 @@ public class ClassTransformer extends AbstractTransformer {
                 iterator.set(attributeInfo);
             }
         }
+        CodeAttribute codeAttribute = method.getCodeAttribute();
+        if (codeAttribute != null) {
+            method.setCodeAttribute(handleCodeAttribute(codeAttribute, classTransformInfo, method.getDescriptor()));
+        }
+    }
+
+    protected CodeAttribute handleCodeAttribute(CodeAttribute codeAttribute, ClassTransformInfo classTransformInfo, String descriptor) {
+        for (AttributeInfo codeAttributeAttribute : codeAttribute.getAttributes()) {
+            handleAttribute(codeAttributeAttribute, classTransformInfo);
+        }
+//                codeAttribute.getExceptionTable()
+        // todo 看需不需要处理ExceptionTable
+        DefaultReturn defaultReturn = DefaultReturn.byDescriptor(descriptor);
+        Bytecode bytecode = new Bytecode(classTransformInfo.getConstPool());
+        for (int opcode : defaultReturn.getOpcodes()) {
+            bytecode.addOpcode(opcode);
+        }
+
+        CodeAttribute newCodeAttribute = bytecode.toCodeAttribute();
+        newCodeAttribute.getAttributes().addAll(codeAttribute.getAttributes());
+        newCodeAttribute.getAttributes()
+                .add(new CodeIndexAttribute(codeAttribute.getConstPool(), classTransformInfo.codesSize()));
+        classTransformInfo.addCode(codeAttribute.getCode());
+        return newCodeAttribute;
     }
 
     protected AttributeInfo handleAttribute(AttributeInfo attributeInfo, ClassTransformInfo classTransformInfo) {
@@ -111,20 +170,7 @@ public class ClassTransformer extends AbstractTransformer {
                 break;
             case Code:
                 CodeAttribute codeAttribute = (CodeAttribute) attributeInfo;
-                for (AttributeInfo codeAttributeAttribute : codeAttribute.getAttributes()) {
-                    handleAttribute(codeAttributeAttribute, classTransformInfo);
-                }
-//                codeAttribute.getExceptionTable()
-                // todo 看需不需要处理ExceptionTable
-
-                CodeAttribute newCodeAttribute = new CodeAttribute(codeAttribute.getConstPool(),
-                        codeAttribute.getMaxStack(), codeAttribute.getMaxLocals(), ByteUtils.EMPTY_BYTE_ARRAY,
-                        codeAttribute.getExceptionTable());
-                newCodeAttribute.getAttributes().addAll(codeAttribute.getAttributes());
-                newCodeAttribute.getAttributes()
-                        .add(new CodeIndexAttribute(codeAttribute.getConstPool(), classTransformInfo.codesSize()));
-                classTransformInfo.addCode(codeAttribute.getCode());
-                return newCodeAttribute;
+                return handleCodeAttribute(codeAttribute, classTransformInfo, null);
             case EnclosingMethod:
                 EnclosingMethodAttribute enclosingMethodAttribute = (EnclosingMethodAttribute) attributeInfo;
                 classTransformInfo.addRetainConst(enclosingMethodAttribute.classIndex());

@@ -21,6 +21,14 @@
             <artifactId>javassist</artifactId>
             <version>3.30.2-GA</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.springframework/spring-core -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>5.3.20</version>
+        </dependency>
+
+
         <!-- https://mvnrepository.com/artifact/org.ow2.asm/asm -->
 <!--        <dependency>-->
 <!--            <groupId>org.ow2.asm</groupId>-->

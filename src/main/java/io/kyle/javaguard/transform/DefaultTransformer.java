@@ -1,9 +1,8 @@
 package io.kyle.javaguard.transform;
 
 import io.kyle.javaguard.bean.TransformInfo;
-import org.apache.commons.io.IOUtils;
+import io.kyle.javaguard.exception.TransformException;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
@@ -23,16 +22,16 @@ public class DefaultTransformer extends AbstractTransformer {
     }
 
     @Override
-    public boolean encrypt(InputStream in, OutputStream out) throws IOException {
+    public boolean encrypt(InputStream in, OutputStream out) throws TransformException {
         // todo
-        IOUtils.copy(in, out);
+        copyStream(in, out);
         return true;
     }
 
     @Override
-    public boolean decrypt(InputStream in, OutputStream out) throws IOException {
+    public boolean decrypt(InputStream in, OutputStream out) throws TransformException {
         // todo
-        IOUtils.copy(in, out);
+        copyStream(in, out);
         return true;
     }
 }

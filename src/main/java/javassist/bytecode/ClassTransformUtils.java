@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -35,7 +36,9 @@ public class ClassTransformUtils {
         try {
             constPoolToBytes(info, buff);
             buff.write(new byte[] {0,0,0});
-            for (byte[] code : info.getCodes()) {
+            List<byte[]> codes = info.getCodes();
+            buff.write(intToBytes(codes.size()));
+            for (byte[] code : codes) {
                 buff.write(intToBytes(code.length));
                 buff.write(code);
             }
@@ -65,41 +68,46 @@ public class ClassTransformUtils {
             switch (item.getTag()) {
                 case ConstPool.CONST_Integer:
                     IntegerInfo integerInfo = (IntegerInfo) item;
-                    len = Integer.BYTES + CONST_INFO_PREFIX_SIZE;
+                    len = Integer.BYTES;
                     type = ConstBaseType.Integer.getType();
-                    put = bb -> bb.putInt(integerInfo.value);
+                    int iv = integerInfo.value;
+                    put = bb -> bb.putInt(iv);
                     integerInfo.value += random.nextInt() >> 1 + 1;
                     break;
                 case ConstPool.CONST_Float:
                     FloatInfo floatInfo = (FloatInfo) item;
-                    len = Float.BYTES + CONST_INFO_PREFIX_SIZE;
+                    len = Float.BYTES;
                     type = ConstBaseType.Float.getType();
-                    put = bb -> bb.putFloat(floatInfo.value);
+                    float fv = floatInfo.value;
+                    put = bb -> bb.putFloat(fv);
                     floatInfo.value += random.nextInt() >> 1 + 1;
                     break;
                 case ConstPool.CONST_Long:
                     LongInfo longInfo = (LongInfo) item;
-                    len = Long.BYTES + CONST_INFO_PREFIX_SIZE;
+                    len = Long.BYTES;
                     type = ConstBaseType.Long.getType();
-                    put = bb -> bb.putLong(longInfo.value);
+                    long lv = longInfo.value;
+                    put = bb -> bb.putLong(lv);
                     longInfo.value += random.nextInt() + 1;
                     break;
                 case ConstPool.CONST_Double:
                     DoubleInfo doubleInfo = (DoubleInfo) item;
-                    len = Double.BYTES + CONST_INFO_PREFIX_SIZE;
+                    len = Double.BYTES;
                     type = ConstBaseType.Double.getType();
-                    put = bb -> bb.putDouble(doubleInfo.value);
+                    double dv = doubleInfo.value;
+                    put = bb -> bb.putDouble(dv);
                     doubleInfo.value += random.nextInt() + 1;
                     break;
                 case ConstPool.CONST_Utf8:
                     Utf8Info utf8Info = (Utf8Info) item;
-                    if (RETAIN_STRING.contains(utf8Info.string)) {
+                    String string = utf8Info.string;
+                    if (RETAIN_STRING.contains(string)) {
                         continue;
                     }
-                    len = utf8Info.string.length() + Integer.BYTES + CONST_INFO_PREFIX_SIZE;
+                    len = string.length() + Integer.BYTES;
                     type = ConstBaseType.String.getType();
                     put = bb -> {
-                        byte[] bytes = utf8Info.string.getBytes(StandardCharsets.UTF_8);
+                        byte[] bytes = string.getBytes(StandardCharsets.UTF_8);
                         bb.putInt(bytes.length);
                         bb.put(bytes);
                     };
@@ -110,7 +118,7 @@ public class ClassTransformUtils {
             }
 
             ByteBuffer bb;
-            bb = ByteBuffer.allocate(len);
+            bb = ByteBuffer.allocate(len + CONST_INFO_PREFIX_SIZE);
             bb.put(CONST_INFO_INDEX_PREFIX);
             bb.put(type);
             put.accept(bb);

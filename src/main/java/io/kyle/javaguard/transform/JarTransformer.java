@@ -2,7 +2,7 @@ package io.kyle.javaguard.transform;
 
 import io.kyle.javaguard.bean.TransformInfo;
 import io.kyle.javaguard.constant.ConstVars;
-import io.kyle.javaguard.constant.TransformType;
+import io.kyle.javaguard.exception.TransformException;
 import io.kyle.javaguard.filter.DefaultFilter;
 import io.kyle.javaguard.filter.Filter;
 import io.kyle.javaguard.filter.SimpleFilter;
@@ -10,7 +10,6 @@ import org.apache.commons.compress.archivers.jar.JarArchiveEntry;
 import org.apache.commons.compress.archivers.jar.JarArchiveInputStream;
 import org.apache.commons.compress.archivers.jar.JarArchiveOutputStream;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
@@ -51,18 +50,26 @@ public class JarTransformer extends AbstractTransformer {
     }
 
     @Override
-    public boolean encrypt(InputStream in, OutputStream out) throws IOException {
-        transform(in, out, true);
+    public boolean encrypt(InputStream in, OutputStream out) throws TransformException {
+        try {
+            transform(in, out, true);
+        } catch (IOException e) {
+            throw new TransformException(e);
+        }
         return true;
     }
 
     @Override
-    public boolean decrypt(InputStream in, OutputStream out) throws IOException {
-        transform(in, out, false);
+    public boolean decrypt(InputStream in, OutputStream out) throws TransformException {
+        try {
+            transform(in, out, false);
+        } catch (IOException e) {
+            throw new TransformException(e);
+        }
         return true;
     }
 
-    public void transform(final InputStream in, final OutputStream out, boolean encrypt) throws IOException {
+    public void transform(final InputStream in, final OutputStream out, boolean encrypt) throws IOException, TransformException {
         JarArchiveInputStream zis = new JarArchiveInputStream(in);
         JarArchiveOutputStream zos = new JarArchiveOutputStream(out);
         zos.setLevel(transformInfo.getLevel());
@@ -91,7 +98,7 @@ public class JarTransformer extends AbstractTransformer {
                 }
             }
             if (!transformed) {
-                IOUtils.copy(zis, zos);
+                copyStream(zis, zos);
             }
             zos.closeArchiveEntry();
         }

@@ -5,6 +5,13 @@ public class EncryptInfo {
     private String algorithm = "AES";
     private String transformation = "AES/ECB/PKCS5Padding";
 
+    public EncryptInfo() {
+    }
+
+    public EncryptInfo(byte[] key) {
+        this.key = key;
+    }
+
     public byte[] getKey() {
         return key;
     }

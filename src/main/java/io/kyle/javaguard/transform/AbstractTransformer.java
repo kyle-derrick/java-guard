@@ -1,6 +1,7 @@
-package io.kyle.javaguard.transform.encryption;
+package io.kyle.javaguard.transform;
 
 import io.kyle.javaguard.bean.EncryptInfo;
+import io.kyle.javaguard.bean.TransformInfo;
 
 import javax.crypto.*;
 import javax.crypto.spec.SecretKeySpec;
@@ -8,14 +9,15 @@ import java.io.InputStream;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 
-public abstract class AbstractEncryption implements Encryption {
-    protected final EncryptInfo encryptInfo;
+public abstract class AbstractTransformer implements Transformer {
+    protected final TransformInfo transformInfo;
 
-    public AbstractEncryption(EncryptInfo encryptInfo) {
-        this.encryptInfo = encryptInfo;
+    public AbstractTransformer(TransformInfo transformInfo) {
+        this.transformInfo = transformInfo;
     }
 
     protected Cipher getCipher(int opmode) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException {
+        EncryptInfo encryptInfo = transformInfo.getEncrypt();
         SecretKeySpec sks = new SecretKeySpec(encryptInfo.getKey(), encryptInfo.getAlgorithm());
         Cipher cipher = Cipher.getInstance(encryptInfo.getTransformation());
         cipher.init(opmode, sks);

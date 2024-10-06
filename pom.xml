@@ -21,6 +21,12 @@
             <artifactId>javassist</artifactId>
             <version>3.30.2-GA</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.ow2.asm/asm -->
+<!--        <dependency>-->
+<!--            <groupId>org.ow2.asm</groupId>-->
+<!--            <artifactId>asm</artifactId>-->
+<!--            <version>9.7</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>com.google.re2j</groupId>
             <artifactId>re2j</artifactId>
@@ -38,12 +44,33 @@
             <artifactId>commons-codec</artifactId>
             <version>1.15</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-lang3 -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.12.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.1</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.google.flatbuffers/flatbuffers-java -->
+<!--        <dependency>-->
+<!--            <groupId>com.google.flatbuffers</groupId>-->
+<!--            <artifactId>flatbuffers-java</artifactId>-->
+<!--            <version>24.3.25</version>-->
+<!--        </dependency>-->
 
         <!--        <dependency>-->
 <!--            <groupId>org.springframework</groupId>-->
 <!--            <artifactId>spring-core</artifactId>-->
 <!--            <version>5.3.12</version>-->
 <!--        </dependency>-->
+
 
     </dependencies>
 

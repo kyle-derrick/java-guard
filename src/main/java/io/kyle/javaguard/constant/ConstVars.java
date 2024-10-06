@@ -6,4 +6,6 @@ package io.kyle.javaguard.constant;
  */
 public interface ConstVars {
     String META_INF_MANIFEST = "META-INF/MANIFEST.MF";
+
+    String CODE_INDEX_ATTRIBUTE = "<CodeIndex>";
 }

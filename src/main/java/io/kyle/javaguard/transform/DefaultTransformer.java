@@ -1,6 +1,6 @@
-package io.kyle.javaguard.transform.encryption;
+package io.kyle.javaguard.transform;
 
-import io.kyle.javaguard.bean.EncryptInfo;
+import io.kyle.javaguard.bean.TransformInfo;
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
@@ -11,9 +11,9 @@ import java.io.OutputStream;
  * @author kyle kyle_derrick@foxmail.com
  * 2024/9/30 14:17
  */
-public class SimpleEncryption extends AbstractEncryption {
+public class DefaultTransformer extends AbstractTransformer {
 
-    public SimpleEncryption(EncryptInfo encryptInfo) {
+    public DefaultTransformer(TransformInfo encryptInfo) {
         super(encryptInfo);
     }
 
@@ -23,14 +23,16 @@ public class SimpleEncryption extends AbstractEncryption {
     }
 
     @Override
-    public void encrypt(InputStream in, OutputStream out) throws IOException {
+    public boolean encrypt(InputStream in, OutputStream out) throws IOException {
         // todo
         IOUtils.copy(in, out);
+        return true;
     }
 
     @Override
-    public void decrypt(InputStream in, OutputStream out) throws IOException {
+    public boolean decrypt(InputStream in, OutputStream out) throws IOException {
         // todo
         IOUtils.copy(in, out);
+        return true;
     }
 }

@@ -62,6 +62,9 @@ public class ClassTransformUtils {
                 continue;
             }
             ConstInfo item = constPool.getItem(i);
+            if (item == null) {
+                continue;
+            }
             int len;
             byte type;
             Consumer<ByteBuffer> put;
@@ -104,10 +107,10 @@ public class ClassTransformUtils {
                     if (RETAIN_STRING.contains(string)) {
                         continue;
                     }
-                    len = string.length() + Integer.BYTES;
+                    byte[] bytes = string.getBytes(StandardCharsets.UTF_8);
+                    len = bytes.length + Integer.BYTES;
                     type = ConstBaseType.String.getType();
                     put = bb -> {
-                        byte[] bytes = string.getBytes(StandardCharsets.UTF_8);
                         bb.putInt(bytes.length);
                         bb.put(bytes);
                     };

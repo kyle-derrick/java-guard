@@ -10,6 +10,15 @@ public class TransformInfo {
     private String[] matches;
     private int level = Deflater.DEFAULT_COMPRESSION;
     private EncryptInfo encrypt;
+    private SignatureInfo signature;
+
+    public SignatureInfo getSignature() {
+        return signature;
+    }
+
+    public void setSignature(SignatureInfo signature) {
+        this.signature = signature;
+    }
 
     public EncryptInfo getEncrypt() {
         return encrypt;

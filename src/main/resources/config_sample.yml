@@ -1,0 +1,6 @@
+matches:
+  - "*io/kyle/javaguard/*"
+#zipLevel:
+key: xxx
+privateKey: ./private.pem
+publicKey: ./public.pem

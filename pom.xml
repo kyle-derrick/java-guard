@@ -21,20 +21,28 @@
             <artifactId>javassist</artifactId>
             <version>3.30.2-GA</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.springframework/spring-core -->
+        <!-- https://mvnrepository.com/artifact/commons-cli/commons-cli -->
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-core</artifactId>
-            <version>5.3.20</version>
+            <groupId>commons-cli</groupId>
+            <artifactId>commons-cli</artifactId>
+            <version>1.9.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15on</artifactId>
+            <version>1.70</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk15on</artifactId>
+            <version>1.70</version>
+        </dependency>
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>2.0</version>
         </dependency>
 
-
-        <!-- https://mvnrepository.com/artifact/org.ow2.asm/asm -->
-<!--        <dependency>-->
-<!--            <groupId>org.ow2.asm</groupId>-->
-<!--            <artifactId>asm</artifactId>-->
-<!--            <version>9.7</version>-->
-<!--        </dependency>-->
         <dependency>
             <groupId>com.google.re2j</groupId>
             <artifactId>re2j</artifactId>
@@ -53,33 +61,53 @@
             <version>1.15</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-lang3 -->
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <version>3.12.0</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.apache.commons</groupId>-->
+<!--            <artifactId>commons-lang3</artifactId>-->
+<!--            <version>3.12.0</version>-->
+<!--        </dependency>-->
 
+        <!-- https://mvnrepository.com/artifact/org.springframework/spring-core -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>5.3.20</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.13.1</version>
             <scope>test</scope>
         </dependency>
-
-        <!-- https://mvnrepository.com/artifact/com.google.flatbuffers/flatbuffers-java -->
-<!--        <dependency>-->
-<!--            <groupId>com.google.flatbuffers</groupId>-->
-<!--            <artifactId>flatbuffers-java</artifactId>-->
-<!--            <version>24.3.25</version>-->
-<!--        </dependency>-->
-
-        <!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-core</artifactId>-->
-<!--            <version>5.3.12</version>-->
-<!--        </dependency>-->
-
-
     </dependencies>
+    <build>
+        <plugins>
+           <plugin>
+               <groupId>org.apache.maven.plugins</groupId>
+               <artifactId>maven-assembly-plugin</artifactId>
+               <version>3.3.0</version>
+               <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>io.kyle.javaguard.JavaGuardMain</mainClass>
+                        </manifest>
+                    </archive>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
 
+        </plugins>
+    </build>
 </project>

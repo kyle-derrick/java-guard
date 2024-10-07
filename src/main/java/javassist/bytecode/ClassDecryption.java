@@ -1,7 +1,5 @@
 package javassist.bytecode;
 
-import io.kyle.javaguard.exception.TransformException;
-
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -19,7 +17,8 @@ public class ClassDecryption {
     public static byte[] decryptClass(byte[] data) {
         try {
             return decryptClass(data, ClassDecryption::decryptData);
-        } catch (TransformException e) {
+        } catch (Exception e) {
+            System.err.println("decrypt class failed");
             e.printStackTrace();
             return data;
         }
@@ -27,7 +26,7 @@ public class ClassDecryption {
 
     private static native byte[] decryptData(byte[] data);
 
-    public static byte[] decryptClass(byte[] data, Function<byte[], byte[]> decrypter) throws TransformException {
+    public static byte[] decryptClass(byte[] data, Function<byte[], byte[]> decrypter) throws IOException {
         if (data.length < 4) {
             return data;
         }
@@ -36,12 +35,7 @@ public class ClassDecryption {
             return data;
         }
         data[4] &= CLASS_ENCRYPT_TRANS_FLAG;
-        ClassFile classFile = null;
-        try {
-            classFile = new ClassFile(new DataInputStream(new ByteArrayInputStream(data)));
-        } catch (IOException e) {
-            throw new TransformException("analysis class byte failed", e);
-        }
+        ClassFile classFile = new ClassFile(new DataInputStream(new ByteArrayInputStream(data)));
         AttributeInfo secretBoxAttribute = classFile.getAttribute(SecretBoxAttribute.tag);
         if (secretBoxAttribute == null) {
             return data;
@@ -135,11 +129,7 @@ public class ClassDecryption {
             method.setCodeAttribute(newCodeAttribute);
         }
         ByteArrayOutputStream out = new ByteArrayOutputStream(data.length);
-        try {
-            classFile.write(new DataOutputStream(out));
-        } catch (IOException e) {
-            throw new TransformException("write data failed", e);
-        }
+        classFile.write(new DataOutputStream(out));
         return out.toByteArray();
     }
 }

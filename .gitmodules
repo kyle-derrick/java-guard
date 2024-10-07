@@ -1,0 +1,3 @@
+[submodule "JGLauncher"]
+	path = JGLauncher
+	url = git@github.com:JavaGuard/JGLauncher.git

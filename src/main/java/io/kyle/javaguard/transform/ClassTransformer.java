@@ -10,7 +10,6 @@ import javassist.bytecode.*;
 import javassist.bytecode.annotation.Annotation;
 import javassist.bytecode.annotation.AnnotationExt;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
 
 import java.io.*;
 import java.util.ListIterator;
@@ -28,7 +27,7 @@ public class ClassTransformer extends AbstractTransformer {
 
     @Override
     public boolean isSupport(String name) {
-        return StringUtils.endsWith(name, ".class");
+        return name.endsWith(".class");
     }
 
     @Override
@@ -82,17 +81,13 @@ public class ClassTransformer extends AbstractTransformer {
         byte[] classByte;
         try {
             classByte = IOUtils.toByteArray(in);
-        } catch (IOException e) {
-            throw new TransformException("read class data failed", e);
-        }
-        byte[] bytes = ClassDecryption.decryptClass(classByte, data -> {
-            try {
-                return this.decrypt(data);
-            } catch (Exception e) {
-                throw new TransformRuntimeException("decrypt failed", e);
-            }
-        });
-        try {
+            byte[] bytes = ClassDecryption.decryptClass(classByte, data -> {
+                try {
+                    return this.decrypt(data);
+                } catch (Exception e) {
+                    throw new TransformRuntimeException("decrypt failed", e);
+                }
+            });
             out.write(bytes);
         } catch (IOException e) {
             throw new TransformException("decrypt class data failed", e);
@@ -101,6 +96,9 @@ public class ClassTransformer extends AbstractTransformer {
     }
 
     protected void handleMethod(MethodInfo method, ClassTransformInfo classTransformInfo) {
+        if (method == null) {
+            return;
+        }
         classTransformInfo.addRetainConst(JavassistExt.methodNameIndex(method));
         classTransformInfo.addRetainConst(JavassistExt.methodDescriptorIndex(method));
         ListIterator<AttributeInfo> iterator = method.getAttributes().listIterator();

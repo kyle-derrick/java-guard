@@ -4,7 +4,8 @@ public enum TransformType {
     /**
      *
      */
-    ENCRYPT,
-    DECRYPT,
+    encrypt,
+    decrypt,
+    signature,
     ;
 }

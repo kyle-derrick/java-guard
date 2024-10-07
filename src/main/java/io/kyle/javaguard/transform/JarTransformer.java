@@ -10,7 +10,6 @@ import org.apache.commons.compress.archivers.jar.JarArchiveEntry;
 import org.apache.commons.compress.archivers.jar.JarArchiveInputStream;
 import org.apache.commons.compress.archivers.jar.JarArchiveOutputStream;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
-import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,16 +36,20 @@ public class JarTransformer extends AbstractTransformer {
         }
         this.filter = filter;
 
-        transformers = new Transformer[Transformer.encryption.length];
-        for (int i = 0; i < Transformer.encryption.length; i++) {
-            Transformer.TransformCreator transformCreator = Transformer.encryption[i];
-            transformers[i] = transformCreator.create(transformInfo);
+        transformers = new Transformer[Transformer.TRANSFORMERS.length];
+        for (int i = 0; i < Transformer.TRANSFORMERS.length; i++) {
+            TransformerCreator transformerCreator = Transformer.TRANSFORMERS[i];
+            if (transformerCreator == Transformer.JAR_TRANSFORMER) {
+                transformers[i] = this;
+            } else {
+                transformers[i] = transformerCreator.create(transformInfo);
+            }
         }
     }
 
     @Override
     public boolean isSupport(String name) {
-        return StringUtils.endsWith(name, ".jar");
+        return name.endsWith(".jar");
     }
 
     @Override
@@ -69,7 +72,7 @@ public class JarTransformer extends AbstractTransformer {
         return true;
     }
 
-    public void transform(final InputStream in, final OutputStream out, boolean encrypt) throws IOException, TransformException {
+    protected void transform(final InputStream in, final OutputStream out, boolean encrypt) throws IOException, TransformException {
         JarArchiveInputStream zis = new JarArchiveInputStream(in);
         JarArchiveOutputStream zos = new JarArchiveOutputStream(out);
         zos.setLevel(transformInfo.getLevel());

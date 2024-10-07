@@ -6,7 +6,7 @@ package io.kyle.javaguard.util;
  */
 public class WildcardUtils {
     public static String wildcardToRegex(String wildcard) {
-        StringBuilder sb = new StringBuilder(wildcard.length() + wildcard.length() >> 1);
+        StringBuilder sb = new StringBuilder(wildcard.length() + (wildcard.length() >> 1));
         for (int i = 0; i < wildcard.length(); i++) {
             char c = wildcard.charAt(i);
             switch (c) {

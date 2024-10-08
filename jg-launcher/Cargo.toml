@@ -2,7 +2,7 @@
 name = "JGLauncher"
 version = "0.1.0"
 edition = "2021"
-build = "build.rs"
+build = "build/build.rs"
 
 [dependencies]
 jni = { version = "0.19" , features = ["invocation"]}
@@ -15,5 +15,5 @@ rvmti="0.3.0"
 #file-lock = "2.1"
 
 [build-dependencies]
-sha2 = "0.10"
-hex = "0.4"
+#sha2 = "0.10"
+#hex = "0.4"

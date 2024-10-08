@@ -1,11 +1,14 @@
 package io.kyle.javaguard.bean;
 
-import javassist.bytecode.ClassTransformUtils;
 import javassist.bytecode.ConstPool;
 import javassist.bytecode.JavassistExt;
 
 import java.util.*;
 
+/**
+ * @author kyle kyle_derrick@foxmail.com
+ * 2024/10/08 10:32
+ */
 public class ClassTransformInfo {
     private final ConstPool constPool;
     private final Set<Integer> retainConst = new HashSet<>();

@@ -2,6 +2,10 @@ package javassist.bytecode.annotation;
 
 import java.util.function.BiConsumer;
 
+/**
+ * @author kyle kyle_derrick@foxmail.com
+ * 2024/10/08 10:32
+ */
 public class AnnotationExt {
     public static int annotationAttributeTypeIndex(Annotation annotation) {
         return annotation.typeIndex;

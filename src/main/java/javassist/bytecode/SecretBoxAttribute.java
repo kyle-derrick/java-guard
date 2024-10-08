@@ -2,6 +2,10 @@ package javassist.bytecode;
 
 import java.util.List;
 
+/**
+ * @author kyle kyle_derrick@foxmail.com
+ * 2024/10/08 10:32
+ */
 public class SecretBoxAttribute extends AttributeInfo {
     /**
      * The name of this attribute <code>"<SecretBox>"</code>.

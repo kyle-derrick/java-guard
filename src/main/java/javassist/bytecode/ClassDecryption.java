@@ -1,5 +1,9 @@
 package javassist.bytecode;
 
+import javassist.ClassPool;
+import javassist.CtClass;
+import javassist.CtMethod;
+
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -8,20 +12,45 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.function.Function;
 
-public class ClassDecryption {
+/**
+ * @author kyle kyle_derrick@foxmail.com
+ * 2024/10/08 10:32
+ */
+public class ClassDecryption extends ClassLoader {
+    public static final String URL_CLASS_NAME = "java/net/URL";
+    public static final String SECRET_BOX_TAG = "<SecretBox>";
+    public static final String CODE_INDEX_TAG = "<CodeIndex>";
+    private static final String URL_OPEN_CONNECTION_NAME = "openConnection";
+    private static final String URL_OPEN_CONNECTION_RENAME = "_openConnection_";
+
+    private static final String URL_OPEN_CONNECTION_CODE = "";
 
     public static final byte CLASS_ENCRYPT_FLAG = (byte) (1 << 7);
 
     public static final byte CLASS_ENCRYPT_TRANS_FLAG = (byte) (~CLASS_ENCRYPT_FLAG);
 
-    public static byte[] decryptClass(byte[] data) {
+    public static byte[] decryptClass(String name, byte[] data) {
         try {
+            if (URL_CLASS_NAME.equals(name)) {
+                return handleURLClass(data);
+            }
             return decryptClass(data, ClassDecryption::decryptData);
         } catch (Exception e) {
             System.err.println("decrypt class failed");
-            e.printStackTrace();
             return data;
         }
+    }
+
+    private static byte[] handleURLClass(byte[] data) throws Exception {
+        ClassPool pool = ClassPool.getDefault();
+        ClassFile urlClassFile = new ClassFile(new DataInputStream(new ByteArrayInputStream(data)));
+        CtClass urlClass = pool.makeClass(urlClassFile, false);
+        CtMethod openConnection = urlClass.getDeclaredMethod(URL_OPEN_CONNECTION_NAME);
+        openConnection.setName(URL_OPEN_CONNECTION_RENAME);
+        CtMethod newOpenConnection = new CtMethod(openConnection.getReturnType(), URL_OPEN_CONNECTION_NAME, new CtClass[0], urlClass);
+        newOpenConnection.setBody(URL_OPEN_CONNECTION_CODE);
+        urlClass.addMethod(newOpenConnection);
+        return urlClass.toBytecode();
     }
 
     private static native byte[] decryptData(byte[] data);
@@ -36,11 +65,11 @@ public class ClassDecryption {
         }
         data[4] &= CLASS_ENCRYPT_TRANS_FLAG;
         ClassFile classFile = new ClassFile(new DataInputStream(new ByteArrayInputStream(data)));
-        AttributeInfo secretBoxAttribute = classFile.getAttribute(SecretBoxAttribute.tag);
+        AttributeInfo secretBoxAttribute = classFile.getAttribute(SECRET_BOX_TAG);
         if (secretBoxAttribute == null) {
             return data;
         }
-        classFile.removeAttribute(SecretBoxAttribute.tag);
+        classFile.removeAttribute(SECRET_BOX_TAG);
         byte[] codeData = decrypter.apply(secretBoxAttribute.get());
         ByteBuffer buffer = ByteBuffer.wrap(codeData);
         byte[] prefix = new byte[3];
@@ -115,7 +144,7 @@ public class ClassDecryption {
             if (codeAttribute == null) {
                 continue;
             }
-            AttributeInfo codeIndexAttribute = codeAttribute.getAttribute(CodeIndexAttribute.tag);
+            AttributeInfo codeIndexAttribute = codeAttribute.getAttribute(CODE_INDEX_TAG);
             if (codeIndexAttribute == null) {
                 continue;
             }

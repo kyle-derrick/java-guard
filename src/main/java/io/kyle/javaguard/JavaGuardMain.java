@@ -27,6 +27,10 @@ import java.security.NoSuchAlgorithmException;
 import java.security.Security;
 import java.security.Signature;
 
+/**
+ * @author kyle kyle_derrick@foxmail.com
+ * 2024/10/08 10:32
+ */
 public class JavaGuardMain {
     private static final Option CONFIG_OPTION =
             new Option("c", "config", true, "config files (default: ./config.yml)");

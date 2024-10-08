@@ -1,5 +1,9 @@
 package javassist.bytecode;
 
+/**
+ * @author kyle kyle_derrick@foxmail.com
+ * 2024/10/08 10:32
+ */
 public class CodeIndexAttribute extends AttributeInfo {
     /**
      * The name of this attribute <code>"<CodeIndex>"</code>.

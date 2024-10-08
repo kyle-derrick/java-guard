@@ -2,6 +2,10 @@ package javassist.bytecode;
 
 import java.util.Set;
 
+/**
+ * @author kyle kyle_derrick@foxmail.com
+ * 2024/10/08 10:32
+ */
 public class JavassistExt {
 
     public static int methodNameIndex(MethodInfo methodInfo) {

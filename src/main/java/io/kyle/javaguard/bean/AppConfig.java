@@ -2,6 +2,10 @@ package io.kyle.javaguard.bean;
 
 import io.kyle.javaguard.constant.TransformType;
 
+/**
+ * @author kyle kyle_derrick@foxmail.com
+ * 2024/10/08 10:32
+ */
 public class AppConfig {
     private String[] matches;
     private Integer zipLevel;

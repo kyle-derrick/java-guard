@@ -13,6 +13,10 @@ import java.io.OutputStream;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 
+/**
+ * @author kyle kyle_derrick@foxmail.com
+ * 2024/10/08 10:32
+ */
 public abstract class AbstractTransformer implements Transformer {
     protected final TransformInfo transformInfo;
 

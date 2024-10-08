@@ -14,6 +14,10 @@ import java.util.Random;
 import java.util.Set;
 import java.util.function.Consumer;
 
+/**
+ * @author kyle kyle_derrick@foxmail.com
+ * 2024/10/08 10:32
+ */
 public class ClassTransformUtils {
     private static final Set<String> RETAIN_STRING = new HashSet<>();
     private static final int CONST_INFO_PREFIX_SIZE = 3;

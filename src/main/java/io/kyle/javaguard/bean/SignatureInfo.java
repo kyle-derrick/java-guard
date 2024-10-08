@@ -1,5 +1,9 @@
 package io.kyle.javaguard.bean;
 
+import io.kyle.javaguard.constant.ConstVars;
+import org.apache.commons.codec.digest.HmacAlgorithms;
+import org.apache.commons.codec.digest.HmacUtils;
+
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -19,6 +23,14 @@ public class SignatureInfo {
             signature = newSignature();
         }
         return signature;
+    }
+
+    public String getKeyHash() {
+        if (privateKey == null) {
+            return "-";
+        }
+        return new HmacUtils(HmacAlgorithms.HMAC_MD5, ConstVars.SALT)
+                .hmacHex(publicKey);
     }
 
     public Signature newSignature() throws InvalidKeyException, InvalidKeySpecException, NoSuchAlgorithmException {

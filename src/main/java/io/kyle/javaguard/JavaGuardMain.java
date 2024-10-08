@@ -6,6 +6,7 @@ import io.kyle.javaguard.bean.SignatureInfo;
 import io.kyle.javaguard.bean.TransformInfo;
 import io.kyle.javaguard.constant.ConstVars;
 import io.kyle.javaguard.constant.TransformType;
+import io.kyle.javaguard.support.LauncherCodeGenerator;
 import io.kyle.javaguard.transform.JarTransformer;
 import org.apache.commons.cli.*;
 import org.apache.commons.codec.binary.Base64;
@@ -81,6 +82,7 @@ public class JavaGuardMain {
                         jarTransformer.decrypt(in, out);
                     } else if (TransformType.signature != appConfig.getMode()) {
                         jarTransformer.encrypt(in, out);
+                        LauncherCodeGenerator.generate(output, transformInfo);
                     } else {
                         IOUtils.copy(in, out);
                     }
@@ -193,7 +195,7 @@ public class JavaGuardMain {
         try (PemReader privateKeyReader = new PemReader(new FileReader(privateKey));
              PemReader publicKeyReader = new PemReader(new FileReader(privateKey))) {
             signatureInfo.setPrivateKey(privateKeyReader.readPemObject().getContent());
-            signatureInfo.setPrivateKey(publicKeyReader.readPemObject().getContent());
+            signatureInfo.setPublicKey(publicKeyReader.readPemObject().getContent());
         } catch (Exception e) {
             throw new Error("Failed to read private/public key: [" +privateKey+ "]:["+publicKey+"]: " + e.getMessage());
         }

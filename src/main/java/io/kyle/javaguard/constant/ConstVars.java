@@ -9,4 +9,8 @@ public interface ConstVars {
     String META_INF_MANIFEST = "META-INF/MANIFEST.MF";
     String DEFAULT_PRIVATE_KEY = "~/java_guard/private_key.pem";
     String DEFAULT_PUBLIC_KEY = "~/java_guard/public_key.pem";
+    /**
+     * \0JGR\0
+     */
+    byte[] ENCRYPT_RESOURCE_HEADER = {0, 74, 71, 82, 0};
 }

@@ -1,4 +1,4 @@
-package javassist.bytecode;
+package io.kyle.javaguard.support;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
@@ -11,16 +11,16 @@ import java.io.InputStream;
  * @author kyle kyle_derrick@foxmail.com
  * 2024/10/8 13:23
  */
-public class CustomCipherInputStream extends FilterInputStream {
+public class JGTransformInputStream extends FilterInputStream {
     private static final int BUFFER_SIZE = 2048;
-    private InputStream input;
+    private final InputStream input;
     private boolean first = true;
 
-    public CustomCipherInputStream(InputStream in, Cipher cipher) {
+    public JGTransformInputStream(InputStream in, Cipher cipher) {
         this(new BufferedInputStream(in, BUFFER_SIZE), cipher);
     }
 
-    private CustomCipherInputStream(BufferedInputStream in, Cipher cipher) {
+    private JGTransformInputStream(BufferedInputStream in, Cipher cipher) {
         super(new CipherInputStream(in, cipher));
         this.input = in;
         in.mark(BUFFER_SIZE);

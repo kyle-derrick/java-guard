@@ -12,7 +12,7 @@
             try {
                 cipher = javax.crypto.Cipher.getInstance("${transformation}");
                 cipher.init(javax.crypto.Cipher.DECRYPT_MODE, sks);
-            return new javassist.bytecode.CustomCipherInputStream(in, cipher);
+            return new io.kyle.javaguard.support.JGTransformInputStream(in, cipher);
             } catch (Exception ignored) {
             }
         }

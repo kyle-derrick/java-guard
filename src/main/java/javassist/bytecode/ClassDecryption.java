@@ -8,6 +8,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Function;
@@ -16,44 +17,56 @@ import java.util.function.Function;
  * @author kyle kyle_derrick@foxmail.com
  * 2024/10/08 10:32
  */
-public class ClassDecryption extends ClassLoader {
-    public static final String URL_CLASS_NAME = "java/net/URL";
-    public static final String SECRET_BOX_TAG = "<SecretBox>";
-    public static final String CODE_INDEX_TAG = "<CodeIndex>";
+public class ClassDecryption {
+    private static final String URL_CLASS_NAME = "java/net/URL";
+    private static final String SECRET_BOX_TAG = "<SecretBox>";
+    private static final String CODE_INDEX_TAG = "<CodeIndex>";
     private static final String URL_OPEN_CONNECTION_NAME = "openConnection";
-    private static final String URL_OPEN_CONNECTION_RENAME = "_openConnection_";
+    public static final String URL_OPEN_CONNECTION_RENAME = "_openConnection_";
 
-    private static final String URL_OPEN_CONNECTION_CODE = "";
+    private static final String URL_OPEN_CONNECTION_CODE = null;
 
     public static final byte CLASS_ENCRYPT_FLAG = (byte) (1 << 7);
 
     public static final byte CLASS_ENCRYPT_TRANS_FLAG = (byte) (~CLASS_ENCRYPT_FLAG);
 
-    public static byte[] decryptClass(String name, byte[] data) {
+    /**
+     *
+     * @param name
+     * @param data
+     * @return result null if not transform
+     */
+    public byte[] decryptClass(String name, byte[] data) {
         try {
             if (URL_CLASS_NAME.equals(name)) {
                 return handleURLClass(data);
             }
-            return decryptClass(data, ClassDecryption::decryptData);
+            byte[] result = decryptClass(data, this::decryptData);
+            return result == data ? null : result;
         } catch (Exception e) {
             System.err.println("decrypt class failed");
-            return data;
+            return null;
         }
     }
 
-    private static byte[] handleURLClass(byte[] data) throws Exception {
+    private byte[] handleURLClass(byte[] data) throws Exception {
+        //noinspection ConstantValue
+        if (URL_OPEN_CONNECTION_CODE == null || URL_OPEN_CONNECTION_CODE.isEmpty()) {
+            return null;
+        }
         ClassPool pool = ClassPool.getDefault();
         ClassFile urlClassFile = new ClassFile(new DataInputStream(new ByteArrayInputStream(data)));
         CtClass urlClass = pool.makeClass(urlClassFile, false);
         CtMethod openConnection = urlClass.getDeclaredMethod(URL_OPEN_CONNECTION_NAME);
         openConnection.setName(URL_OPEN_CONNECTION_RENAME);
         CtMethod newOpenConnection = new CtMethod(openConnection.getReturnType(), URL_OPEN_CONNECTION_NAME, new CtClass[0], urlClass);
-        newOpenConnection.setBody(URL_OPEN_CONNECTION_CODE);
+        byte[] bytes = decryptData(Base64.getDecoder().decode(URL_OPEN_CONNECTION_CODE));
+        newOpenConnection.setBody(new String(bytes, StandardCharsets.UTF_8));
         urlClass.addMethod(newOpenConnection);
         return urlClass.toBytecode();
     }
 
-    private static native byte[] decryptData(byte[] data);
+    private native byte[] decryptData(byte[] data);
 
     public static byte[] decryptClass(byte[] data, Function<byte[], byte[]> decrypter) throws IOException {
         if (data.length < 4) {

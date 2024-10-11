@@ -10,14 +10,15 @@ import javassist.bytecode.ConstPool;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
-import org.apache.commons.io.FileUtils;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.springframework.core.LocalVariableTableParameterNameDiscoverer;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.lang.reflect.Method;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashSet;
@@ -104,7 +105,6 @@ public class ClassTransformTest {
     }
 }
 /*
-/opt/java/jdk1.8.0_202/bin/java -ea -Didea.test.cyclic.buffer.size=1048576 -javaagent:/snap/intellij-idea-ultimate/530/lib/idea_rt.jar=43115:/snap/intellij-idea-ultimate/530/bin -Dfile.encoding=UTF-8 -classpath /snap/intellij-idea-ultimate/530/lib/idea_rt.jar:/snap/intellij-idea-ultimate/530/plugins/junit/lib/junit5-rt.jar:/snap/intellij-idea-ultimate/530/plugins/junit/lib/junit-rt.jar:/opt/java/jdk1.8.0_202/jre/lib/charsets.jar:/opt/java/jdk1.8.0_202/jre/lib/deploy.jar:/opt/java/jdk1.8.0_202/jre/lib/ext/cldrdata.jar:/opt/java/jdk1.8.0_202/jre/lib/ext/dnsns.jar:/opt/java/jdk1.8.0_202/jre/lib/ext/jaccess.jar:/opt/java/jdk1.8.0_202/jre/lib/ext/jfxrt.jar:/opt/java/jdk1.8.0_202/jre/lib/ext/localedata.jar:/opt/java/jdk1.8.0_202/jre/lib/ext/nashorn.jar:/opt/java/jdk1.8.0_202/jre/lib/ext/sunec.jar:/opt/java/jdk1.8.0_202/jre/lib/ext/sunjce_provider.jar:/opt/java/jdk1.8.0_202/jre/lib/ext/sunpkcs11.jar:/opt/java/jdk1.8.0_202/jre/lib/ext/zipfs.jar:/opt/java/jdk1.8.0_202/jre/lib/javaws.jar:/opt/java/jdk1.8.0_202/jre/lib/jce.jar:/opt/java/jdk1.8.0_202/jre/lib/jfr.jar:/opt/java/jdk1.8.0_202/jre/lib/jfxswt.jar:/opt/java/jdk1.8.0_202/jre/lib/jsse.jar:/opt/java/jdk1.8.0_202/jre/lib/management-agent.jar:/opt/java/jdk1.8.0_202/jre/lib/plugin.jar:/opt/java/jdk1.8.0_202/jre/lib/resources.jar:/opt/java/jdk1.8.0_202/jre/lib/rt.jar:/home/kyle/data/code/java/JavaGuard/target/test-classes:/home/kyle/data/code/java/JavaGuard/target/classes:/home/kyle/.m2/repository/org/javassist/javassist/3.30.2-GA/javassist-3.30.2-GA.jar:/home/kyle/.m2/repository/org/springframework/spring-core/5.3.20/spring-core-5.3.20.jar:/home/kyle/.m2/repository/org/springframework/spring-jcl/5.3.20/spring-jcl-5.3.20.jar:/home/kyle/.m2/repository/com/google/re2j/re2j/1.6/re2j-1.6.jar:/home/kyle/.m2/repository/org/apache/commons/commons-compress/1.27.1/commons-compress-1.27.1.jar:/home/kyle/.m2/repository/commons-io/commons-io/2.16.1/commons-io-2.16.1.jar:/home/kyle/.m2/repository/commons-codec/commons-codec/1.15/commons-codec-1.15.jar:/home/kyle/.m2/repository/org/apache/commons/commons-lang3/3.12.0/commons-lang3-3.12.0.jar:/home/kyle/.m2/repository/junit/junit/4.13.1/junit-4.13.1.jar:/home/kyle/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar com.intellij.rt.junit.JUnitStarter -ideVersion5 -junit4 io.kyle.javaguard.test.ClassTransformTest,testClassOut
 javassist.bytecode.ConstPool
 javassist.bytecode.AccessFlag
 javassist.bytecode.SourceFileAttribute
@@ -437,4 +437,4 @@ javassist.bytecode.LongVector
 javassist.bytecode.ConstInfo
 javassist.bytecode.MemberrefInfo
 javassist.bytecode.ConstInfoPadding
- */
+*/

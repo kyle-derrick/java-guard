@@ -3,6 +3,7 @@ package javassist.bytecode;
 import io.kyle.javaguard.bean.ClassTransformInfo;
 import io.kyle.javaguard.constant.ClassAttribute;
 import io.kyle.javaguard.constant.ConstBaseType;
+import io.kyle.javaguard.util.BytesUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -41,9 +42,9 @@ public class ClassTransformUtils {
             constPoolToBytes(info, buff);
             buff.write(new byte[] {0,0,0});
             List<byte[]> codes = info.getCodes();
-            buff.write(intToBytes(codes.size()));
+            buff.write(BytesUtils.intToBytes(codes.size()));
             for (byte[] code : codes) {
-                buff.write(intToBytes(code.length));
+                buff.write(BytesUtils.intToBytes(code.length));
                 buff.write(code);
             }
         } catch (Exception e) {
@@ -52,11 +53,6 @@ public class ClassTransformUtils {
         return buff.toByteArray();
     }
 
-    public static byte[] intToBytes(int i) {
-        ByteBuffer buffer = ByteBuffer.allocate(4);
-        buffer.putInt(i);
-        return buffer.array();
-    }
     public static void constPoolToBytes(ClassTransformInfo info, ByteArrayOutputStream buff) throws IOException {
         Random random = new Random();
         ConstPool constPool = info.getConstPool();

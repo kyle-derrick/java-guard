@@ -123,7 +123,7 @@ public class LauncherCodeGenerator {
         }
 
         // runtime classes
-        File out = new File(launcherDir, LAUNCHER_RUNTIME_CLASS_FILE);
+        File out = new File(launcherClassDir, LAUNCHER_RUNTIME_CLASS_FILE);
         try (OutputStream outputStream = new CipherOutputStream(Files.newOutputStream(out.toPath()), encrypt.getCipher(Cipher.ENCRYPT_MODE))) {
             for (Class<?> clazz : WRITE_RUNTIME_CLASS) {
                 try (InputStream stream = clazz.getResourceAsStream(clazz.getSimpleName() + ".class")) {

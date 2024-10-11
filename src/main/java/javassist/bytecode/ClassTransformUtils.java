@@ -114,7 +114,7 @@ public class ClassTransformUtils {
                         bb.putInt(bytes.length);
                         bb.put(bytes);
                     };
-                    utf8Info.string = "***";
+                    utf8Info.string = "*";
                     break;
                 default:
                     continue;

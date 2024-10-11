@@ -23,6 +23,9 @@ public class TestClass<@TestClass.MyTypeAnnotation("asd") T> implements Consumer
         this.t2 = t2;
     }
 
+    public TestClass() {
+    }
+
     @MyAnnotation(value = 122, name = "asdasd")
     public static void test() {
 

@@ -104,15 +104,20 @@ public class ClassTransformer extends AbstractTransformer {
         ListIterator<AttributeInfo> iterator = method.getAttributes().listIterator();
         while (iterator.hasNext()) {
             AttributeInfo attribute = iterator.next();
-            AttributeInfo attributeInfo = handleAttribute(attribute, classTransformInfo);
+            AttributeInfo attributeInfo;
+            if (attribute instanceof CodeAttribute) {
+                attributeInfo = handleCodeAttribute((CodeAttribute) attribute, classTransformInfo, method.getDescriptor());
+            } else {
+                attributeInfo = handleAttribute(attribute, classTransformInfo);
+            }
             if (attributeInfo != attribute) {
                 iterator.set(attributeInfo);
             }
         }
-        CodeAttribute codeAttribute = method.getCodeAttribute();
-        if (codeAttribute != null) {
-            method.setCodeAttribute(handleCodeAttribute(codeAttribute, classTransformInfo, method.getDescriptor()));
-        }
+//        CodeAttribute codeAttribute = method.getCodeAttribute();
+//        if (codeAttribute != null) {
+//            method.setCodeAttribute(handleCodeAttribute(codeAttribute, classTransformInfo, method.getDescriptor()));
+//        }
     }
 
     protected CodeAttribute handleCodeAttribute(CodeAttribute codeAttribute, ClassTransformInfo classTransformInfo, String descriptor) {
@@ -120,7 +125,6 @@ public class ClassTransformer extends AbstractTransformer {
             handleAttribute(codeAttributeAttribute, classTransformInfo);
         }
 //                codeAttribute.getExceptionTable()
-        // todo 看需不需要处理ExceptionTable
         DefaultReturn defaultReturn = DefaultReturn.byDescriptor(descriptor);
         Bytecode bytecode = new Bytecode(classTransformInfo.getConstPool());
         for (int opcode : defaultReturn.getOpcodes()) {

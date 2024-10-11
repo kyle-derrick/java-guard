@@ -24,7 +24,7 @@ public class ClassDecryption {
     private static final String URL_OPEN_CONNECTION_NAME = "openConnection";
     public static final String URL_OPEN_CONNECTION_RENAME = "_openConnection_";
 
-    private static final String URL_OPEN_CONNECTION_CODE = null;
+    private static final String URL_OPEN_CONNECTION_CODE = "__URL_OPEN_CONNECTION_CODE__";
 
     public static final byte CLASS_ENCRYPT_FLAG = (byte) (1 << 7);
 

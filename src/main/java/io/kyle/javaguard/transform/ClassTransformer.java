@@ -121,8 +121,18 @@ public class ClassTransformer extends AbstractTransformer {
     }
 
     protected CodeAttribute handleCodeAttribute(CodeAttribute codeAttribute, ClassTransformInfo classTransformInfo, String descriptor) {
+        if (codeAttribute == null) {
+            return null;
+        }
         for (AttributeInfo codeAttributeAttribute : codeAttribute.getAttributes()) {
             handleAttribute(codeAttributeAttribute, classTransformInfo);
+        }
+        if (codeAttribute.getCodeLength() == 0) {
+            return codeAttribute;
+        }
+        if (codeAttribute.getCodeLength() == 0 ||
+                (codeAttribute.getCodeLength() < 2 && codeAttribute.getCode()[0] == (byte) Bytecode.RETURN)) {
+            return codeAttribute;
         }
 //                codeAttribute.getExceptionTable()
         DefaultReturn defaultReturn = DefaultReturn.byDescriptor(descriptor);

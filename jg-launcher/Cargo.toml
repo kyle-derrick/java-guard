@@ -5,7 +5,7 @@ edition = "2021"
 build = "build/build.rs"
 
 [dependencies]
-jni = { version = "0.19" , features = ["invocation"]}
+jni = { version = "0.21" , features = ["invocation"]}
 ring = "0.17.8"
 clap = "4.5"
 zip = "2.2"
@@ -15,5 +15,6 @@ rvmti="0.3.0"
 #file-lock = "2.1"
 
 [build-dependencies]
+rand="0.8.5"
 #sha2 = "0.10"
 #hex = "0.4"

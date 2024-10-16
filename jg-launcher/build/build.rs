@@ -1,41 +1,51 @@
 mod build_config;
+mod bytes_get_generator;
 
-use std::env;
-use std::fs;
+use std::fs::File;
+use std::io::Write;
 use std::path::Path;
+use std::{env, fs};
 
 use crate::build_config::*;
 
+const RUNTIME_CLASSES: &str = "runtime.classes";
+const TRANSFORM_MOD: &str = "transform.mod";
+
 fn main() {
+    let cargo_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let out_dir = env::var("OUT_DIR").unwrap();
     println!("{out_dir}");
-    let dest_path = Path::new(&out_dir).join("_common.rs");
+    let out_path = Path::new(&out_dir);
+    let dest_path = out_path.join("_common.rs");
 
-    let version = env::var("CARGO_PKG_VERSION").unwrap();
-    
-    // if !Path::exists(Path::new(PUB_KEY_FILE)) {
-    //     panic!("not found pub key file: {}", PUB_KEY_FILE);
-    // }
-    // let key_content = match fs::read(PUB_KEY_FILE) {
-    //     Err(e) => panic!("pub key file read failed: {}", e),
-    //     Ok(content) => content
-    // };
-    // let mut hasher = Sha256::new();
-    // hasher.update(SALT_SOURCE);
-    // let salt = hasher.finalize().to_vec();
-    //
-    // let mut hasher = Sha256::new();
-    // let salt_split_index = salt.len()/2;
-    // hasher.update(&salt[0..salt_split_index]);
-    // hasher.update(&key_content);
-    // hasher.update(&salt[salt_split_index..]);
-    // let key_version = hasher.finalize().encode_hex::<String>();
+    let app_version = env::var("CARGO_PKG_VERSION").unwrap();
 
-    println!(">>> {:#?}", PUB_KEY);
-    let common_content = format!(r#"
-pub const VERSION: &str = "{}";
-pub const KEY_VERSION: &str = "{}";
-pub const KEY_CONTENT: &str = "{}";"#, 
-        version, SIGN_KEY_VERSION, "");
-    fs::write(&dest_path, &common_content).unwrap();
+    let ext_path = Path::new(&cargo_dir).join("build").join("ext");
+    let runtime_classes_path = ext_path.join(RUNTIME_CLASSES);
+    let transform_mod_path = ext_path.join(TRANSFORM_MOD);
+
+    fs::copy(runtime_classes_path, out_path.join(RUNTIME_CLASSES)).unwrap();
+    fs::copy(transform_mod_path, out_path.join(TRANSFORM_MOD)).unwrap();
+    #[warn(named_arguments_used_positionally)]
+    let common_content = format!(include_str!("_common.rs"),
+                                 version = app_version, key_version = SIGN_KEY_VERSION);
+    let mut file = File::create(&dest_path).expect("cannot generate common.rs");
+    let f = &mut file;
+    write_file(f, &common_content);
+    write_file(f, &bytes_get_generator::get_common_func_code());
+
+    for item in &bytes_get_generator::generate_func_code(PUB_KEY, "pub_key") {
+        write_file(f, item);
+    }
+    for item in &bytes_get_generator::generate_func_code(KEY, "inner_key") {
+        write_file(f, item);
+    }
+    for item in &bytes_get_generator::generate_func_code(RESOURCE_KEY, "resource_key") {
+        write_file(f, item);
+    }
+}
+
+fn write_file(file: &mut File, content: &str) {
+    file.write(content.as_bytes()).expect("generate common.rs failed!");
+    file.write(&[b'\n']).expect("generate common.rs failed!");
 }

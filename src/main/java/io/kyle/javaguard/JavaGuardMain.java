@@ -14,6 +14,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.util.io.pem.PemReader;
 import org.yaml.snakeyaml.Yaml;
@@ -72,7 +73,11 @@ public class JavaGuardMain {
             outputFile.mkdirs();
         }
         SignatureInfo signatureInfo = transformInfo.getSignature();
-        for (String arg : parse.getArgs()) {
+        String[] jars = parse.getArgs();
+        if (ArrayUtils.isEmpty(jars)) {
+            printUsage();
+        }
+        for (String arg : jars) {
             if (arg.endsWith(".jar")) {
                 File outFile = new File(outputFile, FilenameUtils.getName(arg));
                 try (FileInputStream in = new FileInputStream(arg);
@@ -119,8 +124,13 @@ public class JavaGuardMain {
             }
         } catch (ParseException ignored) {
         }
-        new HelpFormatter().printHelp("JavaGuard", OPTIONS);
+        printUsage();
         return null;
+    }
+
+    private static void printUsage() {
+        new HelpFormatter().printHelp("JavaGuard", OPTIONS);
+        System.exit(0);
     }
 
     private static AppConfig appArgs(CommandLine parse) {

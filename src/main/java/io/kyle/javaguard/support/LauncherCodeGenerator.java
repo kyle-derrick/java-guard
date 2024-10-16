@@ -38,7 +38,7 @@ public class LauncherCodeGenerator {
     private static final String LAUNCHER_CODE_BUILD_CONFIG_FILE = "build_config.rs";
     private static final String LAUNCHER_BUILD_PATH = "build";
     private static final String LAUNCHER_CODE_BUILD_CONFIG_PATH = LAUNCHER_BUILD_PATH + File.separatorChar + LAUNCHER_CODE_BUILD_CONFIG_FILE;
-    private static final String LAUNCHER_CLASS_DIR_PATH = LAUNCHER_BUILD_PATH + File.separatorChar + "class";
+    private static final String LAUNCHER_CLASS_DIR_PATH = LAUNCHER_BUILD_PATH + File.separatorChar + "ext";
     private static final String LAUNCHER_RUNTIME_CLASS_FILE = "runtime.classes";
     private static final String LAUNCHER_TRANSFORM_MOD_FILE = "transform.mod";
     public static void generate(String output, TransformInfo info) throws TransformException {

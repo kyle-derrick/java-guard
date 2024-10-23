@@ -11,7 +11,7 @@ clap = "4.5"
 zip = "2.2"
 sha2 = "0.10"
 hex = "0.4"
-rvmti="0.3.0"
+rvmti= { path = "lib/rvmti" }
 #file-lock = "2.1"
 
 [build-dependencies]

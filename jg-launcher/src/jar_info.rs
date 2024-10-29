@@ -1,10 +1,10 @@
-use crate::common::{MAIN_CLASS_PREFIX, MANIFEST_FILE, SIGN_LEN_HEX_LEN};
+use crate::common::{pub_key_pair, MAIN_CLASS_PREFIX, MANIFEST_FILE, SIGN_LEN_HEX_LEN};
 use crate::util::byte_utils;
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use std::fs::File;
 // use file_lock::{FileLock, FileOptions};
-use std::io;
+use std::{fs, io};
 use zip::ZipArchive;
 
 #[derive(Debug)]
@@ -12,6 +12,7 @@ pub struct JarInfo {
     path: String,
     // file: FileLock,
     signature: Vec<u8>,
+    jar_data_end_index: usize,
     main_class: String
 }
 
@@ -21,7 +22,13 @@ pub struct JarInfo {
 
 impl JarInfo {
     pub fn parse(path: &str) -> Self {
-        let mut archive =  ZipArchive::new(File::open(path).expect(&format!("can not open jar: {}", path)))
+        let jar_file = File::open(path).expect(&format!("can not open jar: {}", path));
+        let jar_file_len = jar_file.metadata().expect("cannot get jar file metadata").len();
+        if jar_file_len > usize::MAX as u64 {
+            // Currently only supports 4G and below, support later
+            panic!("The jar file is too large, exceeding {}", usize::MAX)
+        }
+        let mut archive =  ZipArchive::new(jar_file)
             .expect(&format!("can not open jar: {}", path));
         let manifest = archive.by_name(MANIFEST_FILE).expect("not found MANIFEST.MF in jar");
         let manifest_content = io::read_to_string(manifest).expect("cannot read MANIFEST.MF in jar");
@@ -60,6 +67,7 @@ impl JarInfo {
                 path: path.to_string(),
                 // file: file_lock,
                 signature,
+                jar_data_end_index: jar_file_len as usize - comment.len() - 2,
                 main_class
             }
         } else {
@@ -67,9 +75,10 @@ impl JarInfo {
         }
     }
 
-    pub fn verify(&self) -> bool {
-        // PUB_KEY
-        true
+    pub fn verify(&self) {
+        let content = fs::read(&self.path).expect(&format!("cannot read jar file: {}", &self.path));
+        pub_key_pair().verify(&content[..self.jar_data_end_index], &self.signature)
+            .expect("jar signature verify failed");
     }
 
     pub fn path(&self) -> &String {

@@ -10,6 +10,9 @@ use crate::build_config::*;
 
 const RUNTIME_CLASSES: &str = "runtime.classes";
 const TRANSFORM_MOD: &str = "transform.mod";
+const PUB_KEY_NAME: &str = "pub_key";
+const INNER_KEY_NAME: &str = "inner_key";
+const RESOURCE_KEY_NAME: &str = "resource_key";
 
 fn main() {
     let cargo_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
@@ -32,17 +35,24 @@ fn main() {
     let mut file = File::create(&dest_path).expect("cannot generate common.rs");
     let f = &mut file;
     write_file(f, &common_content);
-    write_file(f, &bytes_get_generator::get_common_func_code());
 
-    for item in &bytes_get_generator::generate_func_code(PUB_KEY, "pub_key") {
+    write_file(f, &generate_func_field(PUB_KEY_NAME));
+    write_file(f, &generate_func_field(INNER_KEY_NAME));
+    write_file(f, &generate_func_field(RESOURCE_KEY_NAME));
+    write_file(f, &bytes_get_generator::get_common_func_code());
+    for item in &bytes_get_generator::generate_func_code(PUB_KEY, PUB_KEY_NAME) {
         write_file(f, item);
     }
-    for item in &bytes_get_generator::generate_func_code(KEY, "inner_key") {
+    for item in &bytes_get_generator::generate_func_code(KEY, INNER_KEY_NAME) {
         write_file(f, item);
     }
-    for item in &bytes_get_generator::generate_func_code(RESOURCE_KEY, "resource_key") {
+    for item in &bytes_get_generator::generate_func_code(RESOURCE_KEY, RESOURCE_KEY_NAME) {
         write_file(f, item);
     }
+}
+
+fn generate_func_field(name: &str) -> String {
+    format!("lazy_static::lazy_static! {{ pub static ref {}: Vec<u8> = {}(); }}", name.to_ascii_uppercase(), name)
 }
 
 fn write_file(file: &mut File, content: &str) {

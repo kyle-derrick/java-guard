@@ -8,6 +8,7 @@ import io.kyle.javaguard.constant.ConstVars;
 import io.kyle.javaguard.constant.TransformType;
 import io.kyle.javaguard.support.LauncherCodeGenerator;
 import io.kyle.javaguard.transform.JarTransformer;
+import io.kyle.javaguard.util.ZipSignUtils;
 import org.apache.commons.cli.*;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -37,7 +38,7 @@ public class JavaGuardMain {
     private static final Option CONFIG_OPTION =
             new Option("c", "config", true, "config files (default: ./config.yml)");
     private static final Option MODE_OPTION =
-            new Option("mode", "mode", true, "encrypt/decrypt mode (default encrypt)");
+            new Option("mode", "mode", true, "encrypt/decrypt/signature mode (default encrypt)");
     private static final Option OUTPUT_OPTION =
             new Option("o", "output", true, "output dir");
     private static final Option HELP_OPTION =
@@ -92,8 +93,9 @@ public class JavaGuardMain {
                         IOUtils.copy(in, out);
                     }
                     out.flush();
-                    byte[] sign = signFile(outFile.toPath(), signatureInfo);
-                    FileUtils.writeByteArrayToFile(new File(outFile.getAbsolutePath() + ".sign"), sign);
+                    ZipSignUtils.sign(outFile, signatureInfo.getSignSignature());
+//                    byte[] sign = signFile(outFile.toPath(), signatureInfo);
+//                    FileUtils.writeByteArrayToFile(new File(outFile.getAbsolutePath() + ".sign"), sign);
                 } catch (Exception e) {
                     throw new Error("transform failed: [" + arg + "]", e);
                 }
@@ -101,19 +103,19 @@ public class JavaGuardMain {
         }
     }
 
-    private static byte[] signFile(Path path, SignatureInfo signatureInfo) {
-        byte[] buf = new byte[4096];
-        try (InputStream inputStream = Files.newInputStream(path)) {
-            Signature signature = signatureInfo.getSignature();
-            int read;
-            while ((read = inputStream.read(buf)) != -1) {
-                signature.update(buf, 0, read);
-            }
-            return signature.sign();
-        } catch (Exception e) {
-            throw new Error("sign failed: [" + path + "]", e);
-        }
-    }
+//    private static byte[] signFile(Path path, SignatureInfo signatureInfo) {
+//        byte[] buf = new byte[4096];
+//        try (InputStream inputStream = Files.newInputStream(path)) {
+//            Signature signature = signatureInfo.getSignSignature();
+//            int read;
+//            while ((read = inputStream.read(buf)) != -1) {
+//                signature.update(buf, 0, read);
+//            }
+//            return signature.sign();
+//        } catch (Exception e) {
+//            throw new Error("sign failed: [" + path + "]", e);
+//        }
+//    }
 
     private static CommandLine parseArgs(String[] args) {
         DefaultParser defaultParser = new DefaultParser();
@@ -203,7 +205,7 @@ public class JavaGuardMain {
         publicKey = publicKey == null ? ConstVars.DEFAULT_PUBLIC_KEY : publicKey;
         SignatureInfo signatureInfo = new SignatureInfo();
         try (PemReader privateKeyReader = new PemReader(new FileReader(privateKey));
-             PemReader publicKeyReader = new PemReader(new FileReader(privateKey))) {
+             PemReader publicKeyReader = new PemReader(new FileReader(publicKey))) {
             signatureInfo.setPrivateKey(privateKeyReader.readPemObject().getContent());
             signatureInfo.setPublicKey(publicKeyReader.readPemObject().getContent());
         } catch (Exception e) {

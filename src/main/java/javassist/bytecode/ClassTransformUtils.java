@@ -8,6 +8,7 @@ import io.kyle.javaguard.util.BytesUtils;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
@@ -122,6 +123,7 @@ public class ClassTransformUtils {
 
             ByteBuffer bb;
             bb = ByteBuffer.allocate(len + CONST_INFO_PREFIX_SIZE);
+            bb.order(ByteOrder.LITTLE_ENDIAN);
             bb.put(CONST_INFO_INDEX_PREFIX);
             bb.put(type);
             put.accept(bb);

@@ -3,6 +3,7 @@ package io.kyle.javaguard.support;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.jar.JarInputStream;
 import java.util.zip.ZipEntry;
@@ -28,6 +29,7 @@ public class ClassDecryptionFactory extends ClassLoader {
 
     private Class<?> defineCustomClasses(byte[] customClasses) {
         ByteBuffer buffer = ByteBuffer.wrap(customClasses);
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
         int len = buffer.getInt();
         byte[] bytes = new byte[len];
         buffer.get(bytes);

@@ -141,7 +141,6 @@ public class LauncherCodeGenerator {
             throw new TransformException("write runtime class failed", e);
         }
 
-        // javassist jar
     }
 
     private static String bytesToString(byte[] bytes) {

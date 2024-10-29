@@ -6,6 +6,7 @@ import javassist.CtMethod;
 
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -85,6 +86,7 @@ public class ClassDecryption {
         classFile.removeAttribute(SECRET_BOX_TAG);
         byte[] codeData = decrypter.apply(secretBoxAttribute.get());
         ByteBuffer buffer = ByteBuffer.wrap(codeData);
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
         byte[] prefix = new byte[3];
         HashMap<Integer, Object> decryptConst = new HashMap<>();
         while (buffer.position() < buffer.capacity()) {

@@ -26,7 +26,7 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
     let init_args = args_builder
         // .library_path(jvm_lib_path) // 指定jvm.so库路径
         .build()
-        .unwrap_or_else(|err| panic!("初始化Jvm参数失败: {}", err));
+        .expect("init Jvm args failed");
     // 创建JVM
     let jvm = JavaVM::new(init_args).unwrap();
 

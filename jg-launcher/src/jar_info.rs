@@ -1,10 +1,10 @@
 use crate::common::{pub_key_pair, MAIN_CLASS_PREFIX, MANIFEST_FILE, SIGN_LEN_HEX_LEN};
 use crate::util::byte_utils;
-use base64::engine::general_purpose::STANDARD;
+use base64::prelude::BASE64_URL_SAFE_NO_PAD;
 use base64::Engine;
 use std::fs::File;
 // use file_lock::{FileLock, FileOptions};
-use std::{fs, io};
+use std::{fs, io, str};
 use zip::ZipArchive;
 
 #[derive(Debug)]
@@ -19,6 +19,21 @@ pub struct JarInfo {
 // const MANIFEST_FILE: &str = "META-INF/MANIFEST.MF";
 // const MAIN_CLASS_PREFIX: &str = "Main-Class:";
 // const SIGNATURE_PREFIX: &str = "JG-Signature:";
+
+fn extract_sign_from_comment(comment: &[u8]) -> Vec<u8> {
+    if comment.len() <= SIGN_LEN_HEX_LEN {
+        panic!("jar not signature")
+    }
+    let len_without_suffix = comment.len() - SIGN_LEN_HEX_LEN;
+    let sign_len_hex = str::from_utf8(&comment[len_without_suffix..])
+        .expect("jar signature info is invalid");
+    let sign_base64_len = byte_utils::byte_to_u32(&hex::decode(sign_len_hex)
+        .expect("jar signature info is invalid")) as usize;
+    let sign_base64 = str::from_utf8(&comment[(len_without_suffix-sign_base64_len)..len_without_suffix])
+        .expect("jar signature is invalid");
+    BASE64_URL_SAFE_NO_PAD.decode(sign_base64)
+        .expect("jar signature is invalid")
+}
 
 impl JarInfo {
     pub fn parse(path: &str) -> Self {
@@ -49,14 +64,18 @@ impl JarInfo {
             panic!("not found Main Class in jar")
         }
         let comment = archive.comment();
-        if comment.len() <= SIGN_LEN_HEX_LEN {
-            panic!("jar not signature")
-        }
-        let len_without_suffix = comment.len() - SIGN_LEN_HEX_LEN;
-        let sign_base64_len = byte_utils::byte_to_u32(
-            &hex::decode(&comment[..len_without_suffix]).expect("jar signature info is invalid")) as usize;
-        let sign_base64 = &comment[(len_without_suffix-sign_base64_len)..len_without_suffix];
-        let sign = STANDARD.decode(sign_base64).expect("jar signature is invalid");
+        // if comment.len() <= SIGN_LEN_HEX_LEN {
+        //     panic!("jar not signature")
+        // }
+        // let len_without_suffix = comment.len() - SIGN_LEN_HEX_LEN;
+        // let sign_len_hex = str::from_utf8(&comment[len_without_suffix..])
+        //     .expect("jar signature info is invalid");
+        // let sign_base64_len = byte_utils::byte_to_u32(&hex::decode(sign_len_hex)
+        //     .expect("jar signature info is invalid")) as usize;
+        // let sign_base64 = str::from_utf8(&comment[(len_without_suffix-sign_base64_len)..len_without_suffix])
+        //     .expect("jar signature is invalid");
+        // let sign = STANDARD.decode(sign_base64).expect("jar signature is invalid");
+        let sign = extract_sign_from_comment(comment);
         signature = Some(sign);
         if signature.is_none() {
             // signature = Some(String::from("xxx"));

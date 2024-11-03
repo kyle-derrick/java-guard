@@ -1,11 +1,11 @@
 use args_parser::LauncherArg;
-use crate::jvm_launcher::jvm_launch;
+use crate::jvm::jvm_launcher::jvm_launch;
 
 mod args_parser;
-mod jvm_launcher;
 mod jar_info;
 mod util;
 mod common;
+mod jvm;
 
 fn main() {
     let arg = LauncherArg::get();

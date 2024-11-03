@@ -54,32 +54,17 @@ impl JarInfo {
                 if main_class.is_none() {
                     main_class = Some(line[MAIN_CLASS_PREFIX.len()..].trim().to_string());
                 }
-            // } else if line.starts_with(SIGNATURE_PREFIX) {
-            //     if signature.is_none() {
-            //         signature = Some(line[SIGNATURE_PREFIX.len()..].trim().to_string());
-            //     }
             }
         });
         if main_class.is_none() {
             panic!("not found Main Class in jar")
         }
         let comment = archive.comment();
-        // if comment.len() <= SIGN_LEN_HEX_LEN {
-        //     panic!("jar not signature")
-        // }
-        // let len_without_suffix = comment.len() - SIGN_LEN_HEX_LEN;
-        // let sign_len_hex = str::from_utf8(&comment[len_without_suffix..])
-        //     .expect("jar signature info is invalid");
-        // let sign_base64_len = byte_utils::byte_to_u32(&hex::decode(sign_len_hex)
-        //     .expect("jar signature info is invalid")) as usize;
-        // let sign_base64 = str::from_utf8(&comment[(len_without_suffix-sign_base64_len)..len_without_suffix])
-        //     .expect("jar signature is invalid");
-        // let sign = STANDARD.decode(sign_base64).expect("jar signature is invalid");
-        let sign = extract_sign_from_comment(comment);
-        signature = Some(sign);
+        // let sign = extract_sign_from_comment(comment);
+        // signature = Some(sign);
         if signature.is_none() {
-            // signature = Some(String::from("xxx"));
-            panic!("not found Signature in jar")
+            signature = Some(Vec::new());
+            // panic!("not found Signature in jar")
         }
         if let (Some(main_class), Some(signature)) = (main_class, signature) {
             JarInfo {

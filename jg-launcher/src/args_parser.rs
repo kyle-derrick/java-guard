@@ -38,9 +38,16 @@ impl LaunchTarget {
         }
     }
 
-    pub fn target_path(&self) -> &str {
+    pub fn main_class(&self) -> &str {
         match self {
-            LaunchTarget::Class(path) => path,
+            LaunchTarget::Class(name) => name,
+            LaunchTarget::Jar(jar) => jar.main_class()
+        }
+    }
+
+    pub fn target_value(&self) -> &str {
+        match self {
+            LaunchTarget::Class(name) => name,
             LaunchTarget::Jar(jar) => jar.path()
         }
     }
@@ -83,6 +90,7 @@ fn usage() -> ! {
     println!(r#"
 usage: launcher [options] -jar <jar file> [args...]
    // or  launcher [options] <class> [args...]
+   // but class must be in jar file
 
    Class not currently supported run class!!!!!!
 

@@ -1,5 +1,11 @@
 use ring::signature::{UnparsedPublicKey, ED25519};
 
+#[cfg(unix)]
+const PATH_LIST_SEPARATOR: char = ':';
+
+#[cfg(windows)]
+const PATH_LIST_SEPARATOR: char = ';';
+
 pub const SIGN_LEN_HEX_LEN: usize = 4;
 pub const SIGN_SUFFIX: &str = ".sign";
 pub const SIGNS_SUFFIX: &str = ".signs";

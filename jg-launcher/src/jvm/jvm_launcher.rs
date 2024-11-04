@@ -44,7 +44,7 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
         env.set_object_array_element(&args, jsize::from(i as i32), env.new_string(item).unwrap()).unwrap();
     }
 
-    let helper:impl JvmLauncherHelper = match SunLauncherHelper::from_env(&mut env) {
+    let helper = match SunLauncherHelper::from_env(&mut env) {
         Ok(helper) => helper,
         Err(_) => SimpleLauncherHelper::from_env(&mut env).expect("")
     };

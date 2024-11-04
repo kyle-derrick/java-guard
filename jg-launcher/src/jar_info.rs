@@ -60,11 +60,11 @@ impl JarInfo {
             panic!("not found Main Class in jar")
         }
         let comment = archive.comment();
-        // let sign = extract_sign_from_comment(comment);
-        // signature = Some(sign);
+        let sign = extract_sign_from_comment(comment);
+        signature = Some(sign);
         if signature.is_none() {
-            signature = Some(Vec::new());
-            // panic!("not found Signature in jar")
+            // signature = Some(Vec::new());
+            panic!("not found Signature in jar")
         }
         if let (Some(main_class), Some(signature)) = (main_class, signature) {
             JarInfo {

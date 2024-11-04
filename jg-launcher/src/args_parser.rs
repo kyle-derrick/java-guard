@@ -26,8 +26,24 @@ static LAUNCHER_ARG: OnceLock<LauncherArg> = OnceLock::new();
 
 #[derive(Debug)]
 pub enum LaunchTarget {
-    Jar(JarInfo),
     Class(String),
+    Jar(JarInfo),
+}
+
+impl LaunchTarget {
+    pub fn sun_mode(&self) -> i32 {
+        match self {
+            LaunchTarget::Class(_) => 1,
+            LaunchTarget::Jar(_) => 2
+        }
+    }
+
+    pub fn target_path(&self) -> &str {
+        match self {
+            LaunchTarget::Class(path) => path,
+            LaunchTarget::Jar(jar) => jar.path()
+        }
+    }
 }
 
 #[derive(Debug)]

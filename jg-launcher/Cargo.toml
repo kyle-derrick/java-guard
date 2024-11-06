@@ -5,7 +5,11 @@ edition = "2021"
 build = "build/build.rs"
 
 [dependencies]
+libloading="0.7"
+jni-sys="0.3"
+java-locator="0.1"
 jni = { version = "0.21" , features = ["invocation"]}
+#jni = { path = "vendor/jni" , features = ["invocation"]}
 ring = "0.17.8"
 aes = "0.8.4"
 block-modes = "0.9.1"

@@ -108,10 +108,11 @@ pub struct JvmtiEventCallbacks {
 macro_rules! callback_or {
     ($name:tt) => {
         unsafe {
-            match CURRENT_CALLBACK.$name {
-                None => None,
-                Some(_) => Some($name)
-            }
+            // match CURRENT_CALLBACK.$name {
+            //     None => None,
+            //     Some(_) => Some($name)
+            // }
+            None
         }
     };
 }

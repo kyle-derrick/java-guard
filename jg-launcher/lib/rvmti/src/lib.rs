@@ -796,6 +796,16 @@ impl JvmtiEnv {
         jvmti_unchecked!(self, SetEventCallbacks, ptr, size as i32).value(|| { () })
     }
 
+    pub fn set_event_callbacks_raw(&self, callback: jvmtiEventCallbacks) -> JvmtiResult<()> {
+        let ptr: *const jvmtiEventCallbacks = &callback;
+        let size = mem::size_of::<jvmtiEventCallbacks>();
+        unsafe {
+            ((* *(self.internal)).SetEventCallbacks.unwrap())(self.internal, ptr, size as i32);
+        }
+        Ok(())
+        // jvmti_unchecked!(self, SetEventCallbacks, ptr, size as i32).value(|| { () })
+    }
+
     pub fn generate_events(&self, event_type: jvmtiEvent) -> JvmtiResult<()> {
         jvmti_unchecked!(self, GenerateEvents, event_type).value(|| { () })
     }

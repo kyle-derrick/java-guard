@@ -1,14 +1,26 @@
 use crate::args_parser::LaunchTarget::Jar;
 use crate::args_parser::LauncherArg;
+use crate::common::transform_mod;
 use crate::jvm::jvm_util::{default_jvm_args, JvmArgs, JvmWrapper};
 use crate::jvm::launcher_helper::{find_launcher_helper_from_env, JvmLauncherHelper};
-use jni::objects::{JClass, JObject};
+use crate::util::byte_utils::byte_to_u32;
+use jni::objects::{JByteArray, JClass, JObject, JValue};
+use jni::strings::JNIString;
 use jni::sys::jsize;
-use jni::{JNIEnv};
-use jni::JNIVersion;
-use std::ffi::c_void;
+use jni::{JNIEnv, JavaVM};
+use jni::{JNIVersion, NativeMethod};
+use jni_sys::{_jobject, jclass, jint, jobject, JNI_VERSION_1_1};
+use rvmti::bindings::{jvmtiEnv, jvmtiEvent, jvmtiEventCallbacks};
+use rvmti::sync::JvmtiSupplier;
+use std::ffi::{c_void, CStr};
+use std::os::raw::c_uchar;
+use rvmti::JvmtiEnv;
 
 const JAVA_CLASS_PATH_VM_ARG_PREFIX: &str = "-Djava.class.path=";
+const URL_CLASS_NAME: &str = "java/net/URL";
+const CLASS_ENCRYPT_FLAG: u8 = 1 << 7;
+
+static mut TRANSFORMER_OBJ: Option<*mut _jobject> = None;
 
 pub fn jvm_launch(launcher_arg: &LauncherArg) {
     let vm_ops = launcher_arg.vm_args();
@@ -33,7 +45,7 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
         .build()
         .expect("init Jvm args failed");
 
-    // let jvm = JVM::new(init_args).unwrap();
+    // let jvm = JavaVM::new(init_args).unwrap();
     // let jvm = JavaVM::with_libjvm(init_args,
     //                               || StartJvmResult::Ok(PathBuf::from("D:\\software\\install\\Java\\jdk1.8.0_202\\jre\\bin\\server\\jvm.dll"))).unwrap();
 
@@ -51,12 +63,14 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
     // ---------------------
 
     let (jvm, mut env) = wrapper.create_java_vm(init_args).unwrap();
+    set_callbacks(&jvm);
 
     // get JNI env
     // let mut env = jvm.attach_current_thread().expect("get jni env failed");
     // let mut env = jvm.get_env().unwrap();
 
     let env_ref = &mut env;
+    load_mod(env_ref);
 
     let app_args = launcher_arg.app_args();
 
@@ -70,6 +84,169 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
     unsafe {
         jvm.detach_current_thread();
         jvm.destroy().unwrap();
+    }
+}
+
+fn load_mod(env: &mut JNIEnv) {
+    let transform_mod_code = transform_mod();
+    let len = byte_to_u32(&transform_mod_code[..4]) as usize;
+    let loader_class = env.define_unnamed_class(&JObject::null(), &transform_mod_code[4..len]).expect("load mod failed");
+    let transformer_index = 4+len;
+    let transformer_len = byte_to_u32(&transform_mod_code[transformer_index..transformer_index + 4]) as usize;
+    let javassist_index = transformer_index+transformer_len+4;
+    let javassist_len = byte_to_u32(&transform_mod_code[javassist_index..javassist_index + 4]) as usize;
+    let transformer_java_array = env.byte_array_from_slice(&transform_mod_code[transformer_index + 4..javassist_index])
+        .unwrap();
+    let javassist_java_array = env.byte_array_from_slice(&transform_mod_code[javassist_index + 4..javassist_index+4+javassist_len])
+        .unwrap();
+
+    let transformer = env.call_static_method(&loader_class, "decryption", "([B[B)Ljava/lang/Object;",
+                                             &[JValue::Object(&transformer_java_array), JValue::Object(&javassist_java_array)])
+        .expect("load transformer failed").l().expect("load transformer failed");
+    let transformer_class = env.get_object_class(&transformer).unwrap();
+    env.register_native_methods(&transformer_class, &[NativeMethod{
+        name: JNIString::from("decryptData"),
+        sig: JNIString::from("([B)[B"),
+        fn_ptr: jni_native_transform as *mut c_void
+    }]).unwrap();
+    let transformer_ptr: *mut _jobject = transformer.as_raw().cast();
+    unsafe {
+        TRANSFORMER_OBJ = Some(transformer_ptr);
+    }
+}
+
+fn set_callbacks(jvm: &JavaVM) {
+    let jvmti_env = jvm.get_jvmti_env(JNI_VERSION_1_1);
+    // jvmti_env.set_event_notification_mode(jvmtiEvent::JVMTI_EVENT_CLASS_LOAD, jvmti_env.get_current_thread().unwrap(), true).unwrap();
+
+    let mut callbacks = default_callbacks();
+    callbacks.ClassFileLoadHook = Some(class_file_load_hook);
+    jvmti_env.set_event_callbacks_raw(callbacks).unwrap();
+}
+
+fn default_callbacks() -> jvmtiEventCallbacks {
+    jvmtiEventCallbacks {
+        VMInit: None,
+        VMDeath: None,
+        ThreadStart: None,
+        ThreadEnd: None,
+        ClassFileLoadHook: None,
+        ClassLoad: None,
+        ClassPrepare: None,
+        VMStart: None,
+        Exception: None,
+        ExceptionCatch: None,
+        SingleStep: None,
+        FramePop: None,
+        Breakpoint: None,
+        FieldAccess: None,
+        FieldModification: None,
+        MethodEntry: None,
+        MethodExit: None,
+        NativeMethodBind: None,
+        CompiledMethodLoad: None,
+        CompiledMethodUnload: None,
+        DynamicCodeGenerated: None,
+        DataDumpRequest: None,
+        reserved72: None,
+        MonitorWait: None,
+        MonitorWaited: None,
+        MonitorContendedEnter: None,
+        MonitorContendedEntered: None,
+        reserved77: None,
+        reserved78: None,
+        reserved79: None,
+        ResourceExhausted: None,
+        GarbageCollectionStart: None,
+        GarbageCollectionFinish: None,
+        ObjectFree: None,
+        VMObjectAlloc: None,
+        reserved85: None,
+        SampledObjectAlloc: None,
+    }
+}
+extern "C" fn class_file_load_hook(
+        jvmti_env: *mut jvmtiEnv,
+        jni_env: *mut jni_sys::JNIEnv,
+        class_being_redefined: jclass,
+        loader: jobject,
+        name: *const std::os::raw::c_char,
+        protection_domain: jobject,
+        class_data_len: jint,
+        class_data: *const std::os::raw::c_uchar,
+        new_class_data_len: *mut jint,
+        new_class_data: *mut *mut std::os::raw::c_uchar,
+        ) {
+    let name = unsafe { CStr::from_ptr(name) }.to_str().unwrap();//todo
+    let class_data_prefix = unsafe {
+        std::slice::from_raw_parts(class_data, 5)
+    };
+    // continue if not decrypt
+    if class_data_len <= 4 || class_data_prefix[4] & CLASS_ENCRYPT_FLAG == 0 {
+        if name != URL_CLASS_NAME {
+            unsafe {
+                *new_class_data = class_data as *mut c_uchar;
+                *new_class_data_len = class_data_len;
+            }
+            return;
+        }
+    }
+    let transformer = unsafe { &TRANSFORMER_OBJ };
+    if let Some(transformer) = transformer {
+        let (mut env, class_data_arr, transformer) = unsafe {
+            (
+                JNIEnv::from_raw(jni_env).unwrap(),
+                CStr::from_ptr(class_data as *const std::os::raw::c_char).to_bytes(),
+                JObject::from_raw(jobject::from(*transformer))
+            )
+        };
+        let name_str = env.new_string(name).unwrap();//todo
+        let class_data_java_array = env.byte_array_from_slice(class_data_arr).unwrap();//todo
+        let (data, len) = match env.call_method(transformer, "decryptClass", "(Ljava/lang/String;[B)[B",
+                                                &[JValue::Object(&name_str), JValue::Object(&class_data_java_array)]) {
+            Ok(result) => {
+                let result_java_array = JByteArray::from(result.l().unwrap());//todo
+                // let len = env.get_array_length(&result_java_array).unwrap();//todo
+                let result_array = env.convert_byte_array(&result_java_array).unwrap();
+                let result_cstr = CStr::from_bytes_with_nul(&result_array).unwrap(); //todo
+                // todo call transformer
+                // todo check result_cstr.count_bytes() is i32
+                (result_cstr.as_ptr() as *const std::os::raw::c_uchar, result_cstr.count_bytes() as jint)
+            }
+            Err(e) => {
+                println!("class file transform failed: {}", e.to_string());
+                (class_data, class_data_len)
+            }
+        };
+        unsafe {
+            *new_class_data = data as *mut c_uchar;
+            *new_class_data_len = len;
+        }
+    } else {
+        unsafe {
+            *new_class_data = class_data as *mut c_uchar;
+            *new_class_data_len = class_data_len;
+        }
+    }
+}
+
+// #[no_mangle]
+extern "system" fn jni_native_transform<'l>(env: &mut JNIEnv<'l>, _class: &JClass<'l>, data: JByteArray<'l>) -> JByteArray<'l> {
+    match env.convert_byte_array(&data) {
+        Ok(data_arr) => {
+            // todo convert
+            match env.byte_array_from_slice(&data_arr) {
+                Ok(data) => data,
+                Err(e) => {
+                    println!("ERROR: array convert to java byte array failed: {}", e.to_string());
+                    data
+                }
+            }
+        }
+        Err(e) => {
+            println!("ERROR: java byte array convert to array failed: {}", e.to_string());
+            data
+        }
     }
 }
 

@@ -9,6 +9,6 @@ mod jvm;
 
 fn main() {
     let arg = LauncherArg::get();
-    println!("{:#?}", arg);
+    // println!("{:#?}", arg);
     jvm_launch(arg);
 }

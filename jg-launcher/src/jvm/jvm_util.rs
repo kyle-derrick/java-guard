@@ -8,6 +8,7 @@ use std::mem::transmute;
 use std::path::PathBuf;
 use std::ptr::null_mut;
 use std::rc::Rc;
+use rvmti::bindings::JVMTI_VERSION_1_1;
 
 pub struct JvmWrapper {
     pub library: Rc<Library>,
@@ -26,6 +27,7 @@ extern "system" {
     pub fn abort();
 }
 
+#[allow(non_snake_case)]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct JvmArgs {
@@ -53,7 +55,7 @@ pub struct JvmArgs {
 }
 pub fn default_jvm_args() -> JvmArgs {
     JvmArgs {
-        version: 0x00010001,
+        version: JVMTI_VERSION_1_1,
         properties: null_mut(),
         checkSource: 0,
         nativeStackSize: 0,

@@ -108,7 +108,12 @@ public class LauncherCodeGenerator {
 
         // transform mod, class and javassist
         File classesFile = new File(launcherClassDir, LAUNCHER_TRANSFORM_MOD_FILE);
-        try (OutputStream out = new CipherOutputStream(Files.newOutputStream(classesFile.toPath()), encrypt.getCipher(Cipher.ENCRYPT_MODE))) {
+        try (OutputStream out = new CipherOutputStream(Files.newOutputStream(classesFile.toPath()), encrypt.getCipher(Cipher.ENCRYPT_MODE));
+             InputStream loaderInput = ClassDecryptionLoader.class.getResourceAsStream(ClassDecryptionLoader.class.getSimpleName() + ".class")) {
+            assert loaderInput != null;
+            byte[] loaderCode = IOUtils.toByteArray(loaderInput);
+            out.write(BytesUtils.intToBytes(loaderCode.length));
+            out.write(loaderCode);
             byte[] bytecode = classDecryptionClass.toBytecode();
             out.write(BytesUtils.intToBytes(bytecode.length));
             out.write(bytecode);

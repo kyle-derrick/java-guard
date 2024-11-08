@@ -12,9 +12,9 @@ import java.util.zip.ZipEntry;
  * @author kyle kyle_derrick@foxmail.com
  * 2024/10/10 17:17
  */
-public class ClassDecryptionFactory extends ClassLoader {
+public class ClassDecryptionLoader extends ClassLoader {
     public static Object decryption(byte[] customClasses, byte[] javassist) {
-        ClassDecryptionFactory factory = new ClassDecryptionFactory();
+        ClassDecryptionLoader factory = new ClassDecryptionLoader();
         try {
             factory.importJavassist(javassist);
             return factory.defineCustomClasses(customClasses);
@@ -23,7 +23,7 @@ public class ClassDecryptionFactory extends ClassLoader {
         }
     }
 
-    public ClassDecryptionFactory() {
+    public ClassDecryptionLoader() {
         super(null);
     }
 

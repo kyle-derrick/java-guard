@@ -2,8 +2,11 @@
 name = "jvmti-jni-wrapper"
 version = "0.1.0"
 edition = "2021"
+build = "build/build.rs"
 
 [dependencies]
+jni-sys="0.3"
 
 [build-dependencies]
 cc = "1.0"
+#bindgen = "0.60"

@@ -21,6 +21,7 @@ rvmti= { path = "lib/rvmti" }
 base64 = "0.22.1"
 lazy_static="1.5.0"
 #file-lock = "2.1"
+jvmti-jni-wrapper={path = "lib/jvmti-jni-wrapper"}
 
 [build-dependencies]
 rand="0.8.5"

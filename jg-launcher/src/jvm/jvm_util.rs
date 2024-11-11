@@ -19,60 +19,6 @@ pub struct JvmWrapper {
     pub get_created_java_vms: unsafe extern "system" fn (vm_buf: *mut *mut JavaVM, buf_len: jsize, n_vms: *mut jsize) -> jint,
 }
 
-// extern "system" {
-//     pub fn vfprintf(fp: *const c_void, format: *const c_char, args: va_list) -> jint;
-//     pub fn exit(code: jint);
-//     pub fn abort();
-// }
-
-// #[allow(non_snake_case)]
-// #[repr(C)]
-// #[derive(Clone, Copy)]
-// pub struct JvmArgs {
-//     pub version: jint,
-//
-//     pub properties: *mut *mut c_char,
-//     pub checkSource: jint,
-//     pub nativeStackSize: jint,
-//     pub javaStackSize: jint,
-//     pub minHeapSize: jint,
-//     pub maxHeapSize: jint,
-//     pub verifyMode: jint,
-//     pub classpath: *mut c_char,
-//
-//     pub vfprintf: unsafe extern "system" fn(fp: *const c_void, format: *const c_char, args: va_list) -> jint,
-//     pub exit: unsafe extern "system" fn(code: jint),
-//     pub abort: unsafe extern "system" fn(),
-//
-//     pub enableClassGC: jint,
-//     pub enableVerboseGC: jint,
-//     pub disableAsyncGC: jint,
-//     pub verbose: jint,
-//     pub debugging: jboolean,
-//     pub debugPort: jint,
-// }
-// pub fn default_jvm_args() -> JvmArgs {
-//     JvmArgs {
-//         version: JVMTI_VERSION_1_1,
-//         properties: null_mut(),
-//         checkSource: 0,
-//         nativeStackSize: 0,
-//         javaStackSize: 0,
-//         minHeapSize: 0,
-//         maxHeapSize: 0,
-//         verifyMode: 0,
-//         classpath: null_mut(),
-//         vfprintf: vfprintf,
-//         exit: exit,
-//         abort: abort,
-//         enableClassGC: 0,
-//         enableVerboseGC: 0,
-//         disableAsyncGC: 0,
-//         verbose: 0,
-//         debugging: 0,
-//         debugPort: 0,
-//     }
-// }
 struct __InitArgs<'a> {
     inner: JavaVMInitArgs,
 

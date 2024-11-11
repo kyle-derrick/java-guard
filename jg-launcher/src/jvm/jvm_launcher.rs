@@ -124,55 +124,8 @@ fn set_callbacks(jvm: &JavaVM) {
     unsafe {
         set_file_load_callback(jvm.get_java_vm_pointer(), jg_class_file_load_hook);
     }
-    // let jvmti_env = jvm.get_jvmti_env(JNI_VERSION_1_1);
-    // // jvmti_env.set_event_notification_mode(jvmtiEvent::JVMTI_EVENT_CLASS_LOAD, jvmti_env.get_current_thread().unwrap(), true).unwrap();
-    //
-    // let mut callbacks = default_callbacks();
-    // callbacks.ClassFileLoadHook = Some(class_file_load_hook);
-    // jvmti_env.set_event_callbacks_raw(callbacks).unwrap();
 }
 
-// fn default_callbacks() -> jvmtiEventCallbacks {
-//     jvmtiEventCallbacks {
-//         VMInit: None,
-//         VMDeath: None,
-//         ThreadStart: None,
-//         ThreadEnd: None,
-//         ClassFileLoadHook: None,
-//         ClassLoad: None,
-//         ClassPrepare: None,
-//         VMStart: None,
-//         Exception: None,
-//         ExceptionCatch: None,
-//         SingleStep: None,
-//         FramePop: None,
-//         Breakpoint: None,
-//         FieldAccess: None,
-//         FieldModification: None,
-//         MethodEntry: None,
-//         MethodExit: None,
-//         NativeMethodBind: None,
-//         CompiledMethodLoad: None,
-//         CompiledMethodUnload: None,
-//         DynamicCodeGenerated: None,
-//         DataDumpRequest: None,
-//         reserved72: None,
-//         MonitorWait: None,
-//         MonitorWaited: None,
-//         MonitorContendedEnter: None,
-//         MonitorContendedEntered: None,
-//         reserved77: None,
-//         reserved78: None,
-//         reserved79: None,
-//         ResourceExhausted: None,
-//         GarbageCollectionStart: None,
-//         GarbageCollectionFinish: None,
-//         ObjectFree: None,
-//         VMObjectAlloc: None,
-//         reserved85: None,
-//         SampledObjectAlloc: None,
-//     }
-// }
 extern "system" fn jg_class_file_load_hook(
         jvmti_env: *mut c_void,
         jni_env: *mut jni_sys::JNIEnv,

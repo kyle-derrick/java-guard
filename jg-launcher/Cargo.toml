@@ -17,11 +17,11 @@ clap = "4.5"
 zip = "2.2"
 sha2 = "0.10"
 hex = "0.4"
-rvmti= { path = "lib/rvmti" }
+#rvmti= { path = "lib/rvmti" }
 base64 = "0.22.1"
 lazy_static="1.5.0"
 #file-lock = "2.1"
-jvmti-jni-wrapper={path = "lib/jvmti-jni-wrapper"}
+jg-jvmti-wrapper={path = "lib/jg-jvmti-wrapper" }
 
 [build-dependencies]
 rand="0.8.5"

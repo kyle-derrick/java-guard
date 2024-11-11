@@ -1,20 +1,19 @@
 use crate::args_parser::LaunchTarget::Jar;
 use crate::args_parser::LauncherArg;
 use crate::common::transform_mod;
-use crate::jvm::jvm_util::{default_jvm_args, JvmArgs, JvmWrapper};
+use crate::jvm::jvm_util::JvmWrapper;
 use crate::jvm::launcher_helper::{find_launcher_helper_from_env, JvmLauncherHelper};
 use crate::util::byte_utils::byte_to_u32;
+use jg_jvmti_wrapper::set_file_load_callback;
 use jni::objects::{JByteArray, JClass, JObject, JValue};
 use jni::strings::JNIString;
 use jni::sys::jsize;
 use jni::{JNIEnv, JavaVM};
 use jni::{JNIVersion, NativeMethod};
-use jni_sys::{_jobject, jclass, jint, jobject, JNI_VERSION_1_1};
-use rvmti::bindings::{jvmtiEnv, jvmtiEvent, jvmtiEventCallbacks};
-use rvmti::sync::JvmtiSupplier;
+use jni_sys::{_jobject, jclass, jint, jobject, JavaVMInitArgs, JNI_VERSION_1_1};
 use std::ffi::{c_void, CStr};
 use std::os::raw::c_uchar;
-use rvmti::JvmtiEnv;
+use std::ptr::null_mut;
 
 const JAVA_CLASS_PATH_VM_ARG_PREFIX: &str = "-Djava.class.path=";
 const URL_CLASS_NAME: &str = "java/net/URL";
@@ -54,15 +53,21 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
 
     // ---------------------
     // test
-    let mut args = default_jvm_args();
+    let mut args1 = JavaVMInitArgs {
+        version: JNI_VERSION_1_1,
+        nOptions: 0,
+        options: null_mut(),
+        ignoreUnrecognized: 0,
+    };
     let result = unsafe {
-        let p = &mut args as *mut JvmArgs;
+        let p = &mut args1 as *mut JavaVMInitArgs;
         (wrapper.get_default_java_vm_init_args)(p as *mut c_void)
     };
     println!("{result}");
     // ---------------------
 
     let (jvm, mut env) = wrapper.create_java_vm(init_args).unwrap();
+    let vers = env.get_version();
     set_callbacks(&jvm);
 
     // get JNI env
@@ -116,57 +121,60 @@ fn load_mod(env: &mut JNIEnv) {
 }
 
 fn set_callbacks(jvm: &JavaVM) {
-    let jvmti_env = jvm.get_jvmti_env(JNI_VERSION_1_1);
-    // jvmti_env.set_event_notification_mode(jvmtiEvent::JVMTI_EVENT_CLASS_LOAD, jvmti_env.get_current_thread().unwrap(), true).unwrap();
-
-    let mut callbacks = default_callbacks();
-    callbacks.ClassFileLoadHook = Some(class_file_load_hook);
-    jvmti_env.set_event_callbacks_raw(callbacks).unwrap();
-}
-
-fn default_callbacks() -> jvmtiEventCallbacks {
-    jvmtiEventCallbacks {
-        VMInit: None,
-        VMDeath: None,
-        ThreadStart: None,
-        ThreadEnd: None,
-        ClassFileLoadHook: None,
-        ClassLoad: None,
-        ClassPrepare: None,
-        VMStart: None,
-        Exception: None,
-        ExceptionCatch: None,
-        SingleStep: None,
-        FramePop: None,
-        Breakpoint: None,
-        FieldAccess: None,
-        FieldModification: None,
-        MethodEntry: None,
-        MethodExit: None,
-        NativeMethodBind: None,
-        CompiledMethodLoad: None,
-        CompiledMethodUnload: None,
-        DynamicCodeGenerated: None,
-        DataDumpRequest: None,
-        reserved72: None,
-        MonitorWait: None,
-        MonitorWaited: None,
-        MonitorContendedEnter: None,
-        MonitorContendedEntered: None,
-        reserved77: None,
-        reserved78: None,
-        reserved79: None,
-        ResourceExhausted: None,
-        GarbageCollectionStart: None,
-        GarbageCollectionFinish: None,
-        ObjectFree: None,
-        VMObjectAlloc: None,
-        reserved85: None,
-        SampledObjectAlloc: None,
+    unsafe {
+        set_file_load_callback(jvm.get_java_vm_pointer(), jg_class_file_load_hook);
     }
+    // let jvmti_env = jvm.get_jvmti_env(JNI_VERSION_1_1);
+    // // jvmti_env.set_event_notification_mode(jvmtiEvent::JVMTI_EVENT_CLASS_LOAD, jvmti_env.get_current_thread().unwrap(), true).unwrap();
+    //
+    // let mut callbacks = default_callbacks();
+    // callbacks.ClassFileLoadHook = Some(class_file_load_hook);
+    // jvmti_env.set_event_callbacks_raw(callbacks).unwrap();
 }
-extern "C" fn class_file_load_hook(
-        jvmti_env: *mut jvmtiEnv,
+
+// fn default_callbacks() -> jvmtiEventCallbacks {
+//     jvmtiEventCallbacks {
+//         VMInit: None,
+//         VMDeath: None,
+//         ThreadStart: None,
+//         ThreadEnd: None,
+//         ClassFileLoadHook: None,
+//         ClassLoad: None,
+//         ClassPrepare: None,
+//         VMStart: None,
+//         Exception: None,
+//         ExceptionCatch: None,
+//         SingleStep: None,
+//         FramePop: None,
+//         Breakpoint: None,
+//         FieldAccess: None,
+//         FieldModification: None,
+//         MethodEntry: None,
+//         MethodExit: None,
+//         NativeMethodBind: None,
+//         CompiledMethodLoad: None,
+//         CompiledMethodUnload: None,
+//         DynamicCodeGenerated: None,
+//         DataDumpRequest: None,
+//         reserved72: None,
+//         MonitorWait: None,
+//         MonitorWaited: None,
+//         MonitorContendedEnter: None,
+//         MonitorContendedEntered: None,
+//         reserved77: None,
+//         reserved78: None,
+//         reserved79: None,
+//         ResourceExhausted: None,
+//         GarbageCollectionStart: None,
+//         GarbageCollectionFinish: None,
+//         ObjectFree: None,
+//         VMObjectAlloc: None,
+//         reserved85: None,
+//         SampledObjectAlloc: None,
+//     }
+// }
+extern "system" fn jg_class_file_load_hook(
+        jvmti_env: *mut c_void,
         jni_env: *mut jni_sys::JNIEnv,
         class_being_redefined: jclass,
         loader: jobject,

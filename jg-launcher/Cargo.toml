@@ -11,8 +11,9 @@ java-locator="0.1"
 jni = { version = "0.21" , features = ["invocation"]}
 #jni = { path = "vendor/jni" , features = ["invocation"]}
 ring = "0.17.8"
-aes = "0.8.4"
-block-modes = "0.9.1"
+aes-gcm = "0.10"
+#aes = "0.7"
+#block-modes = "0.8"
 clap = "4.5"
 zip = "2.2"
 sha2 = "0.10"

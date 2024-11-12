@@ -26,7 +26,7 @@ public class ClassGenerateTest {
     private static final String URL_OPEN_CONNECTION_RENAME = "_openConnection_";
     @Test
     public void test() throws Exception {
-        String code = URLExtCode.format(URL_OPEN_CONNECTION_RENAME, ENCRYPT_RESOURCE_HEADER, DigestUtils.sha256("asd"), "AES", "AES/ECB/PKCS5Padding");
+        String code = URLExtCode.format(URL_OPEN_CONNECTION_RENAME, ENCRYPT_RESOURCE_HEADER, DigestUtils.sha256("asd"), "AES", "AES/GCM/NoPadding");
 
         ClassPool pool = ClassPool.getDefault();
         CtClass ctClass = pool.getCtClass(URL.class.getName());

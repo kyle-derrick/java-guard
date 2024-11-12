@@ -20,7 +20,7 @@ public class EncryptInfo {
     private byte[] key;
     private byte[] resourceKey;
     private String algorithm = "AES";
-    private String transformation = "AES/ECB/PKCS5Padding";
+    private String transformation = "AES/GCM/NoPadding";
 
     public EncryptInfo() {
     }

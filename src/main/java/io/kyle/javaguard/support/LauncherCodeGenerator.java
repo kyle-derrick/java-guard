@@ -99,7 +99,7 @@ public class LauncherCodeGenerator {
         byte[] encryptCode = null;
         try {
             encryptCode = encrypt.encrypt(code.getBytes(StandardCharsets.UTF_8));
-        } catch (Exception e) {
+        } catch (TransformException e) {
             throw new TransformException("encrypt resource decrypt code failed", e);
         }
         int index = constPool.addUtf8Info(Base64.getEncoder().withoutPadding().encodeToString(encryptCode));

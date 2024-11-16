@@ -5,12 +5,12 @@ import io.kyle.javaguard.bean.TransformInfo;
 import io.kyle.javaguard.exception.TransformException;
 import org.apache.commons.io.IOUtils;
 
-import javax.crypto.*;
+import javax.crypto.Cipher;
+import javax.crypto.CipherInputStream;
+import javax.crypto.CipherOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 
 /**
  * @author kyle kyle_derrick@foxmail.com
@@ -25,33 +25,27 @@ public abstract class AbstractTransformer implements Transformer {
         this.encryptInfo = transformInfo.getEncrypt();
     }
 
-    protected byte[] encrypt(byte[] plainText) throws NoSuchPaddingException, NoSuchAlgorithmException,
-            InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+    protected byte[] encrypt(byte[] plainText) throws TransformException {
         return encryptInfo.encrypt(plainText);
     }
 
-    protected byte[] decrypt(byte[] plainText) throws NoSuchPaddingException, NoSuchAlgorithmException,
-            InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+    protected byte[] decrypt(byte[] plainText) throws TransformException {
         return encryptInfo.decrypt(plainText);
     }
 
-    protected InputStream encryptStream(InputStream in) throws NoSuchPaddingException, NoSuchAlgorithmException,
-            InvalidKeyException {
+    protected InputStream encryptStream(InputStream in) throws TransformException {
         return new CipherInputStream(in, encryptInfo.getCipher(Cipher.ENCRYPT_MODE));
     }
 
-    protected OutputStream encryptStream(OutputStream out) throws NoSuchPaddingException, NoSuchAlgorithmException,
-            InvalidKeyException {
+    protected OutputStream encryptStream(OutputStream out) throws TransformException {
         return new CipherOutputStream(out, encryptInfo.getCipher(Cipher.ENCRYPT_MODE));
     }
 
-    protected InputStream decryptStream(InputStream in) throws NoSuchPaddingException, NoSuchAlgorithmException,
-            InvalidKeyException {
+    protected InputStream decryptStream(InputStream in) throws TransformException {
         return new CipherInputStream(in, encryptInfo.getCipher(Cipher.DECRYPT_MODE));
     }
 
-    protected OutputStream decryptStream(OutputStream out) throws NoSuchPaddingException, NoSuchAlgorithmException,
-            InvalidKeyException {
+    protected OutputStream decryptStream(OutputStream out) throws TransformException {
         return new CipherOutputStream(out, encryptInfo.getCipher(Cipher.DECRYPT_MODE));
     }
 

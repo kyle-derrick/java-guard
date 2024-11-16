@@ -1,6 +1,8 @@
 package io.kyle.javaguard.bean;
 
 import io.kyle.javaguard.constant.ConstVars;
+import io.kyle.javaguard.exception.TransformException;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.codec.digest.HmacAlgorithms;
 import org.apache.commons.codec.digest.HmacUtils;
 
@@ -8,7 +10,9 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 
@@ -25,42 +29,49 @@ public class EncryptInfo {
     public EncryptInfo() {
     }
 
-    public Cipher getCipher(int opmode) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException {
-        SecretKeySpec sks = new SecretKeySpec(getKey(), getAlgorithm());
-        Cipher cipher = Cipher.getInstance(getTransformation());
-        cipher.init(opmode, sks);
-        return cipher;
+    private Cipher getCipherBy(byte[] key, int opmode) throws TransformException {
+        try {
+            SecretKeySpec sks = new SecretKeySpec(key, getAlgorithm());
+            Cipher cipher = Cipher.getInstance(getTransformation());
+            GCMParameterSpec spec = new GCMParameterSpec(128, DigestUtils.md5(key));
+            cipher.init(opmode, sks, spec);
+            return cipher;
+        } catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException |
+                 InvalidAlgorithmParameterException e) {
+            throw new TransformException("cipher init failed", e);
+        }
     }
 
-    public Cipher getResourceCipher(int opmode) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException {
-        SecretKeySpec sks = new SecretKeySpec(getKey(), getAlgorithm());
-        Cipher cipher = Cipher.getInstance(getTransformation());
-        cipher.init(opmode, sks);
-        return cipher;
+    public Cipher getCipher(int opmode) throws TransformException {
+        return getCipherBy(getKey(), opmode);
     }
 
-    public byte[] encrypt(byte[] plainText) throws NoSuchPaddingException, NoSuchAlgorithmException,
-            InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
-        return getCipher(Cipher.ENCRYPT_MODE)
-                .doFinal(plainText);
+    public Cipher getResourceCipher(int opmode) throws TransformException {
+        return getCipherBy(getResourceKey(), opmode);
     }
 
-    public byte[] decrypt(byte[] plainText) throws NoSuchPaddingException, NoSuchAlgorithmException,
-            InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
-        return getCipher(Cipher.DECRYPT_MODE)
-                .doFinal(plainText);
+    public byte[] encrypt(byte[] plainText) throws TransformException {
+            return cipherDoFinal(getCipher(Cipher.ENCRYPT_MODE), plainText);
     }
 
-    public byte[] resourceEncrypt(byte[] plainText) throws NoSuchPaddingException, NoSuchAlgorithmException,
-            InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
-        return getCipher(Cipher.ENCRYPT_MODE)
-                .doFinal(plainText);
+    public byte[] decrypt(byte[] plainText) throws TransformException {
+        return cipherDoFinal(getCipher(Cipher.DECRYPT_MODE), plainText);
     }
 
-    public byte[] resourceDecrypt(byte[] plainText) throws NoSuchPaddingException, NoSuchAlgorithmException,
-            InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
-        return getCipher(Cipher.DECRYPT_MODE)
-                .doFinal(plainText);
+    public byte[] resourceEncrypt(byte[] plainText) throws TransformException {
+        return cipherDoFinal(getResourceCipher(Cipher.ENCRYPT_MODE), plainText);
+    }
+
+    public byte[] resourceDecrypt(byte[] plainText) throws TransformException {
+        return cipherDoFinal(getResourceCipher(Cipher.DECRYPT_MODE), plainText);
+    }
+
+    private byte[] cipherDoFinal(Cipher cipher, byte[] plainText) throws TransformException {
+        try {
+            return cipher.doFinal(plainText);
+        } catch (IllegalBlockSizeException | BadPaddingException e) {
+            throw new TransformException("encrypt/decrypt failed", e);
+        }
     }
 
     public byte[] getResourceKey() {

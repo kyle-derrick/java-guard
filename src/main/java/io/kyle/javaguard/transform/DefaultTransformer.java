@@ -31,6 +31,8 @@ public class DefaultTransformer extends AbstractTransformer {
             out.write(ConstVars.ENCRYPT_RESOURCE_HEADER);
             JGTransformInputStream transformInputStream = new JGTransformInputStream(in, encryptInfo.getResourceCipher(Cipher.ENCRYPT_MODE));
             copyStream(transformInputStream, out);
+        } catch (TransformException e) {
+            throw e;
         } catch (Exception e) {
             throw new TransformException("resource encrypt failed", e);
         }
@@ -41,7 +43,11 @@ public class DefaultTransformer extends AbstractTransformer {
     public boolean decrypt(InputStream in, OutputStream out) throws TransformException {
         byte[] header = new byte[ConstVars.ENCRYPT_RESOURCE_HEADER.length];
         try {
-            in.read(header);
+            int read = in.read(header);
+            if (read < header.length) {
+                out.write(header, 0, header.length);
+                return true;
+            }
             if (!Objects.deepEquals(header, ConstVars.ENCRYPT_RESOURCE_HEADER)) {
                 out.write(header);
                 copyStream(in, out);
@@ -49,6 +55,8 @@ public class DefaultTransformer extends AbstractTransformer {
             }
             JGTransformInputStream transformInputStream = new JGTransformInputStream(in, encryptInfo.getResourceCipher(Cipher.DECRYPT_MODE));
             copyStream(transformInputStream, out);
+        } catch (TransformException e) {
+            throw e;
         } catch (Exception e) {
             throw new TransformException("decrypt resource failed", e);
         }

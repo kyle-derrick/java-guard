@@ -175,7 +175,7 @@ extern "system" fn jg_class_file_load_hook(
                 (result_cstr.as_ptr() as *const std::os::raw::c_uchar, result_cstr.count_bytes() as jint)
             }
             Err(e) => {
-                println!("class file transform failed: {}", e.to_string());
+                eprintln!("class file transform failed: {}", e.to_string());
                 (class_data, class_data_len)
             }
         };
@@ -199,13 +199,13 @@ extern "system" fn jni_native_transform<'l>(env: &mut JNIEnv<'l>, _class: &JClas
             match env.byte_array_from_slice(&data_arr) {
                 Ok(data) => data,
                 Err(e) => {
-                    println!("ERROR: array convert to java byte array failed: {}", e.to_string());
+                    eprintln!("ERROR: array convert to java byte array failed: {}", e.to_string());
                     data
                 }
             }
         }
         Err(e) => {
-            println!("ERROR: java byte array convert to array failed: {}", e.to_string());
+            eprintln!("ERROR: java byte array convert to array failed: {}", e.to_string());
             data
         }
     }

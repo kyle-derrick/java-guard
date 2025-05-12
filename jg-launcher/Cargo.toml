@@ -24,6 +24,7 @@ base64 = "0.22.1"
 lazy_static="1.5.0"
 #file-lock = "2.1"
 jg-jvmti-wrapper={path = "lib/jg-jvmti-wrapper" }
+jclass = "0.1"
 
 [build-dependencies]
 rand="0.8.5"

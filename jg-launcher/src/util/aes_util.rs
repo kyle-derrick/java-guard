@@ -70,7 +70,7 @@ fn test() {
 
     let nonce_seq = OneNonceSequence::new(Nonce::assume_unique_for_key(digest));
 
-    let mut opening_key = OpeningKey::new(ring::aead::UnboundKey::new(&AES_256_GCM, aes_key).unwrap(), Nonce::assume_unique_for_key(digest));
+    let mut opening_key = OpeningKey::new(ring::aead::UnboundKey::new(&AES_256_GCM, aes_key).unwrap(), OneNonceSequence::new(Nonce::assume_unique_for_key(digest)));
     let mut result = opening_key.open_in_place(Aad::empty(), &mut data).unwrap();
     println!("{:?}", &result);
 

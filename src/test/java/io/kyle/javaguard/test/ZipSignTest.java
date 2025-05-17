@@ -18,8 +18,8 @@ import java.security.Security;
  */
 @Ignore
 public class ZipSignTest {
-    private static final String zipPath = "out/tmp/antlr-4.13.2-complete.jar";
-    private static final String zipSignPath = "out/tmp/antlr-4.13.2-complete-sign.jar";
+    private static final String zipPath = "out/tmp/jar-test-1.0-SNAPSHOT-jar-with-dependencies.jar";
+    private static final String zipSignPath = "out/tmp/jar-test-1.0-SNAPSHOT-jar-with-dependencies-sign.jar";
     static {
         Security.addProvider(new BouncyCastleProvider());
     }

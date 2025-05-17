@@ -2,7 +2,6 @@ package io.kyle.javaguard.bean;
 
 import io.kyle.javaguard.constant.ConstVars;
 import io.kyle.javaguard.exception.TransformException;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.codec.digest.HmacAlgorithms;
 import org.apache.commons.codec.digest.HmacUtils;
 
@@ -15,6 +14,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 
 /**
  * @author kyle kyle_derrick@foxmail.com
@@ -31,9 +31,16 @@ public class EncryptInfo {
 
     private Cipher getCipherBy(byte[] key, int opmode) throws TransformException {
         try {
+            byte[] iv;
+            if (key.length > 32) {
+                iv = Arrays.copyOfRange(key, 32, key.length);
+                key = Arrays.copyOfRange(key, 0, 32);
+            } else {
+                iv = new HmacUtils(HmacAlgorithms.HMAC_MD5, ConstVars.SALT).hmac(key);
+            }
             SecretKeySpec sks = new SecretKeySpec(key, getAlgorithm());
             Cipher cipher = Cipher.getInstance(getTransformation());
-            GCMParameterSpec spec = new GCMParameterSpec(128, DigestUtils.md5(key));
+            GCMParameterSpec spec = new GCMParameterSpec(128, iv);
             cipher.init(opmode, sks, spec);
             return cipher;
         } catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException |

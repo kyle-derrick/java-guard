@@ -11,8 +11,8 @@ import io.kyle.javaguard.transform.JarTransformer;
 import io.kyle.javaguard.util.ZipSignUtils;
 import org.apache.commons.cli.*;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.io.FileUtils;
+import org.apache.commons.codec.digest.HmacAlgorithms;
+import org.apache.commons.codec.digest.HmacUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
@@ -24,11 +24,8 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.security.Security;
-import java.security.Signature;
 
 /**
  * @author kyle kyle_derrick@foxmail.com
@@ -189,7 +186,7 @@ public class JavaGuardMain {
                 System.out.println(">>> generate key: " + keyString);
             }
         }
-        encryptInfo.setKey(DigestUtils.sha256(keyString));
+        encryptInfo.setKey(new HmacUtils(HmacAlgorithms.HMAC_SHA_384, ConstVars.SALT).hmac(keyString.getBytes(StandardCharsets.UTF_8)));
         transformInfo.setEncrypt(encryptInfo);
 
         SignatureInfo signatureInfo = signatureInfo(config);

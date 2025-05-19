@@ -12,6 +12,8 @@ pub const SIGNS_SUFFIX: &str = ".signs";
 pub const MANIFEST_FILE: &str = "META-INF/MANIFEST.MF";
 pub const MAIN_CLASS_PREFIX: &str = "Main-Class:";
 
+pub const ENCRYPT_BLOCK: usize = 8 * 1024;
+
 pub const ENCRYPT_DATA_TAG: &[u8] = "<SecretBox>".as_bytes();
 
 include!(concat!(env!("OUT_DIR"), "/_common.rs"));

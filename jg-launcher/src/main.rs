@@ -4,7 +4,7 @@ use crate::jvm::jvm_launcher::jvm_launch;
 mod args_parser;
 mod jar_info;
 mod util;
-mod common;
+mod base;
 mod jvm;
 
 fn main() {

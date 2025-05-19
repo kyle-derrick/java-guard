@@ -1,6 +1,6 @@
 use crate::args_parser::LaunchTarget::Jar;
 use crate::args_parser::LauncherArg;
-use crate::common::transform_mod;
+use crate::base::common::transform_mod;
 use crate::jvm::jvm_util::JvmWrapper;
 use crate::jvm::launcher_helper::{find_launcher_helper_from_env, JvmLauncherHelper};
 use crate::util::byte_utils::byte_to_u32;
@@ -18,8 +18,6 @@ use std::ptr::null_mut;
 const JAVA_CLASS_PATH_VM_ARG_PREFIX: &str = "-Djava.class.path=";
 const URL_CLASS_NAME: &str = "java/net/URL";
 const CLASS_ENCRYPT_FLAG: u8 = 1 << 7;
-
-static mut TRANSFORMER_OBJ: Option<*mut _jobject> = None;
 
 pub fn jvm_launch(launcher_arg: &LauncherArg) {
     let vm_ops = launcher_arg.vm_args();

@@ -1,6 +1,6 @@
 use std::{env, process::exit, sync::OnceLock};
 
-use crate::common::{KEY_VERSION, VERSION};
+use crate::base::common::{KEY_VERSION, VERSION};
 use crate::jar_info::JarInfo;
 
 const SERVER_ARG_KEY: &str = "-server";

@@ -11,6 +11,7 @@ import java.io.InputStream;
  * @author kyle kyle_derrick@foxmail.com
  * 2024/10/8 13:23
  */
+@Deprecated
 public class JGTransformInputStream extends FilterInputStream {
     private static final int BUFFER_SIZE = 2048;
     private final InputStream input;

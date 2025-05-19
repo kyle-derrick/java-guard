@@ -9,6 +9,9 @@ public interface ConstVars {
     String META_INF_MANIFEST = "META-INF/MANIFEST.MF";
     String DEFAULT_PRIVATE_KEY = "~/java_guard/private_key.pem";
     String DEFAULT_PUBLIC_KEY = "~/java_guard/public_key.pem";
+    String ALGORITHM = "AES";
+    String TRANSFORMATION = "AES/GCM/NoPadding";
+    int TRANSFORM_BLOCK = 8192;
     /**
      * \0JGR\0
      */

@@ -1,6 +1,7 @@
 package io.kyle.javaguard.support;
 
 import io.kyle.javaguard.bean.EncryptInfo;
+import io.kyle.javaguard.bean.KeyInfo;
 import io.kyle.javaguard.bean.SignatureInfo;
 import io.kyle.javaguard.bean.TransformInfo;
 import io.kyle.javaguard.constant.ConstVars;
@@ -52,7 +53,8 @@ public class LauncherCodeGenerator {
     }
 
     private static void generateBuildConfigRs(File launcherDir, TransformInfo info) throws TransformException {
-        EncryptInfo encrypt = info.getEncrypt();
+        KeyInfo keyInfo = info.getKeyInfo();
+        KeyInfo resourceKeyInfo = info.getResourceKeyInfo();
         SignatureInfo signatureInfo = info.getSignature();
         String content;
         try (InputStream configRs = LauncherCodeGenerator.class.getClassLoader().getResourceAsStream(LAUNCHER_CODE_BUILD_CONFIG_FILE)) {
@@ -61,8 +63,8 @@ public class LauncherCodeGenerator {
             throw new TransformException("read launcher build config failed", e);
         }
         HashMap<String, String> valueMap = new HashMap<>(4);
-        valueMap.put("key", bytesToString(encrypt.getKey()));
-        valueMap.put("resourceKey", bytesToString(encrypt.getResourceKey()));
+        valueMap.put("key", bytesToString(keyInfo.getKey()));
+        valueMap.put("resourceKey", bytesToString(resourceKeyInfo.getKey()));
         valueMap.put("publicKey", bytesToString(signatureInfo.getPublicKey()));
         valueMap.put("signKeyVersion", signatureInfo.getKeyHash());
         content = new StringSubstitutor(valueMap).replace(content);

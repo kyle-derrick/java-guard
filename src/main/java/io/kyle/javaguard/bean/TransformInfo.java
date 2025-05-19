@@ -9,7 +9,8 @@ import java.util.zip.Deflater;
 public class TransformInfo {
     private String[] matches;
     private int level = Deflater.DEFAULT_COMPRESSION;
-    private EncryptInfo encrypt;
+    private KeyInfo keyInfo;
+    private KeyInfo resourceKeyInfo;
     private SignatureInfo signature;
 
     public SignatureInfo getSignature() {
@@ -18,14 +19,6 @@ public class TransformInfo {
 
     public void setSignature(SignatureInfo signature) {
         this.signature = signature;
-    }
-
-    public EncryptInfo getEncrypt() {
-        return encrypt;
-    }
-
-    public void setEncrypt(EncryptInfo encrypt) {
-        this.encrypt = encrypt;
     }
 
     public String[] getMatches() {
@@ -42,5 +35,21 @@ public class TransformInfo {
 
     public void setLevel(int level) {
         this.level = level;
+    }
+
+    public KeyInfo getKeyInfo() {
+        return keyInfo;
+    }
+
+    public void setKeyInfo(KeyInfo keyInfo) {
+        this.keyInfo = keyInfo;
+    }
+
+    public KeyInfo getResourceKeyInfo() {
+        return resourceKeyInfo;
+    }
+
+    public void setResourceKeyInfo(KeyInfo resourceKeyInfo) {
+        this.resourceKeyInfo = resourceKeyInfo;
     }
 }

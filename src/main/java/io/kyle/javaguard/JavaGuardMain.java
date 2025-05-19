@@ -1,7 +1,7 @@
 package io.kyle.javaguard;
 
 import io.kyle.javaguard.bean.AppConfig;
-import io.kyle.javaguard.bean.EncryptInfo;
+import io.kyle.javaguard.bean.KeyInfo;
 import io.kyle.javaguard.bean.SignatureInfo;
 import io.kyle.javaguard.bean.TransformInfo;
 import io.kyle.javaguard.constant.ConstVars;
@@ -26,6 +26,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.Security;
+import java.util.Arrays;
 
 /**
  * @author kyle kyle_derrick@foxmail.com
@@ -166,7 +167,6 @@ public class JavaGuardMain {
         if (config.getZipLevel() != null) {
             transformInfo.setLevel(config.getZipLevel());
         }
-        EncryptInfo encryptInfo = new EncryptInfo();
         String keyString = config.getKey();
         boolean isDecrypt = config.getMode() == TransformType.decrypt;
         if (keyString == null) {
@@ -176,7 +176,7 @@ public class JavaGuardMain {
             } else {
                 KeyGenerator generator = null;
                 try {
-                    generator = KeyGenerator.getInstance(encryptInfo.getAlgorithm());
+                    generator = KeyGenerator.getInstance(ConstVars.ALGORITHM);
                 } catch (NoSuchAlgorithmException e) {
                     System.err.println("generate key failed: " + e.getMessage());
                     return null;
@@ -186,8 +186,11 @@ public class JavaGuardMain {
                 System.out.println(">>> generate key: " + keyString);
             }
         }
-        encryptInfo.setKey(new HmacUtils(HmacAlgorithms.HMAC_SHA_384, ConstVars.SALT).hmac(keyString.getBytes(StandardCharsets.UTF_8)));
-        transformInfo.setEncrypt(encryptInfo);
+        byte[] hmac = new HmacUtils(HmacAlgorithms.HMAC_SHA_512, ConstVars.SALT).hmac(keyString.getBytes(StandardCharsets.UTF_8));
+//        encryptInfo.setKey(Arrays.copyOfRange(hmac, 0, 512 >> 4));
+//        encryptInfo.setResourceKey(Arrays.copyOfRange(hmac, 512 >> 4, hmac.length));
+        transformInfo.setKeyInfo(new KeyInfo(Arrays.copyOfRange(hmac, 0, 512 >> 4)));
+        transformInfo.setResourceKeyInfo(new KeyInfo(Arrays.copyOfRange(hmac, 512 >> 4, hmac.length)));
 
         SignatureInfo signatureInfo = signatureInfo(config);
         transformInfo.setSignature(signatureInfo);

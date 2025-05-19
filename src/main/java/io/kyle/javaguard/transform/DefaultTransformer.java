@@ -3,9 +3,8 @@ package io.kyle.javaguard.transform;
 import io.kyle.javaguard.bean.TransformInfo;
 import io.kyle.javaguard.constant.ConstVars;
 import io.kyle.javaguard.exception.TransformException;
-import io.kyle.javaguard.support.JGTransformInputStream;
+import io.kyle.javaguard.support.StandardResourceInputStream;
 
-import javax.crypto.Cipher;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Objects;
@@ -29,7 +28,7 @@ public class DefaultTransformer extends AbstractTransformer {
     public boolean encrypt(InputStream in, OutputStream out) throws TransformException {
         try {
             out.write(ConstVars.ENCRYPT_RESOURCE_HEADER);
-            JGTransformInputStream transformInputStream = new JGTransformInputStream(in, encryptInfo.getResourceCipher(Cipher.ENCRYPT_MODE));
+            StandardResourceInputStream transformInputStream = new StandardResourceInputStream(in, transformInfo.getResourceKeyInfo(), true);
             copyStream(transformInputStream, out);
         } catch (TransformException e) {
             throw e;
@@ -53,7 +52,7 @@ public class DefaultTransformer extends AbstractTransformer {
                 copyStream(in, out);
                 return true;
             }
-            JGTransformInputStream transformInputStream = new JGTransformInputStream(in, encryptInfo.getResourceCipher(Cipher.DECRYPT_MODE));
+            StandardResourceInputStream transformInputStream = new StandardResourceInputStream(in, transformInfo.getResourceKeyInfo(), false);
             copyStream(transformInputStream, out);
         } catch (TransformException e) {
             throw e;

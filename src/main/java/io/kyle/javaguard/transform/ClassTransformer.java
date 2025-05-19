@@ -62,7 +62,7 @@ public class ClassTransformer extends AbstractTransformer {
 
         byte[] bytes = ClassTransformUtils.toBytes(classTransformInfo);
         try {
-            classFile.addAttribute(new SecretBoxAttribute(constPool, encrypt(bytes)));
+            classFile.addAttribute(new SecretBoxAttribute(constPool, transformInfo.getKeyInfo().encrypt(bytes)));
         } catch (Exception e) {
             throw new TransformException("class encrypt failed", e);
         }
@@ -83,7 +83,7 @@ public class ClassTransformer extends AbstractTransformer {
             classByte = IOUtils.toByteArray(in);
             byte[] bytes = ClassDecryption.decryptClass(classByte, data -> {
                 try {
-                    return this.decrypt(data);
+                    return transformInfo.getKeyInfo().decrypt(data);
                 } catch (Exception e) {
                     throw new TransformRuntimeException("decrypt failed", e);
                 }

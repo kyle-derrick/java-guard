@@ -1,5 +1,9 @@
 package io.kyle.javaguard.support;
 
+import io.kyle.javaguard.bean.KeyInfo;
+import io.kyle.javaguard.constant.ConstVars;
+import io.kyle.javaguard.exception.TransformException;
+
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,28 +13,33 @@ import java.io.InputStream;
  * 2025/5/16 10:08
  */
 @SuppressWarnings("DuplicatedCode")
-public class InternalResourceDecryptInputStream extends FilterInputStream {
-    private final int bufferSize;
+public class StandardResourceInputStream extends FilterInputStream {
+    private final KeyInfo keyInfo;
+    private final boolean forEncryption;
+    private final int bufferSize = ConstVars.TRANSFORM_BLOCK;
     private final byte[] buffer;
     private int curr = 0;
     private int end = 0;
-    private final int ptr;
 
-    public InternalResourceDecryptInputStream(InputStream in) {
+    public StandardResourceInputStream(InputStream in, KeyInfo keyInfo, boolean forEncryption) {
         super(in);
-        this.ptr = nativeInit();
-        this.bufferSize = bufferSize();
+        this.keyInfo = keyInfo;
+        this.forEncryption = forEncryption;
         this.buffer = new byte[bufferSize];
     }
 
-    private native int nativeInit();
 
-    private native int bufferSize();
-
-    private native byte[] transformer(byte[] data, int off, int len);
-
-    private native void nativeDrop(int ptr);
-
+    private byte[] transformer(byte[] data, int off, int len) throws IOException {
+        try {
+            if (forEncryption) {
+                return keyInfo.encrypt(data, off, off + len);
+            } else {
+                return keyInfo.decrypt(data, off, off + len);
+            }
+        } catch (TransformException e) {
+            throw new IOException(e);
+        }
+    }
 
     private boolean checkEofAndLoadNextChunk() throws IOException {
         if (curr == end) {
@@ -123,14 +132,5 @@ public class InternalResourceDecryptInputStream extends FilterInputStream {
     @Override
     public boolean markSupported() {
         return false;
-    }
-
-    @Override
-    public void close() throws IOException {
-        try {
-            super.close();
-        } finally {
-            nativeDrop(ptr);
-        }
     }
 }

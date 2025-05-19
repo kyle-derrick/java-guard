@@ -10,41 +10,20 @@ import java.util.Arrays;
  * @author kyle kyle_derrick@foxmail.com
  * 2024/10/08 10:32
  */
-@Deprecated
-public class EncryptInfo {
-    private byte[] key;
-    private byte[] resourceKey;
+public class KeyInfo {
+    private final byte[] key;
     private final SecureRandom secureRandom = new SecureRandom();
 
-    public EncryptInfo() {
-    }
-
-    public EncryptInfo(byte[] key) {
+    public KeyInfo(byte[] key) {
         this.key = key;
     }
 
     public byte[] getKey() {
-        return key;
+        return key.clone();
     }
 
     public KeyParameter getKeyParams() {
-        return new KeyParameter(key);
-    }
-
-    public byte[] getResourceKey() {
-        return resourceKey;
-    }
-
-    public KeyParameter getResourceKeyParams() {
-        return new KeyParameter(resourceKey);
-    }
-
-    public void setResourceKey(byte[] resourceKey) {
-        this.resourceKey = resourceKey;
-    }
-
-    public void setKey(byte[] key) {
-        this.key = key;
+        return new KeyParameter(getKey());
     }
 
     public GcmCipherContext getCipher(boolean forEncryption) throws TransformException {
@@ -53,14 +32,6 @@ public class EncryptInfo {
 
     public GcmCipherContext getCipher(boolean forEncryption, byte[] iv) throws TransformException {
         return new GcmCipherContext(forEncryption, getKeyParams(), iv);
-    }
-
-    public GcmCipherContext getResourceCipher(boolean forEncryption) throws TransformException {
-        return new GcmCipherContext(forEncryption, getResourceKeyParams(), nextIv());
-    }
-
-    public GcmCipherContext getResourceCipher(boolean forEncryption, byte[] iv) throws TransformException {
-        return new GcmCipherContext(forEncryption, getResourceKeyParams(), iv);
     }
 
     public byte[] nextIv() {

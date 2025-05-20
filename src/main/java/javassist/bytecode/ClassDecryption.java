@@ -18,6 +18,7 @@ import java.util.function.Function;
  * @author kyle kyle_derrick@foxmail.com
  * 2024/10/08 10:32
  */
+@Deprecated
 public class ClassDecryption {
     private static final String URL_CLASS_NAME = "java/net/URL";
     private static final String SECRET_BOX_TAG = "<SecretBox>";

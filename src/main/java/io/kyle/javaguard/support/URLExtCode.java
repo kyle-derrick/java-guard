@@ -15,6 +15,7 @@ import java.util.StringJoiner;
  * @author kyle kyle_derrick@foxmail.com
  * 2024/10/8 16:29
  */
+@Deprecated
 public class URLExtCode {
 
     public static String format(String originMethod, byte[] encryptHeader, byte[] resourceKey, String algorithm, String transformation) throws IOException {

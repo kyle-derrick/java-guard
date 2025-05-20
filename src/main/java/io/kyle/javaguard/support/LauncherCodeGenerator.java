@@ -18,10 +18,7 @@ import org.apache.commons.text.StringSubstitutor;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -34,7 +31,7 @@ import java.util.StringJoiner;
  * 2024/10/8 22:29
  */
 public class LauncherCodeGenerator {
-    private static final Class<?>[] WRITE_RUNTIME_CLASS = {JGTransformInputStream.class};
+    private static final Class<?>[] WRITE_RUNTIME_CLASS = {InternalResourceDecryptInputStream.class, InternalResourceURLConnection.class};
     private static final String LAUNCHER_CODE_DIR = "jg-launcher";
     private static final String LAUNCHER_CODE_BUILD_CONFIG_FILE = "build_config.rs";
     private static final String LAUNCHER_BUILD_PATH = "build";
@@ -80,59 +77,13 @@ public class LauncherCodeGenerator {
         if (!launcherClassDir.exists()) {
             launcherClassDir.mkdirs();
         }
-        EncryptInfo encrypt = info.getEncrypt();
-        String code = null;
-        try {
-            code = URLExtCode.format(ClassDecryption.URL_OPEN_CONNECTION_RENAME, ConstVars.ENCRYPT_RESOURCE_HEADER,
-                    encrypt.getResourceKey(), encrypt.getAlgorithm(), encrypt.getTransformation());
-        } catch (IOException e) {
-            throw new TransformException("generate resource decrypt code failed", e);
-        }
-        ClassPool pool = ClassPool.getDefault();
-        CtClass classDecryptionClass = null;
-        CtField urlOpenConnectionCode;
-        try {
-            classDecryptionClass = pool.getCtClass(ClassDecryption.class.getName());
-            urlOpenConnectionCode = classDecryptionClass.getDeclaredField("URL_OPEN_CONNECTION_CODE");
-        } catch (NotFoundException e) {
-            throw new TransformException("handle resource decrypt class failed", e);
-        }
-        ConstPool constPool = classDecryptionClass.getClassFile().getConstPool();
-        byte[] encryptCode = null;
-        try {
-            encryptCode = encrypt.encrypt(code.getBytes(StandardCharsets.UTF_8));
-        } catch (TransformException e) {
-            throw new TransformException("encrypt resource decrypt code failed", e);
-        }
-        int index = constPool.addUtf8Info(Base64.getEncoder().withoutPadding().encodeToString(encryptCode));
-        byte[] constValue = urlOpenConnectionCode.getAttribute(ConstantAttribute.tag);
-        ByteArray.write16bit(index, constValue, 0);
-
-        // transform mod, class and javassist
-        File classesFile = new File(launcherClassDir, LAUNCHER_TRANSFORM_MOD_FILE);
-        try (OutputStream out = new CipherOutputStream(Files.newOutputStream(classesFile.toPath()), encrypt.getCipher(Cipher.ENCRYPT_MODE));
-             InputStream loaderInput = ClassDecryptionLoader.class.getResourceAsStream(ClassDecryptionLoader.class.getSimpleName() + ".class")) {
-            assert loaderInput != null;
-            byte[] loaderCode = IOUtils.toByteArray(loaderInput);
-            out.write(BytesUtils.intToBytes(loaderCode.length));
-            out.write(loaderCode);
-            byte[] bytecode = classDecryptionClass.toBytecode();
-            out.write(BytesUtils.intToBytes(bytecode.length));
-            out.write(bytecode);
-            URL javassist = ClassFile.class.getProtectionDomain().getCodeSource().getLocation();
-            int length = javassist.getFile().length();
-            out.write(BytesUtils.intToBytes(length));
-            try (InputStream javassistIn = javassist.openStream()) {
-                IOUtils.copy(javassistIn, out);
-            }
-        } catch (Exception e) {
-            throw new TransformException("write classes failed", e);
-        }
 
         // runtime classes
         File out = new File(launcherClassDir, LAUNCHER_RUNTIME_CLASS_FILE);
-        try (OutputStream outputStream = new CipherOutputStream(Files.newOutputStream(out.toPath()), encrypt.getCipher(Cipher.ENCRYPT_MODE))) {
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                OutputStream fileOutput = Files.newOutputStream(out.toPath())) {
             for (Class<?> clazz : WRITE_RUNTIME_CLASS) {
+                // todo 改为运行时编译
                 try (InputStream stream = clazz.getResourceAsStream(clazz.getSimpleName() + ".class")) {
                     byte[] name = clazz.getName().getBytes(StandardCharsets.UTF_8);
                     assert stream != null;
@@ -144,6 +95,8 @@ public class LauncherCodeGenerator {
                     IOUtils.copy(stream, outputStream);
                 }
             }
+            ByteArrayInputStream stream = new ByteArrayInputStream(outputStream.toByteArray());
+            IOUtils.copy(stream, fileOutput);
         } catch (Exception e) {
             throw new TransformException("write runtime class failed", e);
         }

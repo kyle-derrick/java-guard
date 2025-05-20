@@ -2,6 +2,7 @@ package io.kyle.javaguard.test;
 
 import io.kyle.javaguard.support.AesGcmResourceOutputStream;
 import org.apache.commons.io.IOUtils;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import javax.crypto.Cipher;
@@ -15,9 +16,10 @@ import java.nio.file.Paths;
  * @author kyle kyle_derrick@foxmail.com
  * 2025/5/16 16:33
  */
+@Ignore
 public class ResourceStreamTest {
-    private static final String path = "E:\\data\\down\\sys\\ubuntu-24.04-desktop-amd64.iso";
-//    private static final String path = "D:\\data\\down\\baidu\\VMware-VMRC-12.0.0-17287072.zip";
+//    private static final String path = "E:\\data\\down\\sys\\ubuntu-24.04-desktop-amd64.iso";
+    private static final String path = "D:\\data\\down\\baidu\\VMware-VMRC-12.0.0-17287072.zip";
 
     @Test
     public void test() throws Exception {

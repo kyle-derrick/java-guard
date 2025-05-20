@@ -1,6 +1,7 @@
 package io.kyle.javaguard.test;
 
 import io.kyle.javaguard.bean.EncryptInfo;
+import io.kyle.javaguard.bean.KeyInfo;
 import io.kyle.javaguard.bean.TransformInfo;
 import io.kyle.javaguard.transform.ClassTransformer;
 import javassist.ClassPool;
@@ -21,6 +22,7 @@ import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Stack;
 
@@ -34,8 +36,9 @@ public class ClassTransformTest {
         String outEncryptFile = "out/e/TestClass.class";
         String outDecryptFile = "out/d/TestClass.class";
         TransformInfo transformInfo = new TransformInfo();
-        EncryptInfo encryptInfo = new EncryptInfo(DigestUtils.sha256("test"));
-        transformInfo.setEncrypt(encryptInfo);
+        byte[] sha512 = DigestUtils.sha512("test");
+        transformInfo.setKeyInfo(new KeyInfo(Arrays.copyOfRange(sha512, 0, 512 >> 4)));
+        transformInfo.setResourceKeyInfo(new KeyInfo(Arrays.copyOfRange(sha512, 512 >> 4, sha512.length)));
         ClassTransformer classTransformer = new ClassTransformer(transformInfo);
         BufferedInputStream stream = new BufferedInputStream(origin);
         FileOutputStream out = new FileOutputStream(outEncryptFile);

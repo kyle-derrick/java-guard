@@ -6,6 +6,7 @@ import io.kyle.javaguard.bean.SignatureInfo;
 import io.kyle.javaguard.bean.TransformInfo;
 import io.kyle.javaguard.constant.ConstVars;
 import io.kyle.javaguard.constant.TransformType;
+import io.kyle.javaguard.exception.TransformException;
 import io.kyle.javaguard.support.LauncherCodeGenerator;
 import io.kyle.javaguard.transform.JarTransformer;
 import io.kyle.javaguard.util.ZipSignUtils;
@@ -76,6 +77,7 @@ public class JavaGuardMain {
         if (ArrayUtils.isEmpty(jars)) {
             printUsage();
         }
+        boolean jarEncrypted = false;
         for (String arg : jars) {
             if (arg.endsWith(".jar")) {
                 File outFile = new File(outputFile, FilenameUtils.getName(arg));
@@ -86,7 +88,7 @@ public class JavaGuardMain {
                         jarTransformer.decrypt(in, out);
                     } else if (TransformType.signature != appConfig.getMode()) {
                         jarTransformer.encrypt(in, out);
-                        LauncherCodeGenerator.generate(output, transformInfo);
+                        jarEncrypted = true;
                     } else {
                         IOUtils.copy(in, out);
                     }
@@ -97,6 +99,15 @@ public class JavaGuardMain {
                 } catch (Exception e) {
                     throw new Error("transform failed: [" + arg + "]", e);
                 }
+            }
+        }
+
+        if (jarEncrypted) {
+            try {
+                LauncherCodeGenerator.generate(output, transformInfo);
+            } catch (TransformException e) {
+                System.err.println("ERROR: jd launcher generate failed: " + e.getMessage());
+                e.printStackTrace();
             }
         }
     }
@@ -129,7 +140,7 @@ public class JavaGuardMain {
     }
 
     private static void printUsage() {
-        new HelpFormatter().printHelp("JavaGuard", OPTIONS);
+        new HelpFormatter().printHelp("java-guard", OPTIONS);
         System.exit(0);
     }
 

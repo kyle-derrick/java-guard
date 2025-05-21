@@ -5,11 +5,14 @@ import io.kyle.javaguard.bean.SignatureInfo;
 import io.kyle.javaguard.bean.TransformInfo;
 import io.kyle.javaguard.exception.TransformException;
 import io.kyle.javaguard.util.BytesUtils;
+import net.lingala.zip4j.io.inputstream.ZipInputStream;
+import net.lingala.zip4j.model.LocalFileHeader;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.text.StringSubstitutor;
 
 import java.io.*;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.HashMap;
@@ -30,8 +33,36 @@ public class LauncherCodeGenerator {
     private static final String LAUNCHER_TRANSFORM_MOD_FILE = "transform.mod";
     public static void generate(String output, TransformInfo info) throws TransformException {
         File launcherDir = new File(output, LAUNCHER_CODE_DIR);
-        if (!launcherDir.exists()) {
-            launcherDir.mkdirs();
+        if (launcherDir.exists()) {
+            try {
+                FileUtils.forceDelete(launcherDir);
+            } catch (IOException e) {
+                System.err.println("ERROR: Could not delete " + launcherDir);
+            }
+        }
+
+        try {
+            FileUtils.forceMkdir(launcherDir);
+        } catch (IOException e) {
+            throw new TransformException("create jg-launcher dir failed!", e);
+        }
+        try (ZipInputStream zip = new ZipInputStream(LauncherCodeGenerator.class.getResourceAsStream("/jg-launcher.zip"))) {
+            LocalFileHeader entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                String fileName = entry.getFileName();
+                File file = new File(launcherDir, fileName);
+                if (entry.isDirectory()) {
+                    try {
+                        FileUtils.forceMkdir(file);
+                    } catch (IOException e) {
+                        throw new TransformException("create jg-launcher sub dir [" + fileName + "] failed!", e);
+                    }
+                } else {
+                    FileUtils.copyToFile(zip, file);
+                }
+            }
+        } catch (Exception e) {
+            throw new TransformException("generate jg-launcher failed!", e);
         }
         // todo copy to launcher dir
         generateBuildConfigRs(launcherDir, info);

@@ -1,0 +1,6 @@
+matches:
+  - "org/antlr/v4/*"
+#zipLevel:
+key: xxx
+privateKey: ./private.pem
+publicKey: ./public.pem

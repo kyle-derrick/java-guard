@@ -1,0 +1,25 @@
+<assembly     xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0 http://maven.apache.org/xsd/assembly-1.1.0.xsd">
+    <id>jg-launcher-zip</id>
+    <formats>
+        <format>zip</format>
+    </formats>
+    <includeBaseDirectory>false</includeBaseDirectory>
+    <fileSets>
+        <!-- 压缩项目根目录下的 xxx 文件夹 -->
+        <fileSet>
+            <directory>${project.basedir}/jg-launcher</directory>
+            <outputDirectory>/</outputDirectory>
+            <includes>
+                <include>**/*</include> <!-- 包含所有内容 -->
+            </includes>
+            <excludes>
+                <exclude>target/**</exclude>
+                <exclude>.idea/**</exclude>
+                <exclude>lib/jg-jvmti-wrapper/target/**</exclude>
+                <exclude>lib/jg-jvmti-wrapper/.idea/**</exclude>
+            </excludes>
+        </fileSet>
+    </fileSets>
+</assembly>

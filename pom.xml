@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.kyle.javaguard</groupId>
-    <artifactId>JavaGuard</artifactId>
+    <artifactId>java-guard</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
@@ -91,39 +91,41 @@
         </dependency>
     </dependencies>
     <build>
-        <resources>
-            <!-- 默认资源目录 -->
-            <resource>
-                <directory>src/main/resources</directory>
-            </resource>
-            <!-- 自定义目录 -->
-            <resource>
-                <directory>JGLauncher</directory>
-                <targetPath>JGLauncher</targetPath>
-            </resource>
-        </resources>
         <plugins>
            <plugin>
                <groupId>org.apache.maven.plugins</groupId>
                <artifactId>maven-assembly-plugin</artifactId>
                <version>3.3.0</version>
-               <configuration>
-                    <archive>
-                        <manifest>
-                            <mainClass>io.kyle.javaguard.JavaGuardMain</mainClass>
-                        </manifest>
-                    </archive>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                </configuration>
                 <executions>
+                    <execution>
+                        <id>make-jg-launcher-zip</id>
+                        <phase>generate-resources</phase> <!-- 在资源处理前生成 ZIP -->
+                        <goals><goal>single</goal></goals>
+                        <configuration>
+                            <descriptors>
+                                <descriptor>assembly/jg-launcher.xml</descriptor>
+                            </descriptors>
+                            <finalName>jg-launcher</finalName>
+                            <appendAssemblyId>false</appendAssemblyId>
+                            <outputDirectory>${project.build.directory}/classes</outputDirectory>
+                        </configuration>
+                    </execution>
                     <execution>
                         <id>make-assembly</id>
                         <phase>package</phase>
                         <goals>
                             <goal>single</goal>
                         </goals>
+                        <configuration>
+                            <archive>
+                                <manifest>
+                                    <mainClass>io.kyle.javaguard.JavaGuardMain</mainClass>
+                                </manifest>
+                            </archive>
+                            <descriptorRefs>
+                                <descriptorRef>jar-with-dependencies</descriptorRef>
+                            </descriptorRefs>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

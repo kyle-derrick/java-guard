@@ -1,28 +1,17 @@
 package io.kyle.javaguard.support;
 
-import io.kyle.javaguard.bean.EncryptInfo;
 import io.kyle.javaguard.bean.KeyInfo;
 import io.kyle.javaguard.bean.SignatureInfo;
 import io.kyle.javaguard.bean.TransformInfo;
-import io.kyle.javaguard.constant.ConstVars;
 import io.kyle.javaguard.exception.TransformException;
 import io.kyle.javaguard.util.BytesUtils;
-import javassist.ClassPool;
-import javassist.CtClass;
-import javassist.CtField;
-import javassist.NotFoundException;
-import javassist.bytecode.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.text.StringSubstitutor;
 
-import javax.crypto.Cipher;
-import javax.crypto.CipherOutputStream;
 import java.io.*;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.StringJoiner;
 

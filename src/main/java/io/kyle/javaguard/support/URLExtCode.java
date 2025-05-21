@@ -2,7 +2,6 @@ package io.kyle.javaguard.support;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.text.StringEscapeUtils;
 import org.apache.commons.text.StringSubstitutor;
 
 import java.io.IOException;

@@ -1,6 +1,5 @@
 package io.kyle.javaguard.test;
 
-import io.kyle.javaguard.bean.EncryptInfo;
 import io.kyle.javaguard.bean.KeyInfo;
 import io.kyle.javaguard.bean.TransformInfo;
 import io.kyle.javaguard.transform.ClassTransformer;

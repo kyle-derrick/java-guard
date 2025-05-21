@@ -49,7 +49,7 @@ public class StandardResourceInputStream extends FilterInputStream {
     }
 
     private void loadNextChunk() throws IOException {
-        int read = super.read(buffer);
+        int read = in.read(buffer);
         if (read > 0) {
             byte[] bytes = transformer(buffer, 0, read);
             System.arraycopy(bytes, 0, buffer, 0, bytes.length);

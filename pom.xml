@@ -91,6 +91,17 @@
         </dependency>
     </dependencies>
     <build>
+        <resources>
+            <!-- 默认资源目录 -->
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <!-- 自定义目录 -->
+            <resource>
+                <directory>JGLauncher</directory>
+                <targetPath>JGLauncher</targetPath>
+            </resource>
+        </resources>
         <plugins>
            <plugin>
                <groupId>org.apache.maven.plugins</groupId>

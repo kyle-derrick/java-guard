@@ -52,7 +52,7 @@ public class ZipSignUtils {
             if (read <= 0) {
                 throw new TransformException("comment length does not found");
             }
-            int commentLen = Short.toUnsignedInt(BytesUtils.bytesToShort(commentLenBs));
+            int commentLen = Short.toUnsignedInt(BytesUtils.bytesLeToShort(commentLenBs));
             if (commentLen != bytes.length) {
                 throw new TransformException("comment length does not match");
             }
@@ -63,12 +63,12 @@ public class ZipSignUtils {
                 commentLen = COMMENT_MAX_LEN - suffixLen;
             }
             accessFile.seek(commentStart);
-            accessFile.write(BytesUtils.shortToBytes((short) (commentLen + suffixLen)));
+            accessFile.write(BytesUtils.shortToLeBytes((short) (commentLen + suffixLen)));
             if (commentLen > 0) {
                 accessFile.write(bytes, 0, commentLen);
             }
             accessFile.write(hashBase64);
-            accessFile.write(Hex.encodeHexString(BytesUtils.shortToBytes((short) hashBase64.length)).getBytes(charset));
+            accessFile.write(Hex.encodeHexString(BytesUtils.shortToLeBytes((short) hashBase64.length)).getBytes(charset));
             return sign;
         } catch (IOException e) {
             throw new TransformException("read zip file failed", e);
@@ -91,7 +91,7 @@ public class ZipSignUtils {
             String signLenHex = StringUtils.substring(comment, comment.length() - SUFFIX_ENCODE_LEN, comment.length());
             byte[] sign;
             try {
-                int signLen = Short.toUnsignedInt(BytesUtils.bytesToShort(Hex.decodeHex(signLenHex)));
+                int signLen = Short.toUnsignedInt(BytesUtils.bytesLeToShort(Hex.decodeHex(signLenHex)));
                 byte[] signBase64 = BytesUtils.subBytes(commentBytes, commentBytes.length - SUFFIX_ENCODE_LEN - signLen, signLen);
                 sign = Base64.decodeBase64(signBase64);
             } catch (Exception e) {

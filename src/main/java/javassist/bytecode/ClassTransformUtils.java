@@ -109,10 +109,10 @@ public class ClassTransformUtils {
                         continue;
                     }
                     byte[] bytes = string.getBytes(StandardCharsets.UTF_8);
-                    len = bytes.length + Integer.BYTES;
+                    len = bytes.length + Short.BYTES;
                     type = ConstBaseType.String.getType();
                     put = bb -> {
-                        bb.putInt(bytes.length);
+                        bb.putShort((short) bytes.length);
                         bb.put(bytes);
                     };
                     utf8Info.string = "*";
@@ -123,7 +123,7 @@ public class ClassTransformUtils {
 
             ByteBuffer bb;
             bb = ByteBuffer.allocate(len + CONST_INFO_PREFIX_SIZE);
-            bb.order(ByteOrder.LITTLE_ENDIAN);
+            bb.order(ByteOrder.BIG_ENDIAN);
             bb.put(CONST_INFO_INDEX_PREFIX);
             bb.put(type);
             put.accept(bb);

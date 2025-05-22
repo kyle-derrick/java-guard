@@ -11,18 +11,18 @@ public class BytesUtils {
 
     public static byte[] intToBytes(int i) {
         ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
-        buffer.order(ByteOrder.LITTLE_ENDIAN);
+        buffer.order(ByteOrder.BIG_ENDIAN);
         buffer.putInt(i);
         return buffer.array();
     }
 
-    public static short bytesToShort(byte[] bs) {
+    public static short bytesLeToShort(byte[] bs) {
         ByteBuffer buffer = ByteBuffer.wrap(bs);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
         return buffer.getShort();
     }
 
-    public static byte[] shortToBytes(short s) {
+    public static byte[] shortToLeBytes(short s) {
         ByteBuffer buffer = ByteBuffer.allocate(Short.BYTES);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
         buffer.putShort(s);

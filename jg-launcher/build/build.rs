@@ -9,7 +9,7 @@ use std::{env, fs};
 use crate::build_config::*;
 
 const RUNTIME_CLASSES: &str = "runtime.classes";
-const TRANSFORM_MOD: &str = "transform.mod";
+// const TRANSFORM_MOD: &str = "transform.mod";
 const PUB_KEY_NAME: &str = "pub_key";
 const INNER_KEY_NAME: &str = "inner_key";
 const RESOURCE_KEY_NAME: &str = "resource_key";
@@ -25,10 +25,10 @@ fn main() {
 
     let ext_path = Path::new(&cargo_dir).join("build").join("ext");
     let runtime_classes_path = ext_path.join(RUNTIME_CLASSES);
-    let transform_mod_path = ext_path.join(TRANSFORM_MOD);
+    // let transform_mod_path = ext_path.join(TRANSFORM_MOD);
 
     fs::copy(runtime_classes_path, out_path.join(RUNTIME_CLASSES)).unwrap();
-    fs::copy(transform_mod_path, out_path.join(TRANSFORM_MOD)).unwrap();
+    // fs::copy(transform_mod_path, out_path.join(TRANSFORM_MOD)).unwrap();
     #[warn(named_arguments_used_positionally)]
     let common_content = format!(include_str!("_common.rs"),
                                  version = app_version, key_version = SIGN_KEY_VERSION);

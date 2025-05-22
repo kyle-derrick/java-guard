@@ -1,4 +1,4 @@
-use jni_sys::{jclass, jint, jobject, JNIEnv, JavaVM};
+use jni_sys::{jclass, jint, jlong, jobject, JNIEnv, JavaVM};
 use std::ffi::{c_int, c_void};
 
 pub type jvmtiEventClassFileLoadHook = unsafe extern "system" fn(
@@ -16,4 +16,5 @@ pub type jvmtiEventClassFileLoadHook = unsafe extern "system" fn(
 
 extern "system" {
     pub fn set_file_load_callback(vm: *const JavaVM, class_file_load_hook: jvmtiEventClassFileLoadHook) -> c_int;
+    pub fn jvmti_allocate(jvmti_env: *const c_void, size: jlong, mem_ptr: *mut *mut std::os::raw::c_uchar) -> c_int;
 }

@@ -1,17 +1,17 @@
 use crate::args_parser::LaunchTarget::Jar;
 use crate::args_parser::LauncherArg;
-use crate::base::common::transform_mod;
+use crate::base::common::ENCRYPT_DATA_TAG;
 use crate::jvm::jvm_util::JvmWrapper;
 use crate::jvm::launcher_helper::{find_launcher_helper_from_env, JvmLauncherHelper};
-use crate::util::byte_utils::byte_to_u32;
-use jg_jvmti_wrapper::set_file_load_callback;
-use jni::objects::{JByteArray, JClass, JObject, JValue};
-use jni::strings::JNIString;
+use crate::util::{aes_util, byte_utils};
+use jclass::util::class_scan::fast_scan_class;
+use jg_jvmti_wrapper::{jvmti_allocate, set_file_load_callback};
+use jni::objects::{JByteArray, JClass, JObject};
 use jni::sys::jsize;
+use jni::JNIVersion;
 use jni::{JNIEnv, JavaVM};
-use jni::{JNIVersion, NativeMethod};
-use jni_sys::{_jobject, jclass, jint, jobject, JavaVMInitArgs, JNI_VERSION_1_1};
-use std::ffi::{c_void, CStr};
+use jni_sys::{jclass as java_class, jint, jlong, jobject, JavaVMInitArgs, JNI_VERSION_1_1};
+use std::ffi::c_void;
 use std::os::raw::c_uchar;
 use std::ptr::null_mut;
 
@@ -73,7 +73,6 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
     // let mut env = jvm.get_env().unwrap();
 
     let env_ref = &mut env;
-    load_mod(env_ref);
 
     let app_args = launcher_arg.app_args();
 
@@ -90,34 +89,6 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
     }
 }
 
-fn load_mod(env: &mut JNIEnv) {
-    let transform_mod_code = transform_mod();
-    let len = byte_to_u32(&transform_mod_code[..4]) as usize;
-    let loader_class = env.define_unnamed_class(&JObject::null(), &transform_mod_code[4..len]).expect("load mod failed");
-    let transformer_index = 4+len;
-    let transformer_len = byte_to_u32(&transform_mod_code[transformer_index..transformer_index + 4]) as usize;
-    let javassist_index = transformer_index+transformer_len+4;
-    let javassist_len = byte_to_u32(&transform_mod_code[javassist_index..javassist_index + 4]) as usize;
-    let transformer_java_array = env.byte_array_from_slice(&transform_mod_code[transformer_index + 4..javassist_index])
-        .unwrap();
-    let javassist_java_array = env.byte_array_from_slice(&transform_mod_code[javassist_index + 4..javassist_index+4+javassist_len])
-        .unwrap();
-
-    let transformer = env.call_static_method(&loader_class, "decryption", "([B[B)Ljava/lang/Object;",
-                                             &[JValue::Object(&transformer_java_array), JValue::Object(&javassist_java_array)])
-        .expect("load transformer failed").l().expect("load transformer failed");
-    let transformer_class = env.get_object_class(&transformer).unwrap();
-    env.register_native_methods(&transformer_class, &[NativeMethod{
-        name: JNIString::from("decryptData"),
-        sig: JNIString::from("([B)[B"),
-        fn_ptr: jni_native_transform as *mut c_void
-    }]).unwrap();
-    let transformer_ptr: *mut _jobject = transformer.as_raw().cast();
-    unsafe {
-        TRANSFORMER_OBJ = Some(transformer_ptr);
-    }
-}
-
 fn set_callbacks(jvm: &JavaVM) {
     unsafe {
         set_file_load_callback(jvm.get_java_vm_pointer(), jg_class_file_load_hook);
@@ -127,7 +98,7 @@ fn set_callbacks(jvm: &JavaVM) {
 extern "system" fn jg_class_file_load_hook(
         jvmti_env: *mut c_void,
         jni_env: *mut jni_sys::JNIEnv,
-        class_being_redefined: jclass,
+        class_being_redefined: java_class,
         loader: jobject,
         name: *const std::os::raw::c_char,
         protection_domain: jobject,
@@ -136,55 +107,127 @@ extern "system" fn jg_class_file_load_hook(
         new_class_data_len: *mut jint,
         new_class_data: *mut *mut std::os::raw::c_uchar,
         ) {
-    let name = unsafe { CStr::from_ptr(name) }.to_str().unwrap();//todo
-    let class_data_prefix = unsafe {
-        std::slice::from_raw_parts(class_data, 5)
+    // let name = unsafe { CStr::from_ptr(name) }.to_str().unwrap();//todo
+    // let class_data_prefix = unsafe {
+    //     std::slice::from_raw_parts(class_data, 5)
+    // };
+    // // continue if not decrypt
+    // if class_data_len <= 4 || class_data_prefix[4] & CLASS_ENCRYPT_FLAG == 0 {
+    //     if name != URL_CLASS_NAME {
+    //         unsafe {
+    //             *new_class_data = class_data as *mut c_uchar;
+    //             *new_class_data_len = class_data_len;
+    //         }
+    //         return;
+    //     }
+    // }
+    let (mut env, class_data_arr) = unsafe {
+        (
+            JNIEnv::from_raw(jni_env).unwrap(),
+            std::slice::from_raw_parts(class_data as *const u8, class_data_len as usize)
+        )
     };
-    // continue if not decrypt
-    if class_data_len <= 4 || class_data_prefix[4] & CLASS_ENCRYPT_FLAG == 0 {
-        if name != URL_CLASS_NAME {
-            unsafe {
-                *new_class_data = class_data as *mut c_uchar;
-                *new_class_data_len = class_data_len;
-            }
-            return;
-        }
-    }
-    let transformer = unsafe { &TRANSFORMER_OBJ };
-    if let Some(transformer) = transformer {
-        let (mut env, class_data_arr, transformer) = unsafe {
-            (
-                JNIEnv::from_raw(jni_env).unwrap(),
-                CStr::from_ptr(class_data as *const std::os::raw::c_char).to_bytes(),
-                JObject::from_raw(jobject::from(*transformer))
-            )
-        };
-        let name_str = env.new_string(name).unwrap();//todo
-        let class_data_java_array = env.byte_array_from_slice(class_data_arr).unwrap();//todo
-        let (data, len) = match env.call_method(transformer, "decryptClass", "(Ljava/lang/String;[B)[B",
-                                                &[JValue::Object(&name_str), JValue::Object(&class_data_java_array)]) {
-            Ok(result) => {
-                let result_java_array = JByteArray::from(result.l().unwrap());//todo
-                // let len = env.get_array_length(&result_java_array).unwrap();//todo
-                let result_array = env.convert_byte_array(&result_java_array).unwrap();
-                let result_cstr = CStr::from_bytes_with_nul(&result_array).unwrap(); //todo
-                // todo call transformer
-                // todo check result_cstr.count_bytes() is i32
-                (result_cstr.as_ptr() as *const std::os::raw::c_uchar, result_cstr.count_bytes() as jint)
-            }
-            Err(e) => {
-                eprintln!("class file transform failed: {}", e.to_string());
-                (class_data, class_data_len)
-            }
-        };
-        unsafe {
-            *new_class_data = data as *mut c_uchar;
-            *new_class_data_len = len;
-        }
-    } else {
+    if !try_decrypt_class(jvmti_env, &mut env, class_data_arr, new_class_data_len, new_class_data) {
         unsafe {
             *new_class_data = class_data as *mut c_uchar;
             *new_class_data_len = class_data_len;
+        }
+    }
+}
+
+fn try_decrypt_class(jvmti_env: *mut c_void,
+                     env: &mut JNIEnv,
+                     class_data_arr: &[u8],
+                     new_class_data_len: *mut jint,
+                     new_class_data: *mut *mut std::os::raw::c_uchar,) -> bool {
+    match fast_scan_class(class_data_arr, ENCRYPT_DATA_TAG, false) {
+        Ok(Some(info)) if info.specify_attribute.is_some() => {
+            let data_range = info.specify_attribute.unwrap();
+            let mut en_data = class_data_arr[data_range.start..data_range.end].to_vec();
+            let data = match aes_util::decrypt(&mut en_data) {
+                Ok(data) => data,
+                Err(err) => {
+                    eprintln!("decrypt class data attribute failed: {}", err);
+                    return false;
+                }
+            };
+
+            let mut new_class_data_bytes = Vec::with_capacity(class_data_arr.len());
+            // todo decrypt class
+            let mut index = 0;
+            let mut copied_index = 0;
+            loop {
+                let start = index;
+                index += 2;
+                let const_index = byte_utils::be_byte_to_u16(&data[start..index]) as usize;
+                let len = match data[index] as char {
+                    'I' | 'F' => {
+                        4
+                    }
+                    'L' | 'D' => {
+                        8
+                    }
+                    'S' => {
+                        let start = index;
+                        index += 4;
+                        let len = byte_utils::byte_to_u32(&data[(start + 1)..index + 1]) as usize;
+                        len
+                    }
+                    _ => {
+                        index += 1;
+                        break
+                    }
+                };
+                index += 1;
+                let const_start = info.consts[const_index - 1] + 1;
+                let const_end = info.consts[const_index];
+                new_class_data_bytes.copy_from_slice(&class_data_arr[copied_index..const_start]);
+                copied_index = const_end;
+                let start = index;
+                index += len;
+                new_class_data_bytes.copy_from_slice(&data[start..index]);
+                break
+            }
+
+            let start = index;
+            index += 4;
+            let codes_size = byte_utils::be_byte_to_u32(&data[start..index]) as usize;
+            for i in 0..codes_size {
+                let start = index;
+                index += 4;
+                let code_len = byte_utils::be_byte_to_u32(&data[start..index]) as usize;
+                let code_range = info.method_codes[i];
+
+                let code_start = code_range.0 + 2;
+                new_class_data_bytes.copy_from_slice(&class_data_arr[copied_index..code_start]);
+                copied_index = code_range.1;
+                // let start = index;
+                index += code_len;
+                new_class_data_bytes.copy_from_slice(&data[start..index]);
+            }
+            new_class_data_bytes.copy_from_slice(&class_data_arr[copied_index..data_range.start - 4]);
+            new_class_data_bytes.copy_from_slice(&[0, 0, 0, 0]);
+            new_class_data_bytes.copy_from_slice(&class_data_arr[data_range.end..]);
+
+            let new_class_data_bytes_len = new_class_data_bytes.len();
+            let mut new_class_data_ptr = std::ptr::null_mut();
+            if 0 == unsafe { jvmti_allocate(jvmti_env, new_class_data_bytes_len as jlong, &mut new_class_data_ptr) } {
+                eprintln!("allocate decrypted class data failed");
+                return false;
+            }
+            unsafe {
+                std::ptr::copy_nonoverlapping(new_class_data_bytes.as_ptr(), new_class_data_ptr, new_class_data_bytes_len);
+                *new_class_data = new_class_data_ptr;
+                *new_class_data_len = new_class_data_bytes_len as jint;
+            }
+            return true;
+        }
+        Err(err) => {
+            eprintln!("analysis class failed: {}", err);
+            return false;
+        }
+        _ => {
+            return false;
         }
     }
 }

@@ -1,14 +1,16 @@
 use crate::base::common::inner_key;
-use crate::base::error::Result;
+use crate::base::error::{Result, MessageError};
 use crate::with_message;
 use aes_gcm::KeyInit;
 use ring::aead::{Aad, BoundKey, Nonce, NonceSequence, OpeningKey, UnboundKey, AES_256_GCM, NONCE_LEN};
 use ring::error::Unspecified;
 use sha2::Digest;
 
-fn decrypt(data: &mut [u8]) -> Result<&[u8]> {
-    let mut open_key = OpeningKey::new(with_message!(UnboundKey::new(&AES_256_GCM, &inner_key()), "密钥初始化失败！")?,
-                                       OnceNonceSequence::new((&data[0..NONCE_LEN]).into()));
+pub fn decrypt(data: &mut [u8]) -> Result<&[u8]> {
+    let unbound_key = with_message!(UnboundKey::new(&AES_256_GCM, &inner_key()), "密钥初始化失败！")?;
+    let nonce = with_message!((&data[0..NONCE_LEN]).try_into(), "解密信息失败")?;
+    let mut open_key = OpeningKey::new(unbound_key,
+                                       OnceNonceSequence::new(nonce));
     with_message!(open_key.open_in_place(Aad::empty(), &mut data[NONCE_LEN..]), "解密失败")
 }
 

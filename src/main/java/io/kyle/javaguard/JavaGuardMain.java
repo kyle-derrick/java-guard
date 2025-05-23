@@ -37,7 +37,7 @@ public class JavaGuardMain {
     private static final Option CONFIG_OPTION =
             new Option("c", "config", true, "config files (default: ./config.yml)");
     private static final Option MODE_OPTION =
-            new Option("mode", "mode", true, "encrypt/decrypt/signature mode (default encrypt)");
+            new Option("m", "mode", true, "encrypt/decrypt/signature mode (default encrypt)");
     private static final Option OUTPUT_OPTION =
             new Option("o", "output", true, "output dir");
     private static final Option HELP_OPTION =

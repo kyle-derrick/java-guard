@@ -1,5 +1,6 @@
 package io.kyle.javaguard.bean;
 
+import javassist.bytecode.CodeAttribute;
 import javassist.bytecode.ConstPool;
 import javassist.bytecode.JavassistExt;
 
@@ -12,8 +13,8 @@ import java.util.*;
 public class ClassTransformInfo {
     private final ConstPool constPool;
     private final Set<Integer> retainConst = new HashSet<>();
-    private final List<byte[]> codes = new LinkedList<>();
-    private int codesLen = 0;
+    private final List<CodeAttribute> codes = new LinkedList<>();
+    private int codesBytes = 0;
 
     public ClassTransformInfo(ConstPool constPool) {
         this.constPool = constPool;
@@ -27,11 +28,11 @@ public class ClassTransformInfo {
         return retainConst;
     }
 
-    public int getCodesLen() {
-        return codesLen;
+    public int getCodesBytes() {
+        return codesBytes;
     }
 
-    public List<byte[]> getCodes() {
+    public List<CodeAttribute> getCodes() {
         return Collections.unmodifiableList(codes);
     }
 
@@ -39,9 +40,9 @@ public class ClassTransformInfo {
         return codes.size();
     }
 
-    public void addCode(byte[] code) {
+    public void addCode(CodeAttribute code) {
         this.codes.add(code);
-        codesLen+=code.length;
+        codesBytes +=code.getCodeLength();
     }
 
     public void addRetainConst(int index) {

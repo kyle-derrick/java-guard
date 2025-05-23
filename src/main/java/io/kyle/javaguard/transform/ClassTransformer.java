@@ -140,11 +140,14 @@ public class ClassTransformer extends AbstractTransformer {
             bytecode.addOpcode(opcode);
         }
 
-        CodeAttribute newCodeAttribute = bytecode.toCodeAttribute();
+        CodeAttribute newCodeAttribute = new CodeAttribute(codeAttribute.getConstPool(),
+                bytecode.getMaxStack(), bytecode.getMaxLocals(), bytecode.get(),
+                codeAttribute.getExceptionTable());
         newCodeAttribute.getAttributes().addAll(codeAttribute.getAttributes());
-        newCodeAttribute.getAttributes()
-                .add(new CodeIndexAttribute(codeAttribute.getConstPool(), classTransformInfo.codesSize()));
-        classTransformInfo.addCode(codeAttribute.getCode());
+        // 暂不需要index了，解密时直接按序解密
+//        newCodeAttribute.getAttributes()
+//                .add(new CodeIndexAttribute(codeAttribute.getConstPool(), classTransformInfo.codesSize()));
+        classTransformInfo.addCode(codeAttribute);
         return newCodeAttribute;
     }
 

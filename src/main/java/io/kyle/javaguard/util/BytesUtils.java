@@ -22,11 +22,15 @@ public class BytesUtils {
         return buffer.getShort();
     }
 
-    public static byte[] shortToLeBytes(short s) {
+    public static byte[] shortToBytes(short s, ByteOrder order) {
         ByteBuffer buffer = ByteBuffer.allocate(Short.BYTES);
-        buffer.order(ByteOrder.LITTLE_ENDIAN);
+        buffer.order(order);
         buffer.putShort(s);
         return buffer.array();
+    }
+
+    public static byte[] shortToLeBytes(short s) {
+        return shortToBytes(s, ByteOrder.LITTLE_ENDIAN);
     }
 
     public static byte[] subBytes(byte[] bs, int start, int len) {

@@ -38,13 +38,17 @@ public class ClassTransformUtils {
         ConstPool constPool = info.getConstPool();
         Set<Integer> retainConst = info.getRetainConst();
         ByteArrayOutputStream buff = new ByteArrayOutputStream(
-                (constPool.getSize() - retainConst.size()) * CONST_INFO_SIZE_ESTIMATE + info.getCodesLen() + info.codesSize() * 4);
+                (constPool.getSize() - retainConst.size()) * CONST_INFO_SIZE_ESTIMATE +
+                        info.getCodesBytes() + info.codesSize() * (4 + 4)); // 4 + 4 为长度4字节，最大栈深+局部变量最大数共4字节
         try {
             constPoolToBytes(info, buff);
             buff.write(new byte[] {0,0,0});
-            List<byte[]> codes = info.getCodes();
+            List<CodeAttribute> codes = info.getCodes();
             buff.write(BytesUtils.intToBytes(codes.size()));
-            for (byte[] code : codes) {
+            for (CodeAttribute codeAttribute : codes) {
+                byte[] code = codeAttribute.getCode();
+                buff.write(BytesUtils.shortToBytes((short) codeAttribute.getMaxStack(), ByteOrder.BIG_ENDIAN));
+                buff.write(BytesUtils.shortToBytes((short) codeAttribute.getMaxLocals(), ByteOrder.BIG_ENDIAN));
                 buff.write(BytesUtils.intToBytes(code.length));
                 buff.write(code);
             }

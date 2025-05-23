@@ -68,7 +68,6 @@ public class ClassTransformer extends AbstractTransformer {
         }
 
         try {
-            classFile.setMinorVersion(classFile.getMinorVersion() | CLASS_ENCRYPT_FLAG);
             classFile.write(new DataOutputStream(out));
         } catch (IOException e) {
             throw new TransformException("write class byte failed", e);

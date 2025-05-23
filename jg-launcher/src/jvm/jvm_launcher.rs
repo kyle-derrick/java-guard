@@ -9,9 +9,7 @@ use jni::sys::jsize;
 use jni::JNIVersion;
 use jni::{JNIEnv, JavaVM};
 use jni_sys::{jclass as java_class, jint, jlong, jobject, JavaVMInitArgs, JNI_VERSION_1_1};
-use std::ffi::{c_void, CStr};
-use std::fs::File;
-use std::io::Write;
+use std::ffi::c_void;
 use std::os::raw::{c_int, c_uchar};
 use std::ptr::null_mut;
 
@@ -115,8 +113,8 @@ extern "system" fn jg_class_file_load_hook(
             std::slice::from_raw_parts(class_data as *const u8, class_data_len as usize)
         )
     };
-    let name = unsafe { CStr::from_ptr(name) }.to_str().unwrap();
-    if !try_decrypt_class(name, jvmti_env, &mut env, class_data_arr, new_class_data_len, new_class_data) {
+    // let name = unsafe { CStr::from_ptr(name) }.to_str().unwrap();
+    if !try_decrypt_class(jvmti_env, &mut env, class_data_arr, new_class_data_len, new_class_data) {
         unsafe {
             *new_class_data = class_data as *mut c_uchar;
             *new_class_data_len = class_data_len;
@@ -124,7 +122,7 @@ extern "system" fn jg_class_file_load_hook(
     }
 }
 
-fn try_decrypt_class(name: &str, jvmti_env: *mut c_void,
+fn try_decrypt_class(jvmti_env: *mut c_void,
                      env: &mut JNIEnv,
                      class_data_arr: &[u8],
                      new_class_data_len: *mut jint,
@@ -136,8 +134,6 @@ fn try_decrypt_class(name: &str, jvmti_env: *mut c_void,
             eprintln!("allocate decrypted class data failed");
             return false;
         }
-        let name = name.replace("/", ".");
-        File::create(format!("D:\\data\\code\\project\\java-guard\\out\\tmp\\antlr-4.13.2-complete\\org\\antlr\\v4\\tmp\\{name}")).unwrap().write_all(&new_class_data_bytes).unwrap();
         unsafe {
             std::ptr::copy_nonoverlapping(new_class_data_bytes.as_ptr(), new_class_data_ptr, new_class_data_bytes_len);
             *new_class_data = new_class_data_ptr;

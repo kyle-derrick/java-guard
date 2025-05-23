@@ -1,6 +1,7 @@
 use crate::args_parser::LaunchTarget;
 use jni::objects::{JClass, JObject, JValue};
 use jni::JNIEnv;
+use jni_sys::jboolean;
 
 const SUN_LAUNCHER_HELPER_CLASS: &str = "sun/launcher/LauncherHelper";
 const CLASS_LOADER: &str = "java/lang/ClassLoader";
@@ -38,9 +39,10 @@ impl SunLauncherHelper<'_> {
 
 impl<'local> JvmLauncherHelper<'local> for SunLauncherHelper<'local> {
     fn check_and_load_main(&self, env: &mut JNIEnv<'local>, target: &LaunchTarget) -> jni::errors::Result<JClass<'local>> {
-        let use_stderr = JValue::Bool(true as u8);
+        let use_stderr = JValue::Bool(true as jboolean);
         let mode = JValue::Int(target.sun_mode());
         let name = env.new_string(target.target_value()).expect(&format!("path convert failed: {}", target.target_value()));
+        // let name_str = target.target_value();
         let result = env.call_static_method(&self.class, "checkAndLoadMain", "(ZILjava/lang/String;)Ljava/lang/Class;",
                                          &[use_stderr, mode, JValue::Object(&name)])?;
         Ok(JClass::from(result.l()?))

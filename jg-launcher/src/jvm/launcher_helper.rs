@@ -68,7 +68,7 @@ impl SimpleLauncherHelper<'_> {
 
 impl<'local> JvmLauncherHelper<'local> for SimpleLauncherHelper<'local> {
     fn check_and_load_main(&self, env: &mut JNIEnv<'local>, target: &LaunchTarget) -> jni::errors::Result<JClass<'local>> {
-        let class_name = target.main_class().replace('.', "/");
+        let class_name = target.main_class().replace('/', ".");
         let name = env.new_string(&class_name).expect(&format!("path convert failed: {}", &class_name));
         let result = env.call_method(&self.class_loader, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;", &[JValue::Object(&name)])?;
         Ok(JClass::from(result.l()?))

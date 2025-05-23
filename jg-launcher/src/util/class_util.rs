@@ -66,10 +66,13 @@ pub fn try_decrypt_class(class_data: &[u8]) -> Option<Vec<u8>> {
             index += 4;
             check_index!(data, index);
             let codes_size = byte_utils::byte_be_to_u32_fast(data, start) as usize;
-            for i in 0..codes_size {
-                let code_range = info.method_codes[i];
+            let mut info_code_index = 0;
+            for _ in 0..codes_size {
+                let mut code_range = info.method_codes[info_code_index];
+                info_code_index+=1;
                 while code_range.0 == 0 {
-                    continue
+                    code_range = info.method_codes[info_code_index];
+                    info_code_index+=1;
                 }
                 let start = index;
                 index += 4;
@@ -78,10 +81,10 @@ pub fn try_decrypt_class(class_data: &[u8]) -> Option<Vec<u8>> {
                 check_index!(data, index);
                 let code_len = byte_utils::byte_be_to_u32_fast(data, code_len_start) as usize;
                 let ori_attr_start = code_range.0 + 2;
-                let mut ori_code_start = ori_attr_start + 4 + 2 + 2;
+                let ori_code_start = ori_attr_start + 4 + 2 + 2;
                 // check_index!(class_data, ori_code_start+4);
                 new_class_data_bytes.extend_from_slice(&class_data[copied_index..ori_attr_start]);
-                let mut ori_attr_len = byte_utils::byte_be_to_u32_fast(class_data, ori_attr_start) as usize;
+                let ori_attr_len = byte_utils::byte_be_to_u32_fast(class_data, ori_attr_start) as usize;
                 let ori_code_len = byte_utils::byte_be_to_u32_fast(class_data, ori_code_start) as usize;
                 copied_index = ori_code_start + 4 + (ori_code_len);
                 if copied_index >= code_range.1 {

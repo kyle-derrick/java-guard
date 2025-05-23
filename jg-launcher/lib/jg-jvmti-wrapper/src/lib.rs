@@ -17,4 +17,6 @@ pub type jvmtiEventClassFileLoadHook = unsafe extern "system" fn(
 extern "system" {
     pub fn set_file_load_callback(vm: *const JavaVM, class_file_load_hook: jvmtiEventClassFileLoadHook) -> c_int;
     pub fn jvmti_allocate(jvmti_env: *const c_void, size: jlong, mem_ptr: *mut *mut std::os::raw::c_uchar) -> c_int;
+    pub fn struct_test() -> c_int;
+    pub fn test_base(i: c_int) -> c_int;
 }

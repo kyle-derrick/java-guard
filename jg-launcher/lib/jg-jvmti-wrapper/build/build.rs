@@ -18,8 +18,9 @@ fn main() {
     println!(">>> jdk includes: {:?}", includes);
     builder
         .includes(&includes)
+        .include("c_src/lib.h")
         .file("c_src/lib.c")
-        .compile("jg-jvmti-wrapper");
+        .compile("jg-jvmti-lib");
 }
 
 fn jdk_includes() -> Option<Vec<PathBuf>> {

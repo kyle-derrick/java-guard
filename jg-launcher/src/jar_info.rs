@@ -27,7 +27,7 @@ fn extract_sign_from_comment(comment: &[u8]) -> Vec<u8> {
     let len_without_suffix = comment.len() - SIGN_LEN_HEX_LEN;
     let sign_len_hex = str::from_utf8(&comment[len_without_suffix..])
         .expect("jar signature info is invalid");
-    let sign_base64_len = byte_utils::byte_to_u32(&hex::decode(sign_len_hex)
+    let sign_base64_len = byte_utils::byte_to_u16(&hex::decode(sign_len_hex)
         .expect("jar signature info is invalid")) as usize;
     let sign_base64 = str::from_utf8(&comment[(len_without_suffix-sign_base64_len)..len_without_suffix])
         .expect("jar signature is invalid");

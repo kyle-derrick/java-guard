@@ -10,27 +10,17 @@ import java.io.InputStream;
  */
 @SuppressWarnings("DuplicatedCode")
 public class InternalResourceDecryptInputStream extends FilterInputStream {
-    private final int bufferSize;
+    private static final int bufferSize = 8192;
     private final byte[] buffer;
     private int curr = 0;
     private int end = 0;
-    private final int ptr;
 
     public InternalResourceDecryptInputStream(InputStream in) {
         super(in);
-        this.ptr = nativeInit();
-        this.bufferSize = bufferSize();
         this.buffer = new byte[bufferSize];
     }
 
-    private native int nativeInit();
-
-    private native int bufferSize();
-
     private native byte[] transformer(byte[] data, int off, int len);
-
-    private native void nativeDrop(int ptr);
-
 
     private boolean checkEofAndLoadNextChunk() throws IOException {
         if (curr == end) {
@@ -123,14 +113,5 @@ public class InternalResourceDecryptInputStream extends FilterInputStream {
     @Override
     public boolean markSupported() {
         return false;
-    }
-
-    @Override
-    public void close() throws IOException {
-        try {
-            super.close();
-        } finally {
-            nativeDrop(ptr);
-        }
     }
 }

@@ -5,6 +5,8 @@ import io.kyle.javaguard.bean.SignatureInfo;
 import io.kyle.javaguard.bean.TransformInfo;
 import io.kyle.javaguard.exception.TransformException;
 import io.kyle.javaguard.util.BytesUtils;
+import io.kyle.javaguard.util.LambdaUtils;
+import io.kyle.javaguard.util.SFunction;
 import net.lingala.zip4j.io.inputstream.ZipInputStream;
 import net.lingala.zip4j.model.LocalFileHeader;
 import org.apache.commons.io.FileUtils;
@@ -12,7 +14,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.text.StringSubstitutor;
 
 import java.io.*;
-import java.net.URL;
+import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.HashMap;
@@ -84,6 +86,10 @@ public class LauncherCodeGenerator {
         valueMap.put("resourceKey", bytesToString(resourceKeyInfo.getKey()));
         valueMap.put("publicKey", bytesToString(signatureInfo.getPublicKey()));
         valueMap.put("signKeyVersion", signatureInfo.getKeyHash());
+        SFunction<URLConnection, URLConnection> handleConnection = InternalResourceURLConnection::handleConnection;
+        valueMap.put("internalUrlConnectionClass", LambdaUtils.getClassName(handleConnection));
+        valueMap.put("internalUrlConnectionMethod", LambdaUtils.getMethodName(handleConnection));
+        valueMap.put("internalUrlConnectionDesc", LambdaUtils.getMethodDescriptor(handleConnection));
         content = new StringSubstitutor(valueMap).replace(content);
         try {
             FileUtils.write(new File(launcherDir, LAUNCHER_CODE_BUILD_CONFIG_PATH), content, StandardCharsets.UTF_8);

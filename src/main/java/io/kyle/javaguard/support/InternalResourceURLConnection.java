@@ -21,7 +21,8 @@ public class InternalResourceURLConnection extends URLConnection {
         this.connection = connection;
     }
 
-    public static URLConnection handleConnection(URL url, URLConnection connection) {
+    public static URLConnection handleConnection(URLConnection connection) {
+        URL url = connection.getURL();
         if ("jar".equals(url.getProtocol())) {
             return new InternalResourceURLConnection(connection);
         }

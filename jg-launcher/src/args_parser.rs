@@ -24,6 +24,7 @@ const JAVAAGENT_ARG_PREFIX: &str = "-javaagent:";
 
 static LAUNCHER_ARG: OnceLock<LauncherArg> = OnceLock::new();
 
+#[allow(unused)]
 #[derive(Debug)]
 pub enum LaunchTarget {
     Class(String),
@@ -53,6 +54,7 @@ impl LaunchTarget {
     }
 }
 
+#[allow(unused)]
 #[derive(Debug)]
 pub struct LauncherArg {
     curr_app_path: String,
@@ -63,6 +65,7 @@ pub struct LauncherArg {
     app_args: Vec<String>,
 }
 
+#[allow(unused)]
 impl LauncherArg {
 
     pub fn get() -> &'static LauncherArg {
@@ -143,7 +146,9 @@ fn __parse_args() -> LauncherArg {
             },
             JAR_ARG_KEY => {
                 if target.is_none() {
-                    target = Some(LaunchTarget::Jar(JarInfo::parse(&arg_iter.next().expect("not set jar file: -jar <jar file>"))))
+                    let jar_info = JarInfo::parse(&arg_iter.next().expect("not set jar file: -jar <jar file>"));
+                    jar_info.verify();
+                    target = Some(LaunchTarget::Jar(jar_info))
                 } else {
                     app_args.push(arg);
                 }
@@ -162,7 +167,8 @@ fn __parse_args() -> LauncherArg {
                     }
                     vm_args.push(arg);
                 } else if target.is_none() {
-                    target = Some(LaunchTarget::Class(arg));
+                    // todo 待定
+                    // target = Some(LaunchTarget::Class(arg));
                     panic!("Not currently supported run class")
                 } else {
                     app_args.push(arg);

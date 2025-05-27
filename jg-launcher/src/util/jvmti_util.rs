@@ -1,3 +1,4 @@
+#![allow(non_camel_case_types, unused, non_upper_case_globals, non_snake_case)]
 use jni_sys::{jint, jlong, jobject, JNIEnv, JavaVM};
 use std::ffi::{c_int, c_void};
 

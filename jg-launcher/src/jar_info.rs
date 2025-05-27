@@ -7,6 +7,7 @@ use std::fs::File;
 use std::{fs, io, str};
 use zip::ZipArchive;
 
+#[allow(unused)]
 #[derive(Debug)]
 pub struct JarInfo {
     path: String,
@@ -47,7 +48,6 @@ impl JarInfo {
             .expect(&format!("can not open jar: {}", path));
         let manifest = archive.by_name(MANIFEST_FILE).expect("not found MANIFEST.MF in jar");
         let manifest_content = io::read_to_string(manifest).expect("cannot read MANIFEST.MF in jar");
-        let mut signature = None;
         let mut main_class = None;
         manifest_content.lines().for_each(|line| {
             if line.starts_with(MAIN_CLASS_PREFIX) {
@@ -61,7 +61,7 @@ impl JarInfo {
         }
         let comment = archive.comment();
         let sign = extract_sign_from_comment(comment);
-        signature = Some(sign);
+        let signature = Some(sign);
         if signature.is_none() {
             // signature = Some(Vec::new());
             panic!("not found Signature in jar")

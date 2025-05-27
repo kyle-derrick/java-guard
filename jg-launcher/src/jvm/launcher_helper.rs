@@ -50,6 +50,7 @@ impl<'local> JvmLauncherHelper<'local> for SunLauncherHelper<'local> {
     }
 }
 
+#[allow(unused)]
 pub struct SimpleLauncherHelper<'local>{
     pub class: JClass<'local>,
     pub class_loader: JObject<'local>

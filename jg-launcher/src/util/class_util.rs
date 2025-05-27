@@ -6,7 +6,7 @@ use jclass::common::constants::CODE_TAG;
 use jclass::constant_pool::{ConstantPool, ConstantValue};
 use jclass::jclass_info::JClassInfo;
 use jclass::util::class_scan::fast_scan_class;
-use std::io::{BufWriter, Cursor, Write};
+use std::io::{BufWriter, Cursor};
 use std::string::ToString;
 
 const URL_OPEN_CONNECTION_METHOD_NAME: &str = "openConnection";

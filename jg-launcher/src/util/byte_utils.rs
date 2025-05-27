@@ -1,3 +1,6 @@
+
+#![allow(unused)]
+
 #[inline]
 pub fn byte_to_u32(bs: &[u8]) -> u32 {
     match bs.len() {

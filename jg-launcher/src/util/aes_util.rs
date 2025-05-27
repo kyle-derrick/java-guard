@@ -1,10 +1,8 @@
 use crate::base::common::{inner_key, resource_key};
-use crate::base::error::{Result, MessageError};
+use crate::base::error::{MessageError, Result};
 use crate::with_message;
-use aes_gcm::KeyInit;
 use ring::aead::{Aad, BoundKey, Nonce, NonceSequence, OpeningKey, UnboundKey, AES_256_GCM, NONCE_LEN};
 use ring::error::Unspecified;
-use sha2::Digest;
 
 pub fn decrypt(data: &mut [u8]) -> Result<&[u8]> {
     let unbound_key = with_message!(UnboundKey::new(&AES_256_GCM, &inner_key()), "密钥初始化失败！")?;

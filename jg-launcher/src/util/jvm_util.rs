@@ -8,6 +8,7 @@ use std::mem::transmute;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+#[allow(unused)]
 pub struct JvmWrapper {
     pub library: Rc<Library>,
     pub get_default_java_vm_init_args: unsafe extern "system" fn (args: *mut c_void) -> jint,

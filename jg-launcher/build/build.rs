@@ -76,7 +76,7 @@ fn main() {
     println!(">>> jdk includes: {:?}", includes);
     builder
         .includes(&includes)
-        .include("c_src/lib.h")
+        .include("c_src/")
         .file("c_src/lib.c")
         .compile("jg-jvmti-lib");
 }

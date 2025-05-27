@@ -13,3 +13,5 @@ extern int jvmti_retransform_class(jvmtiEnv *jvmti, jint class_count, const jcla
 extern int struct_test();
 
 extern int test_base(int i);
+
+extern void set_jvmti_callbacks(JavaVM *jvm);

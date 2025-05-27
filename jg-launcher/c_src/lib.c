@@ -5,27 +5,6 @@
 
 //JNIEXPORT jint JNICALL
 //Agent_OnLoad(JavaVM *vm, char *options, void *reserved) {
-//    jvmtiEnv *jvmti;
-//    jint jni_result = (*vm)->GetEnv(vm, (void**)&jvmti, JVMTI_VERSION);
-//    if (jni_result != JNI_OK) {
-//        return jni_result;
-//    }
-//    // add capabilities
-//    jvmtiCapabilities capabilities;
-//    memset(&capabilities, 0, sizeof(capabilities));
-//    capabilities.can_generate_all_class_hook_events = 1;
-//    capabilities.can_retransform_classes = 1;
-////    capabilities.can_retransform_any_class = 1;
-////    capabilities.can_redefine_classes = 1;
-////    capabilities.can_redefine_any_class = 1;
-//    jvmtiError error = (*jvmti)->AddCapabilities(jvmti, &capabilities);
-//    if (error != JVMTI_ERROR_NONE) {
-//        char* error_name;
-//        (*jvmti)->GetErrorName(jvmti, error, &error_name);
-//        eprintf("AddCapabilities 失败: %s\n", error_name);
-//        (*jvmti)->Deallocate(jvmti, (unsigned char*)error_name);
-//        return error;
-//    }
 //    return 0;
 //}
 

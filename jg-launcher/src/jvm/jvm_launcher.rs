@@ -1,16 +1,19 @@
 use crate::args_parser::LaunchTarget::Jar;
 use crate::args_parser::LauncherArg;
+use crate::base::common::runtime_classes;
 use crate::jvm::jvm_util::JvmWrapper;
-use crate::jvm::launcher_helper::{find_launcher_helper_from_env, JvmLauncherHelper};
+use crate::jvm::launcher_helper::{JvmLauncherHelper, LauncherHelper, SimpleLauncherHelper, SunLauncherHelper};
+use crate::util::byte_utils::byte_be_to_u32_fast;
 use crate::util::class_util;
-use jg_jvmti_wrapper::{jvmti_allocate, set_file_load_callback};
+use crate::util::class_util::url_extended_processing;
+use crate::util::jvmti_util::{get_jvmti_from_vm, jvmti_allocate, jvmti_retransform_class, set_file_load_callback};
 use jni::objects::{JClass, JObject};
 use jni::sys::jsize;
-use jni::JNIVersion;
 use jni::{JNIEnv, JavaVM};
+use jni::JNIVersion;
 use jni_sys::{jclass as java_class, jint, jlong, jobject, JavaVMInitArgs, JNI_VERSION_1_1};
-use std::ffi::c_void;
-use std::os::raw::{c_int, c_uchar};
+use std::ffi::{c_void, CStr};
+use std::process::exit;
 use std::ptr::null_mut;
 
 const JAVA_CLASS_PATH_VM_ARG_PREFIX: &str = "-Djava.class.path=";
@@ -63,18 +66,28 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
     // ---------------------
 
     let (jvm, mut env) = wrapper.create_java_vm(init_args).unwrap();
-    let vers = env.get_version();
     set_callbacks(&jvm);
+    let vers = env.get_version();
 
     // get JNI env
     // let mut env = jvm.attach_current_thread().expect("get jni env failed");
     // let mut env = jvm.get_env().unwrap();
 
     let env_ref = &mut env;
+    // extend_url_class(&jvm, env_ref);
+    let default_launcher = SimpleLauncherHelper::from_env(env_ref).expect("cannot init default launcher helper");
+    load_ext_runtime(env_ref, &default_launcher);
+    // extend_url_class(&jvm, env_ref);
 
     let app_args = launcher_arg.app_args();
 
-    let helper = find_launcher_helper_from_env(env_ref);
+    let helper = match SunLauncherHelper::from_env(env_ref) {
+        Ok(helper) => LauncherHelper::SunLauncherHelper(helper),
+        Err(_) => {
+            println!("WARN: not found sun launcher helper");
+            LauncherHelper::SimpleLauncherHelper(default_launcher)
+        }
+    };
 
     let main_class = helper.check_and_load_main(env_ref, target).expect(&format!("can not load main class: {}", target.main_class()));
     // let main_class = env.find_class(&main_class_name).expect(&format!("not found main class: {}", &main_class_name));
@@ -87,10 +100,58 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
     }
 }
 
+fn extend_url_class(jvm: &JavaVM, env: &mut JNIEnv) {
+    let jvmti = unsafe {
+        get_jvmti_from_vm(jvm.get_java_vm_pointer())
+    };
+    let classes = [env.find_class(URL_CLASS_NAME).expect("not found URL class").as_raw()];
+    let result = unsafe {
+        jvmti_retransform_class(jvmti, classes.len() as jint, classes.as_ptr())
+    };
+    if 0 != result {
+        eprintln!("cannot extend URL: {result}");
+        exit(-1);
+    }
+}
+
+fn load_ext_runtime(env: &mut JNIEnv, default_launcher: &SimpleLauncherHelper) {
+    let classes = runtime_classes();
+    let mut index = 0;
+    while index < classes.len() {
+        let start = index;
+        index += 4;
+        if index >= classes.len() {
+            eprintln!("WARN: runtime class is damaged");
+            break;
+        }
+        let name_len = byte_be_to_u32_fast(classes, start);
+        let start = index;
+        index += name_len as usize;
+        let name_end = index;
+        index += 4;
+        if index >= classes.len() {
+            eprintln!("WARN: runtime class is damaged");
+            break;
+        }
+        let name = String::from_utf8_lossy(&classes[start..name_end]).to_string().replace(".", "/");
+
+        let class_len = byte_be_to_u32_fast(classes, name_end);
+        let start = index;
+        index += class_len as usize;
+        if index > classes.len() {
+            eprintln!("WARN: runtime class is damaged");
+            break;
+        }
+        let class_data = &classes[start..index];
+        let _class_obj = env.define_class(name, &default_launcher.class_loader, class_data).expect("cannot load extend runtime class");
+    }
+}
+
 fn set_callbacks(jvm: &JavaVM) {
-    if -1 as c_int == unsafe {
+    let result = unsafe {
         set_file_load_callback(jvm.get_java_vm_pointer(), jg_class_file_load_hook)
-    } {
+    };
+    if 0 != result {
         eprintln!("set transformer hook failed");
     }
 }
@@ -107,41 +168,60 @@ extern "system" fn jg_class_file_load_hook(
         new_class_data_len: *mut jint,
         new_class_data: *mut *mut std::os::raw::c_uchar,
         ) {
-    let (mut env, class_data_arr) = unsafe {
-        (
-            JNIEnv::from_raw(jni_env).unwrap(),
-            std::slice::from_raw_parts(class_data as *const u8, class_data_len as usize)
-        )
+    let class_data_arr = unsafe {
+        // JNIEnv::from_raw(jni_env).unwrap(),
+        std::slice::from_raw_parts(class_data as *const u8, class_data_len as usize)
     };
-    // let name = unsafe { CStr::from_ptr(name) }.to_str().unwrap();
-    if !try_decrypt_class(jvmti_env, &mut env, class_data_arr, new_class_data_len, new_class_data) {
-        unsafe {
-            *new_class_data = class_data as *mut c_uchar;
-            *new_class_data_len = class_data_len;
+    let is_url = match unsafe { CStr::from_ptr(name) }.to_str() {
+        Ok(name) => {
+            println!(">>>>>>: {name}");
+            name == URL_CLASS_NAME
+        },
+        Err(err) => {
+            eprintln!("WARN: class name to str failed: {}", err);
+            false
         }
-    }
+    };
+
+    let transformed = if let Some(mut new_class_data_bytes) = class_util::try_decrypt_class(class_data_arr) {
+        if is_url {
+            if let Some(extended_class_data) = url_extended_processing(&new_class_data_bytes) {
+                new_class_data_bytes = extended_class_data;
+            }
+        }
+        set_new_class_data(jvmti_env, &new_class_data_bytes, new_class_data_len, new_class_data)
+    } else if is_url {
+        if let Some(extended_class_data) = url_extended_processing(class_data_arr) {
+            set_new_class_data(jvmti_env, &extended_class_data, new_class_data_len, new_class_data)
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    // if transformed {
+    //     return;
+    // }
+    // unsafe {
+    //     *new_class_data = class_data as *mut c_uchar;
+    //     *new_class_data_len = class_data_len;
+    // }
 }
 
-fn try_decrypt_class(jvmti_env: *mut c_void,
-                     env: &mut JNIEnv,
-                     class_data_arr: &[u8],
-                     new_class_data_len: *mut jint,
-                     new_class_data: *mut *mut std::os::raw::c_uchar,) -> bool {
-    if let Some(new_class_data_bytes) = class_util::try_decrypt_class(class_data_arr) {
-        let new_class_data_bytes_len = new_class_data_bytes.len();
-        let mut new_class_data_ptr = std::ptr::null_mut();
-        if 0 == unsafe { jvmti_allocate(jvmti_env, new_class_data_bytes_len as jlong, &mut new_class_data_ptr) } {
-            eprintln!("allocate decrypted class data failed");
-            return false;
-        }
-        unsafe {
-            std::ptr::copy_nonoverlapping(new_class_data_bytes.as_ptr(), new_class_data_ptr, new_class_data_bytes_len);
-            *new_class_data = new_class_data_ptr;
-            *new_class_data_len = new_class_data_bytes_len as jint;
-        }
-        return true;
+fn set_new_class_data(jvmti_env: *mut c_void, class_data: &[u8], new_class_data_len: *mut jint, new_class_data: *mut *mut std::os::raw::c_uchar) -> bool {
+    let new_class_data_bytes_len = class_data.len();
+    let mut new_class_data_ptr = std::ptr::null_mut();
+    if 0 == unsafe { jvmti_allocate(jvmti_env, new_class_data_bytes_len as jlong, &mut new_class_data_ptr) } {
+        eprintln!("allocate decrypted class data failed");
+        return false;
     }
-    false
+    unsafe {
+        std::ptr::copy_nonoverlapping(class_data.as_ptr(), new_class_data_ptr, new_class_data_bytes_len);
+        *new_class_data = new_class_data_ptr;
+        *new_class_data_len = new_class_data_bytes_len as jint;
+    }
+    true
 }
 
 fn call_main(env: &mut JNIEnv, main_class: &JClass, app_args: &Vec<String>) {

@@ -14,6 +14,8 @@ pub const MAIN_CLASS_PREFIX: &str = "Main-Class:";
 
 pub const URL_CLASS_NAME: &str = "java/net/URL";
 
+pub const GET_SYSTEM_CLASS_LOADER_METHOD: &str = "getSystemClassLoader";
+pub const GET_SYSTEM_CLASS_LOADER_METHOD_DESC: &str = "()Ljava/lang/ClassLoader;";
 pub const ENCRYPT_BLOCK: usize = 8 * 1024;
 
 pub const ENCRYPT_DATA_TAG: &[u8] = "<SecretBox>".as_bytes();

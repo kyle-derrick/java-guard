@@ -1,4 +1,5 @@
 use crate::args_parser::LaunchTarget;
+use crate::base::common::{GET_SYSTEM_CLASS_LOADER_METHOD, GET_SYSTEM_CLASS_LOADER_METHOD_DESC};
 use jni::objects::{JClass, JObject, JValue};
 use jni::JNIEnv;
 use jni_sys::jboolean;
@@ -29,11 +30,11 @@ pub struct SunLauncherHelper<'local>{
 }
 
 impl SunLauncherHelper<'_> {
-    pub fn from_env<'a>(env: & mut JNIEnv<'a>) -> jni::errors::Result<LauncherHelper<'a>> {
+    pub fn from_env<'a>(env: & mut JNIEnv<'a>) -> jni::errors::Result<SunLauncherHelper<'a>> {
         let class = env.find_class(SUN_LAUNCHER_HELPER_CLASS)?;
-        Ok(LauncherHelper::SunLauncherHelper(SunLauncherHelper {
+        Ok(SunLauncherHelper {
             class
-        }))
+        })
     }
 }
 
@@ -50,19 +51,19 @@ impl<'local> JvmLauncherHelper<'local> for SunLauncherHelper<'local> {
 }
 
 pub struct SimpleLauncherHelper<'local>{
-    class: JClass<'local>,
-    class_loader: JObject<'local>
+    pub class: JClass<'local>,
+    pub class_loader: JObject<'local>
 }
 
 impl SimpleLauncherHelper<'_> {
-    pub fn from_env<'a>(env: & mut JNIEnv<'a>) -> jni::errors::Result<LauncherHelper<'a>> {
+    pub fn from_env<'a>(env: & mut JNIEnv<'a>) -> jni::errors::Result<SimpleLauncherHelper<'a>> {
         let class_loader_class = env.find_class(CLASS_LOADER)?;
-        let class_loader_object = env.call_static_method(&class_loader_class, "getSystemClassLoader", "()Ljava/lang/ClassLoader;", &[])?;
+        let class_loader_object = env.call_static_method(&class_loader_class, GET_SYSTEM_CLASS_LOADER_METHOD, GET_SYSTEM_CLASS_LOADER_METHOD_DESC, &[])?;
         let class_loader = class_loader_object.l()?;
-        Ok(LauncherHelper::SimpleLauncherHelper(SimpleLauncherHelper {
+        Ok(SimpleLauncherHelper {
             class: class_loader_class,
             class_loader
-        }))
+        })
     }
 }
 
@@ -78,8 +79,8 @@ impl<'local> JvmLauncherHelper<'local> for SimpleLauncherHelper<'local> {
 
 pub fn find_launcher_helper_from_env<'a>(env: & mut JNIEnv<'a>) -> LauncherHelper<'a> {
     match SunLauncherHelper::from_env(env) {
-        Ok(helper) => return helper,
+        Ok(helper) => return LauncherHelper::SunLauncherHelper(helper),
         Err(_) => println!("WARN: not found sun launcher helper")
     }
-    SimpleLauncherHelper::from_env(env).expect("cannot init launcher helper")
+    LauncherHelper::SimpleLauncherHelper(SimpleLauncherHelper::from_env(env).expect("cannot init launcher helper"))
 }

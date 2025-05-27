@@ -23,10 +23,12 @@ hex = "0.4"
 base64 = "0.22.1"
 lazy_static="1.5.0"
 #file-lock = "2.1"
-jg-jvmti-wrapper={path = "lib/jg-jvmti-wrapper" }
+#jg-jvmti-wrapper={path = "lib/jg-jvmti-wrapper" }
 jclass = "0.1"
 
 [build-dependencies]
 rand="0.8.5"
+cc = "1.0"
+java-locator="0.1"
 #sha2 = "0.10"
 #hex = "0.4"

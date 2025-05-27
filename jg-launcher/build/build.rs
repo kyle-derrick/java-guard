@@ -44,7 +44,10 @@ fn main() {
                                  key_version = SIGN_KEY_VERSION,
                                  internalUrlConnectionClass = INTERNAL_URL_CONNECTION_CLASS,
                                  internalUrlConnectionMethod = INTERNAL_URL_CONNECTION_METHOD,
-                                 internalUrlConnectionDesc = INTERNAL_URL_CONNECTION_DESC);
+                                 internalUrlConnectionDesc = INTERNAL_URL_CONNECTION_DESC,
+                                 resourceDecryptNativeClass = RESOURCE_DECRYPT_NATIVE_CLASS,
+                                 resourceDecryptNativeDesc = RESOURCE_DECRYPT_NATIVE_DESC,
+                                 resourceDecryptNativeMethod = RESOURCE_DECRYPT_NATIVE_METHOD,);
     let mut file = File::create(&dest_path).expect("cannot generate common.rs");
     let f = &mut file;
     write_file(f, &common_content);

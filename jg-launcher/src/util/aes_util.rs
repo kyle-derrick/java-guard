@@ -1,4 +1,4 @@
-use crate::base::common::inner_key;
+use crate::base::common::{inner_key, resource_key};
 use crate::base::error::{Result, MessageError};
 use crate::with_message;
 use aes_gcm::KeyInit;
@@ -12,6 +12,13 @@ pub fn decrypt(data: &mut [u8]) -> Result<&[u8]> {
     let mut open_key = OpeningKey::new(unbound_key,
                                        OnceNonceSequence::new(nonce));
     with_message!(open_key.open_in_place(Aad::empty(), &mut data[NONCE_LEN..]), "解密失败")
+}
+pub fn decrypt_resource(data: &mut [u8]) -> Result<&[u8]> {
+    let unbound_key = with_message!(UnboundKey::new(&AES_256_GCM, &resource_key()), "资源密钥初始化失败！")?;
+    let nonce = with_message!((&data[0..NONCE_LEN]).try_into(), "解密资源数据失败")?;
+    let mut open_key = OpeningKey::new(unbound_key,
+                                       OnceNonceSequence::new(nonce));
+    with_message!(open_key.open_in_place(Aad::empty(), &mut data[NONCE_LEN..]), "资源解密失败")
 }
 
 

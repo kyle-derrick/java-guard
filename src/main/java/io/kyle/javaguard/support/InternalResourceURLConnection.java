@@ -36,11 +36,12 @@ public final class InternalResourceURLConnection extends URLConnection {
 
     @Override
     public InputStream getInputStream() throws IOException {
-        TinyHeadInputStream stream = new TinyHeadInputStream(connection.getInputStream());
-        if (stream.isJgResource()) {
-            return new InternalResourceDecryptInputStream(stream);
+        InputStream inputStream = connection.getInputStream();
+        TinyHeadInputStream headStream = new TinyHeadInputStream(inputStream);
+        if (headStream.isJgResource()) {
+            return new InternalResourceDecryptInputStream(inputStream);
         }
-        return stream;
+        return headStream;
     }
 
     @Override

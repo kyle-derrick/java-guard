@@ -24,7 +24,7 @@ public class TinyHeadInputStream extends FilterInputStream {
      * @param in the underlying input stream, or <code>null</code> if
      *           this instance is to be created without an underlying stream.
      */
-    protected TinyHeadInputStream(InputStream in) throws IOException {
+    TinyHeadInputStream(InputStream in) throws IOException {
         super(in);
         int len = in.read(header);
         this.end = len;

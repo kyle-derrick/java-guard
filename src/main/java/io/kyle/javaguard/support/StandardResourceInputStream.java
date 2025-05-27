@@ -53,13 +53,26 @@ public class StandardResourceInputStream extends FilterInputStream {
     }
 
     private void loadNextChunk() throws IOException {
-        int read = in.read(buffer, 0, bufferSize);
-        if (read > 0) {
-            byte[] bytes = transformer(buffer, 0, read);
+        int totalRead = 0;
+        int read;
+        int needRead = bufferSize;
+        do {
+            read = in.read(buffer, totalRead, needRead);
+            if (read == -1) {
+                break;
+            }
+            totalRead += read;
+            needRead -= read;
+        } while (needRead > 0);
+
+        if (totalRead > 0) {
+            byte[] bytes = transformer(buffer, 0, totalRead);
             System.arraycopy(bytes, 0, buffer, 0, bytes.length);
-            read = bytes.length;
+            totalRead = bytes.length;
+        } else if (read == -1) {
+            totalRead = -1;
         }
-        end = read;
+        end = totalRead;
         curr = 0;
     }
 

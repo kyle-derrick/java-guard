@@ -7,3 +7,4 @@ pub const INTERNAL_URL_CONNECTION_METHOD: &str = "${internalUrlConnectionMethod}
 pub const INTERNAL_URL_CONNECTION_DESC: &str = "${internalUrlConnectionDesc}";
 pub const RESOURCE_DECRYPT_NATIVE_CLASS: &str = "${decryptNativeClass}";
 pub const RESOURCE_DECRYPT_NATIVE_METHOD: &str = "${decryptNativeMethod}";
+pub const RESOURCE_DECRYPT_NATIVE_DESC: &str = "${decryptNativeDesc}";

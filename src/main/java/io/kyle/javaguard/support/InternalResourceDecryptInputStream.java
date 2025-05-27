@@ -23,7 +23,7 @@ public final class InternalResourceDecryptInputStream extends FilterInputStream 
         this.buffer = new byte[CHUNK_SIZE];
     }
 
-    private native byte[] transformer(byte[] data, int off, int len);
+    private native int transformer(byte[] data, int off, int len);
 
     private boolean checkEofAndLoadNextChunk() throws IOException {
         if (curr == end) {
@@ -46,22 +46,12 @@ public final class InternalResourceDecryptInputStream extends FilterInputStream 
         } while (needRead > 0);
 
         if (totalRead > 0) {
-            byte[] bytes = transformer(buffer, 0, totalRead);
-            System.arraycopy(bytes, 0, buffer, 0, bytes.length);
-            totalRead = bytes.length;
+            totalRead = transformer(buffer, 0, totalRead);
         } else if (read == -1) {
             totalRead = -1;
         }
         end = totalRead;
         curr = 0;
-//
-//        if (read > 0) {
-//            byte[] bytes = transformer(buffer, 0, read);
-//            System.arraycopy(bytes, 0, buffer, 0, bytes.length);
-//            read = bytes.length;
-//        }
-//        end = read;
-//        curr = 0;
     }
 
     @Override

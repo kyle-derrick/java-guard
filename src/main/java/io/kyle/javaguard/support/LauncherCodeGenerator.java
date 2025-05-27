@@ -93,7 +93,7 @@ public class LauncherCodeGenerator {
 
         valueMap.put("decryptNativeClass", InternalResourceDecryptInputStream.class.getName().replace(".", "/"));
         valueMap.put("decryptNativeMethod", "transformer");
-        valueMap.put("decryptNativeDesc", "([BII)[B");
+        valueMap.put("decryptNativeDesc", "([BII)I");
         content = new StringSubstitutor(valueMap).replace(content);
         try {
             FileUtils.write(new File(launcherDir, LAUNCHER_CODE_BUILD_CONFIG_PATH), content, StandardCharsets.UTF_8);

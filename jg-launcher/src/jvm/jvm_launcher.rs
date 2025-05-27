@@ -11,12 +11,14 @@ use jni::objects::{JByteArray, JClass, JObject};
 use jni::sys::jsize;
 use jni::{sys, JNIEnv, JavaVM, NativeMethod};
 use jni::JNIVersion;
-use jni_sys::{jarray, jbyteArray, jclass as java_class, jint, jlong, jobject, JavaVMInitArgs, JNI_VERSION_1_1};
+use jni_sys::{jarray, jbyte, jbyteArray, jclass as java_class, jint, jlong, jobject, JavaVMInitArgs, JNI_VERSION_1_1};
 use std::ffi::{c_void, CStr};
 use std::process::exit;
 use std::ptr::{null, null_mut};
 use jni::errors::Error;
 use jni::strings::JNIString;
+use ring::aead::chacha20_poly1305_openssh::TAG_LEN;
+use ring::aead::NONCE_LEN;
 use crate::util::aes_util::{decrypt, decrypt_resource};
 
 const JAVA_CLASS_PATH_VM_ARG_PREFIX: &str = "-Djava.class.path=";
@@ -180,6 +182,9 @@ fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv, default_launcher: &SimpleLau
     }
 }
 extern "system" fn resource_decrypt_native(env: *mut sys::JNIEnv, object: jni_sys::jobject, data: jbyteArray, off: jint, len: jint) -> jbyteArray {
+    if (len as usize) < NONCE_LEN + TAG_LEN {
+        return data;
+    }
     let env = match unsafe {
         JNIEnv::from_raw(env)
     } {
@@ -187,11 +192,12 @@ extern "system" fn resource_decrypt_native(env: *mut sys::JNIEnv, object: jni_sy
             env
         }
         Err(err) => {
-            eprintln!("ERROR: native method: cannot get env!");
+            eprintln!("ERROR: native method: cannot get env: {err}");
             return data;
         }
     };
-    let mut data_rs = match env.convert_byte_array(&unsafe { JByteArray::from_raw(data) }) {
+    let data_arr = unsafe { JByteArray::from_raw(data) };
+    let mut data_rs = match env.convert_byte_array(&data_arr) {
         Ok(data) => {
             data
         }
@@ -203,8 +209,10 @@ extern "system" fn resource_decrypt_native(env: *mut sys::JNIEnv, object: jni_sy
     let end = (off + len) as usize;
     let off = off as usize;
     let ddd = &data_rs[..];
+    let dddd = &data_rs[end..];
     let result = match decrypt_resource(&mut data_rs[off..end]) {
         Ok(data) => {
+            // env.set_byte_array_region(&data, 0, data as &[jbyte]).unwrap();
             data
         }
         Err(err) => {

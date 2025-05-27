@@ -16,6 +16,7 @@ import java.io.OutputStream;
  * @author kyle kyle_derrick@foxmail.com
  * 2025/5/16 10:08
  */
+@Deprecated
 public class AesGcmResourceOutputStream extends FilterOutputStream {
     private static final int DEFAULT_BUFFER_SIZE = 8192;
     private static final int AES_GCM_TAG_SIZE = 16;

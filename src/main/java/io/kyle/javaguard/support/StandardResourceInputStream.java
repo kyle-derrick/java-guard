@@ -17,7 +17,7 @@ public class StandardResourceInputStream extends FilterInputStream {
     private final KeyInfo keyInfo;
     private final boolean forEncryption;
     private final int bufferSize;
-    private final byte[] buffer;
+    private final byte[] buffer = new byte[ConstVars.TRANSFORM_BLOCK];
     private int curr = 0;
     private int end = 0;
 
@@ -26,11 +26,10 @@ public class StandardResourceInputStream extends FilterInputStream {
         this.keyInfo = keyInfo;
         this.forEncryption = forEncryption;
         if (forEncryption) {
-            bufferSize = ConstVars.TRANSFORM_BLOCK;
+            bufferSize = ConstVars.TRUNK_SIZE;
         } else {
-            bufferSize = ConstVars.TRANSFORM_BLOCK + ConstVars.NONCE_LEN + ConstVars.TAG_LEN;
+            bufferSize = ConstVars.TRANSFORM_BLOCK;
         }
-        this.buffer = new byte[bufferSize];
     }
 
 
@@ -54,7 +53,7 @@ public class StandardResourceInputStream extends FilterInputStream {
     }
 
     private void loadNextChunk() throws IOException {
-        int read = in.read(buffer);
+        int read = in.read(buffer, 0, bufferSize);
         if (read > 0) {
             byte[] bytes = transformer(buffer, 0, read);
             System.arraycopy(bytes, 0, buffer, 0, bytes.length);

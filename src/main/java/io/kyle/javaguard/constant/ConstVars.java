@@ -11,9 +11,10 @@ public interface ConstVars {
     String DEFAULT_PUBLIC_KEY = "~/java_guard/public_key.pem";
     String ALGORITHM = "AES";
     String TRANSFORMATION = "AES/GCM/NoPadding";
-    int TRANSFORM_BLOCK = 8192;
+    int TRUNK_SIZE = 8192;
     int NONCE_LEN = 12;
     int TAG_LEN = 16;
+    int TRANSFORM_BLOCK = TRUNK_SIZE + NONCE_LEN + TAG_LEN;
     /**
      * \0JGR\0
      */

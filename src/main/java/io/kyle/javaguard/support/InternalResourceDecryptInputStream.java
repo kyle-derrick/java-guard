@@ -12,14 +12,15 @@ import java.io.InputStream;
 public final class InternalResourceDecryptInputStream extends FilterInputStream {
     private static final int NONCE_LEN = 12;
     private static final int TAG_LEN = 16;
-    private static final int bufferSize = 8192 + NONCE_LEN + TAG_LEN;
+    private static final int CHUNK_DATA_LEN = 8192;
+    private static final int CHUNK_SIZE = CHUNK_DATA_LEN + NONCE_LEN + TAG_LEN;
     private final byte[] buffer;
     private int curr = 0;
     private int end = 0;
 
     public InternalResourceDecryptInputStream(InputStream in) {
         super(in);
-        this.buffer = new byte[bufferSize];
+        this.buffer = new byte[CHUNK_SIZE];
     }
 
     private native byte[] transformer(byte[] data, int off, int len);
@@ -32,7 +33,7 @@ public final class InternalResourceDecryptInputStream extends FilterInputStream 
     }
 
     private void loadNextChunk() throws IOException {
-        int read = in.read(buffer);
+        int read = in.read(buffer, 0, CHUNK_SIZE);
         if (read > 0) {
             byte[] bytes = transformer(buffer, 0, read);
             System.arraycopy(bytes, 0, buffer, 0, bytes.length);

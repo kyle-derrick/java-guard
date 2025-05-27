@@ -1,13 +1,11 @@
 package io.kyle.javaguard.test;
 
-import io.kyle.javaguard.support.AesGcmResourceOutputStream;
+import io.kyle.javaguard.bean.KeyInfo;
+import io.kyle.javaguard.support.StandardResourceInputStream;
 import org.apache.commons.io.IOUtils;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import javax.crypto.Cipher;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.InputStream;
@@ -26,22 +24,16 @@ public class ResourceStreamTest {
 
     @Test
     public void test() throws Exception {
-        byte[] iv = new byte[12];
         byte[] key = new byte[32];
         int bufSize = 4*1024*1024;
-        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        GCMParameterSpec gcmSpec = new GCMParameterSpec(128, iv);
-        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"), gcmSpec);
-        try (InputStream in = new BufferedInputStream(Files.newInputStream(Paths.get(path)), bufSize);
-             OutputStream outputStream = new AesGcmResourceOutputStream(new BufferedOutputStream(Files.newOutputStream(Paths.get(path + "_en.iso")), bufSize), key, iv, true)) {
+        KeyInfo keyInfo = new KeyInfo(key);
+        try (InputStream in = new StandardResourceInputStream(new BufferedInputStream(Files.newInputStream(Paths.get(path)), bufSize), keyInfo, true);
+             OutputStream outputStream = new BufferedOutputStream(Files.newOutputStream(Paths.get(path + "_en.iso")), bufSize)) {
             IOUtils.copyLarge(in, outputStream);
         }
 
-        cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        gcmSpec = new GCMParameterSpec(128, iv);
-        cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key, "AES"), gcmSpec);
-        try (InputStream in = new BufferedInputStream(Files.newInputStream(Paths.get(path + "_en.iso")), bufSize);
-             OutputStream outputStream = new AesGcmResourceOutputStream(new BufferedOutputStream(Files.newOutputStream(Paths.get(path + "_de.iso")), bufSize), key, iv, false)) {
+        try (InputStream in = new StandardResourceInputStream(new BufferedInputStream(Files.newInputStream(Paths.get(path + "_en.iso")), bufSize), keyInfo, false);
+             OutputStream outputStream = new BufferedOutputStream(Files.newOutputStream(Paths.get(path + "_de.iso")), bufSize)) {
             IOUtils.copyLarge(in, outputStream);
         }
 

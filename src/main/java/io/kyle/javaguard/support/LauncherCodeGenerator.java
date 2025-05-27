@@ -25,7 +25,7 @@ import java.util.StringJoiner;
  * 2024/10/8 22:29
  */
 public class LauncherCodeGenerator {
-    private static final Class<?>[] WRITE_RUNTIME_CLASS = {InternalResourceDecryptInputStream.class, InternalResourceURLConnection.class};
+    private static final Class<?>[] WRITE_RUNTIME_CLASS = {TinyHeadInputStream.class, InternalResourceDecryptInputStream.class, InternalResourceURLConnection.class};
     private static final String LAUNCHER_CODE_DIR = "jg-launcher";
     private static final String LAUNCHER_CODE_BUILD_CONFIG_FILE = "build_config.rs";
     private static final String LAUNCHER_BUILD_PATH = "build";
@@ -90,6 +90,10 @@ public class LauncherCodeGenerator {
         valueMap.put("internalUrlConnectionClass", LambdaUtils.getClassName(handleConnection));
         valueMap.put("internalUrlConnectionMethod", LambdaUtils.getMethodName(handleConnection));
         valueMap.put("internalUrlConnectionDesc", LambdaUtils.getMethodDescriptor(handleConnection));
+
+        valueMap.put("decryptNativeClass", InternalResourceDecryptInputStream.class.getName().replace(".", "/"));
+        valueMap.put("decryptNativeMethod", "transformer");
+        valueMap.put("decryptNativeDesc", "([BII)[B");
         content = new StringSubstitutor(valueMap).replace(content);
         try {
             FileUtils.write(new File(launcherDir, LAUNCHER_CODE_BUILD_CONFIG_PATH), content, StandardCharsets.UTF_8);
@@ -111,7 +115,7 @@ public class LauncherCodeGenerator {
             for (Class<?> clazz : WRITE_RUNTIME_CLASS) {
                 // todo 改为运行时编译
                 try (InputStream stream = clazz.getResourceAsStream(clazz.getSimpleName() + ".class")) {
-                    byte[] name = clazz.getName().getBytes(StandardCharsets.UTF_8);
+                    byte[] name = clazz.getName().replace(".", "/").getBytes(StandardCharsets.UTF_8);
                     assert stream != null;
                     byte[] byteArray = IOUtils.toByteArray(stream);
                     outputStream.write(BytesUtils.intToBytes(name.length));

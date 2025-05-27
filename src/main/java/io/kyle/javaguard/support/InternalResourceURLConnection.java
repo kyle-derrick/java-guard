@@ -13,10 +13,10 @@ import java.util.Map;
  * @author kyle kyle_derrick@foxmail.com
  * 2025/5/20 11:10
  */
-public class InternalResourceURLConnection extends URLConnection {
-    protected final URLConnection connection;
+public final class InternalResourceURLConnection extends URLConnection {
+    private final URLConnection connection;
 
-    protected InternalResourceURLConnection(URLConnection connection) {
+    private InternalResourceURLConnection(URLConnection connection) {
         super(connection.getURL());
         this.connection = connection;
     }

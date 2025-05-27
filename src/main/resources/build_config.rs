@@ -5,3 +5,5 @@ pub const RESOURCE_KEY: &[u8] = &${resourceKey};
 pub const INTERNAL_URL_CONNECTION_CLASS: &str = "${internalUrlConnectionClass}";
 pub const INTERNAL_URL_CONNECTION_METHOD: &str = "${internalUrlConnectionMethod}";
 pub const INTERNAL_URL_CONNECTION_DESC: &str = "${internalUrlConnectionDesc}";
+pub const RESOURCE_DECRYPT_NATIVE_CLASS: &str = "${decryptNativeClass}";
+pub const RESOURCE_DECRYPT_NATIVE_METHOD: &str = "${decryptNativeMethod}";

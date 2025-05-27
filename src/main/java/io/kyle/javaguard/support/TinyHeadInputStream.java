@@ -1,7 +1,5 @@
 package io.kyle.javaguard.support;
 
-import io.kyle.javaguard.constant.ConstVars;
-
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,7 +10,8 @@ import java.util.Arrays;
  * 2025/5/20 11:32
  */
 public class TinyHeadInputStream extends FilterInputStream {
-    private final byte[] header = new byte[ConstVars.ENCRYPT_RESOURCE_HEADER.length];
+    private static final byte[] ENCRYPT_RESOURCE_HEADER = {0, 74, 71, 82, 0};
+    private final byte[] header = new byte[ENCRYPT_RESOURCE_HEADER.length];
     private int curr = 0;
     private final int end;
     private final boolean jgResource;
@@ -29,7 +28,7 @@ public class TinyHeadInputStream extends FilterInputStream {
         super(in);
         int len = in.read(header);
         this.end = len;
-        this.jgResource = len == ConstVars.ENCRYPT_RESOURCE_HEADER.length && Arrays.equals(ConstVars.ENCRYPT_RESOURCE_HEADER, header);
+        this.jgResource = len == ENCRYPT_RESOURCE_HEADER.length && Arrays.equals(ENCRYPT_RESOURCE_HEADER, header);
     }
 
     private boolean headerOver() {

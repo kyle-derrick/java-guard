@@ -12,6 +12,8 @@ public interface ConstVars {
     String ALGORITHM = "AES";
     String TRANSFORMATION = "AES/GCM/NoPadding";
     int TRANSFORM_BLOCK = 8192;
+    int NONCE_LEN = 12;
+    int TAG_LEN = 16;
     /**
      * \0JGR\0
      */

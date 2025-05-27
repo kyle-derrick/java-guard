@@ -16,7 +16,7 @@ import java.io.InputStream;
 public class StandardResourceInputStream extends FilterInputStream {
     private final KeyInfo keyInfo;
     private final boolean forEncryption;
-    private final int bufferSize = ConstVars.TRANSFORM_BLOCK;
+    private final int bufferSize;
     private final byte[] buffer;
     private int curr = 0;
     private int end = 0;
@@ -25,6 +25,11 @@ public class StandardResourceInputStream extends FilterInputStream {
         super(in);
         this.keyInfo = keyInfo;
         this.forEncryption = forEncryption;
+        if (forEncryption) {
+            bufferSize = ConstVars.TRANSFORM_BLOCK;
+        } else {
+            bufferSize = ConstVars.TRANSFORM_BLOCK + ConstVars.NONCE_LEN + ConstVars.TAG_LEN;
+        }
         this.buffer = new byte[bufferSize];
     }
 

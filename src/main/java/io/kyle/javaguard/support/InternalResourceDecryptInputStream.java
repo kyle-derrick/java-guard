@@ -9,8 +9,10 @@ import java.io.InputStream;
  * 2025/5/16 10:08
  */
 @SuppressWarnings("DuplicatedCode")
-public class InternalResourceDecryptInputStream extends FilterInputStream {
-    private static final int bufferSize = 8192;
+public final class InternalResourceDecryptInputStream extends FilterInputStream {
+    private static final int NONCE_LEN = 12;
+    private static final int TAG_LEN = 16;
+    private static final int bufferSize = 8192 + NONCE_LEN + TAG_LEN;
     private final byte[] buffer;
     private int curr = 0;
     private int end = 0;

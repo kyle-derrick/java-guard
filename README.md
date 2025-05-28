@@ -32,7 +32,7 @@ git submodule update --init
 ```
 ### 3. 编译
 ```shell
-mvn clean build
+mvn clean package
 ```
 编译得到jar：target/java-guard-*.jar
 

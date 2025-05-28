@@ -76,15 +76,14 @@ public class LauncherCodeGenerator {
                     .inheritIO();
             processBuilder.start()
                     .waitFor();
-            File binDir = new File(launcherDir, "install/bin");
+            File binDir = new File(launcherDir, "out/bin");
             File[] bins = binDir.listFiles();
             if (bins == null || bins.length == 0) {
                 System.err.println("build launcher failed, not found launcher bin!");
             } else {
                 File bin = bins[0];
-                FileUtils.moveFile(bin, new File(launcherDir, bin.getName()));
+                FileUtils.copyFile(bin, new File(launcherDir, bin.getName()));
             }
-            FileUtils.deleteDirectory(new File(launcherDir, "install"));
         } catch (Exception e) {
             System.err.println("build launcher failed: " + e.getMessage());
         }

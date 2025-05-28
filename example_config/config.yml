@@ -1,0 +1,5 @@
+matches:
+  - "org/antlr/v4/*"
+key: test_key
+privateKey: example_config/id_ed25519
+publicKey: example_config/id_ed25519.pub

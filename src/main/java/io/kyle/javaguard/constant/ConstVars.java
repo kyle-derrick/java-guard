@@ -7,10 +7,11 @@ package io.kyle.javaguard.constant;
 public interface ConstVars {
     String SALT = "kyle java guard salt";
     String META_INF_MANIFEST = "META-INF/MANIFEST.MF";
-    String DEFAULT_PRIVATE_KEY = "~/java_guard/private_key.pem";
-    String DEFAULT_PUBLIC_KEY = "~/java_guard/public_key.pem";
+    String DEFAULT_PRIVATE_KEY = "~/java_guard/key";
+    String DEFAULT_PUBLIC_KEY = "~/java_guard/key.pub";
     String ALGORITHM = "AES";
     String TRANSFORMATION = "AES/GCM/NoPadding";
+    String SIGN_ALGORITHM = "Ed25519";
     int TRUNK_SIZE = 8192;
     int NONCE_LEN = 12;
     int TAG_LEN = 16;

@@ -5,14 +5,14 @@ import net.lingala.zip4j.ZipFile;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
+import org.bouncycastle.crypto.CryptoException;
+import org.bouncycastle.crypto.Signer;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.charset.Charset;
-import java.security.Signature;
-import java.security.SignatureException;
 
 /**
  * @author kyle kyle_derrick@foxmail.com
@@ -22,7 +22,7 @@ public class ZipSignUtils {
     private static final int COMMENT_MAX_LEN = (1 << Short.SIZE) - 1;
     private static final int SUFFIX_ENCODE_LEN = Short.BYTES << 1;
     private static final int READ_BUFFER_SIZE = 4096;
-    public static byte[] sign(File zip, Signature signature) throws TransformException {
+    public static byte[] sign(File zip, Signer signer) throws TransformException {
         try (ZipFile zipFile = new ZipFile(zip);
              RandomAccessFile accessFile = new RandomAccessFile(zip, "rw");) {
             String comment = zipFile.getComment();
@@ -40,11 +40,11 @@ public class ZipSignUtils {
                     read = accessFile.read(buf);
                 }
                 if (read == -1) {
-//                    throw new TransformException("signature zip data content failed");
-                    throw new TransformException("signature zip data content failed, current read len: " +
+//                    throw new TransformException("signer zip data content failed");
+                    throw new TransformException("signer zip data content failed, current read len: " +
                             accessFile.getFilePointer() + "; but comment index: " + commentStart + '/' + zipLength);
                 }
-                signature.update(buf, 0, read);
+                signer.update(buf, 0, read);
             }
 
             byte[] commentLenBs = new byte[2];
@@ -56,7 +56,7 @@ public class ZipSignUtils {
             if (commentLen != bytes.length) {
                 throw new TransformException("comment length does not match");
             }
-            byte[] sign = signature.sign();
+            byte[] sign = signer.generateSignature();
             byte[] hashBase64 = Base64.encodeBase64URLSafe(sign);
             int suffixLen = hashBase64.length + SUFFIX_ENCODE_LEN;
             if (COMMENT_MAX_LEN < suffixLen + commentLen) {
@@ -72,21 +72,21 @@ public class ZipSignUtils {
             return sign;
         } catch (IOException e) {
             throw new TransformException("read zip file failed", e);
-        } catch (SignatureException e) {
-            throw new TransformException("signature option failed", e);
+        } catch (CryptoException e) {
+            throw new TransformException("signer option failed", e);
         } catch (RuntimeException e) {
-            throw new TransformException("signature zip failed", e);
+            throw new TransformException("signer zip failed", e);
         }
     }
 
-    public static boolean verify(File zip, Signature signature) throws TransformException {
+    public static boolean verify(File zip, Signer signer) throws TransformException {
         try (ZipFile zipFile = new ZipFile(zip);
              FileInputStream inputStream = new FileInputStream(zip);) {
             Charset charset = zipFile.getCharset();
             String comment = zipFile.getComment();
             byte[] commentBytes;
             if (comment == null || (commentBytes = comment.getBytes(charset)).length <= SUFFIX_ENCODE_LEN) {
-                throw new TransformException("not found signature in zip file");
+                throw new TransformException("not found signer in zip file");
             }
             String signLenHex = StringUtils.substring(comment, comment.length() - SUFFIX_ENCODE_LEN, comment.length());
             byte[] sign;
@@ -95,7 +95,7 @@ public class ZipSignUtils {
                 byte[] signBase64 = BytesUtils.subBytes(commentBytes, commentBytes.length - SUFFIX_ENCODE_LEN - signLen, signLen);
                 sign = Base64.decodeBase64(signBase64);
             } catch (Exception e) {
-                throw new TransformException("can not get zip signature", e);
+                throw new TransformException("can not get zip signer", e);
             }
             long zipLength = zip.length();
             long commentStart = zipLength - commentBytes.length - Short.BYTES;
@@ -107,13 +107,11 @@ public class ZipSignUtils {
                             readLen + "; but comment index: " + commentStart + '/' + zipLength);
                 }
                 readLen += read;
-                signature.update(buf, 0, read);
+                signer.update(buf, 0, read);
             }
-            return signature.verify(sign);
+            return signer.verifySignature(sign);
         } catch (IOException e) {
             throw new TransformException("read zip file failed", e);
-        } catch (SignatureException e) {
-            throw new TransformException("signature verify option failed", e);
         } catch (RuntimeException e) {
             throw new TransformException("verify zip failed", e);
         }

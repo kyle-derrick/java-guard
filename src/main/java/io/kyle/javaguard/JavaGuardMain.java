@@ -18,7 +18,6 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.util.io.pem.PemReader;
 import org.yaml.snakeyaml.Yaml;
 
 import javax.crypto.KeyGenerator;
@@ -203,25 +202,12 @@ public class JavaGuardMain {
         transformInfo.setKeyInfo(new KeyInfo(Arrays.copyOfRange(hmac, 0, 512 >> 4)));
         transformInfo.setResourceKeyInfo(new KeyInfo(Arrays.copyOfRange(hmac, 512 >> 4, hmac.length)));
 
-        SignatureInfo signatureInfo = signatureInfo(config);
+        SignatureInfo signatureInfo = SignatureInfo.fromConfig(config);
+        if (signatureInfo == null) {
+            System.err.println("not found sign private key and public key");
+            System.exit(-1);
+        }
         transformInfo.setSignature(signatureInfo);
         return transformInfo;
-    }
-
-    private static SignatureInfo signatureInfo(AppConfig config) {
-        String privateKey = config.getPrivateKey();
-        String publicKey = config.getPublicKey();
-        // todo 只有私钥或者没有指定时，生成
-        privateKey = privateKey == null ? ConstVars.DEFAULT_PRIVATE_KEY : privateKey;
-        publicKey = publicKey == null ? ConstVars.DEFAULT_PUBLIC_KEY : publicKey;
-        SignatureInfo signatureInfo = new SignatureInfo();
-        try (PemReader privateKeyReader = new PemReader(new FileReader(privateKey));
-             PemReader publicKeyReader = new PemReader(new FileReader(publicKey))) {
-            signatureInfo.setPrivateKey(privateKeyReader.readPemObject().getContent());
-            signatureInfo.setPublicKey(publicKeyReader.readPemObject().getContent());
-        } catch (Exception e) {
-            throw new Error("Failed to read private/public key: [" +privateKey+ "]:["+publicKey+"]: " + e.getMessage());
-        }
-        return signatureInfo;
     }
 }

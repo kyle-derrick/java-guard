@@ -64,7 +64,7 @@ public class LauncherCodeGenerator {
                 }
             }
         } catch (Exception e) {
-            throw new TransformException("generate jg-launcher failed!", e);
+            throw new TransformException("release and generate jg-launcher failed!", e);
         }
         // todo copy to launcher dir
         generateBuildConfigRs(launcherDir, info);
@@ -84,7 +84,7 @@ public class LauncherCodeGenerator {
         HashMap<String, String> valueMap = new HashMap<>(4);
         valueMap.put("key", bytesToString(keyInfo.getKey()));
         valueMap.put("resourceKey", bytesToString(resourceKeyInfo.getKey()));
-        valueMap.put("publicKey", bytesToString(signatureInfo.getPublicKey()));
+        valueMap.put("publicKey", bytesToString(signatureInfo.getPublicKey().getEncoded()));
         valueMap.put("signKeyVersion", signatureInfo.getKeyHash());
         SFunction<URLConnection, URLConnection> handleConnection = InternalResourceURLConnection::handleConnection;
         valueMap.put("internalUrlConnectionClass", LambdaUtils.getClassName(handleConnection));

@@ -2,7 +2,6 @@ use crate::base::common::{pub_key_pair, MAIN_CLASS_PREFIX, MANIFEST_FILE, SIGN_L
 use crate::util::byte_utils;
 use base64::prelude::BASE64_URL_SAFE_NO_PAD;
 use base64::Engine;
-use ring::signature::VerificationAlgorithm;
 use std::fs::File;
 // use file_lock::{FileLock, FileOptions};
 use std::{fs, io, str};

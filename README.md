@@ -62,11 +62,11 @@ usage: java-guard
 ```shell
 java -jar target/java-guard-1.0-SNAPSHOT.jar -c example_config/config.yml -o out antlr-4.13.2-complete.jar
 ```
-> 生成的启动器路径为 out/jd-launcher/jd-launcher （windows为jd-launcher.exe）
+> 生成的启动器路径为 out/jg-launcher/jg-launcher （windows为jg-launcher.exe）
 > 
 
 ### 6. 启动加密后的jar包
 ```shell
-./out/jd-launcher/jd-launcher -jar out/antlr-4.13.2-complete.jar
+./out/jg-launcher/jg-launcher -jar out/antlr-4.13.2-complete.jar
 ```
 

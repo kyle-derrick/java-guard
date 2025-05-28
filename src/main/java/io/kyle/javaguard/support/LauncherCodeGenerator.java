@@ -26,7 +26,7 @@ import java.util.StringJoiner;
  */
 public class LauncherCodeGenerator {
     private static final Class<?>[] WRITE_RUNTIME_CLASS = {TinyHeadInputStream.class, InternalResourceDecryptInputStream.class, InternalResourceURLConnection.class};
-    private static final String LAUNCHER_CODE_DIR = "jg-launcher";
+    private static final String LAUNCHER_CODE_DIR = "jg-launcher-source";
     private static final String LAUNCHER_CODE_BUILD_CONFIG_FILE = "build_config.rs";
     private static final String LAUNCHER_BUILD_PATH = "build";
     private static final String LAUNCHER_CODE_BUILD_CONFIG_PATH = LAUNCHER_BUILD_PATH + File.separatorChar + LAUNCHER_CODE_BUILD_CONFIG_FILE;
@@ -82,7 +82,7 @@ public class LauncherCodeGenerator {
                 System.err.println("build launcher failed, not found launcher bin!");
             } else {
                 File bin = bins[0];
-                FileUtils.copyFile(bin, new File(launcherDir, bin.getName()));
+                FileUtils.copyFile(bin, new File(output, bin.getName()));
             }
         } catch (Exception e) {
             System.err.println("build launcher failed: " + e.getMessage());

@@ -8,10 +8,12 @@ use jni_sys::{jbyteArray, jint, jlong, jobject};
 use ring::aead::chacha20_poly1305_openssh::TAG_LEN;
 use ring::aead::NONCE_LEN;
 use crate::base::common::{runtime_classes, RESOURCE_DECRYPT_NATIVE_CLASS, RESOURCE_DECRYPT_NATIVE_DESC, RESOURCE_DECRYPT_NATIVE_METHOD, URL_CLASS_NAME};
+use crate::jni_result_expect;
 use crate::util::aes_util::decrypt_resource;
 use crate::util::byte_utils::byte_be_to_u32_fast;
 use crate::util::class_util;
 use crate::util::class_util::url_extended_processing;
+use crate::util::jvm_util::jni_error_handle;
 use crate::util::jvmti_util::{get_jvmti_from_vm, init_vm_and_set_callback, jvmti_allocate, jvmti_get_class_loader};
 
 pub fn set_callbacks(jvm: &JavaVM, version: i32) {
@@ -24,7 +26,7 @@ pub fn set_callbacks(jvm: &JavaVM, version: i32) {
 }
 
 pub fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv) {
-    let url_class = env.find_class(URL_CLASS_NAME).expect("url class cannot found!");
+    let url_class = jni_result_expect!(env, env.find_class(URL_CLASS_NAME), "url class cannot found!");
     let jvmti = unsafe {
         get_jvmti_from_vm(jvm.get_java_vm_pointer())
     };
@@ -67,7 +69,7 @@ pub fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv) {
         let class_loader = unsafe {
             JObject::from_raw(class_loader)
         };
-        let class_obj = env.define_class(&name, &class_loader, class_data).expect("cannot load extend runtime class");
+        let class_obj = jni_result_expect!(env, env.define_class(&name, &class_loader, class_data), "cannot load extend runtime class");
 
         if &name == RESOURCE_DECRYPT_NATIVE_CLASS {
             let native_method = NativeMethod {
@@ -75,7 +77,7 @@ pub fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv) {
                 sig: JNIString::from(RESOURCE_DECRYPT_NATIVE_DESC),
                 fn_ptr: resource_decrypt_native as *mut c_void,
             };
-            env.register_native_methods(class_obj, &[native_method]).expect("cannot bind ext runtime clas");
+            jni_result_expect!(env, env.register_native_methods(class_obj, &[native_method]), "cannot bind ext runtime clas");
         }
     }
 }
@@ -92,7 +94,7 @@ extern "system" fn resource_decrypt_native(env: *mut sys::JNIEnv, object: jobjec
             env
         }
         Err(err) => {
-            eprintln!("ERROR: native method: cannot get env: {err}");
+            eprintln!("ERROR: native method: cannot get env: {}", err.to_string());
             return len;
         }
     };
@@ -102,7 +104,8 @@ extern "system" fn resource_decrypt_native(env: *mut sys::JNIEnv, object: jobjec
             data
         }
         Err(err) => {
-            eprintln!("ERROR: native method: cannot convert data: {err}");
+            jni_error_handle(&env, &err, "ERROR: native method: cannot convert data");
+            // eprintln!("ERROR: native method: cannot convert data: {err}");
             return len;
         }
     };
@@ -110,12 +113,19 @@ extern "system" fn resource_decrypt_native(env: *mut sys::JNIEnv, object: jobjec
     let off = off as usize;
     match decrypt_resource(&mut data_rs[off..end]) {
         Ok(de_data) => {
-            let len = de_data.len();
+            let de_data_len = de_data.len();
             let de_data = unsafe {
-                std::slice::from_raw_parts(de_data.as_ptr() as *const i8, len)
+                std::slice::from_raw_parts(de_data.as_ptr() as *const i8, de_data_len)
             };
-            env.set_byte_array_region(&data_arr, 0, de_data).unwrap();
-            len as jint
+
+            match env.set_byte_array_region(&data_arr, 0, de_data) {
+                Ok(r) => r,
+                Err(err) => {
+                    jni_error_handle(&env, &err, "");
+                    return len;
+                }
+            }
+            de_data_len as jint
         }
         Err(err) => {
             eprintln!("ERROR: native method: decrypt resource failed: {err}");

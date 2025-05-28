@@ -7,6 +7,7 @@ use jni::objects::{JClass, JObject};
 use jni::sys::jsize;
 use jni::JNIEnv;
 use jni::JNIVersion;
+use crate::jni_result_expect;
 
 const JAVA_CLASS_PATH_VM_ARG_PREFIX: &str = "-Djava.class.path=";
 
@@ -59,36 +60,37 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
 
     let helper = find_launcher_helper_from_env(env_ref);
 
-    let main_class = helper.check_and_load_main(env_ref, target).expect(&format!("can not load main class: {}", target.main_class()));
+    let main_class = jni_result_expect!(env_ref, helper.check_and_load_main(env_ref, target), &format!("can not load main class: {}", target.main_class()));
     // let main_class = env.find_class(&main_class_name).expect(&format!("not found main class: {}", &main_class_name));
 
     call_main(env_ref, &main_class, app_args);
 
     unsafe {
         jvm.detach_current_thread();
-        jvm.destroy().unwrap();
+        jni_result_expect!(env_ref, jvm.destroy());
     }
 }
 
 fn call_main(env: &mut JNIEnv, main_class: &JClass, app_args: &Vec<String>) {
-    let args = env.new_object_array(jsize::from(app_args.len() as i32), "java/lang/String", JObject::null()).unwrap();
+    let args = jni_result_expect!(env, env.new_object_array(jsize::from(app_args.len() as i32), "java/lang/String", JObject::null()));
 
     for (i, item) in app_args.iter().enumerate() {
-        env.set_object_array_element(&args, jsize::from(i as i32), env.new_string(item).unwrap()).unwrap();
+        jni_result_expect!(env, env.set_object_array_element(&args, jsize::from(i as i32), jni_result_expect!(env, env.new_string(item))));
     }
 
     let params = [jni::objects::JValue::Object(&args)];
-    match env.call_static_method(main_class, "main", "([Ljava/lang/String;)V",
-                           &params) {
-        Ok(_) => {
-        }
-        Err(err) => {
-            if let Ok(true) = env.exception_check() {
-                env.exception_describe().expect("print error failed!");
-                env.exception_clear().unwrap();
-            } else {
-                eprintln!("main method execution failed: {err}")
-            }
-        }
-    }
+    jni_result_expect!(env, env.call_static_method(main_class, "main", "([Ljava/lang/String;)V", &params));
+    // match env.call_static_method(main_class, "main", "([Ljava/lang/String;)V",
+    //                        &params) {
+    //     Ok(_) => {
+    //     }
+    //     Err(err) => {
+    //         if let Ok(true) = env.exception_check() {
+    //             env.exception_describe().expect("print error failed!");
+    //             env.exception_clear().unwrap();
+    //         } else {
+    //             eprintln!("main method execution failed: {err}")
+    //         }
+    //     }
+    // }
 }

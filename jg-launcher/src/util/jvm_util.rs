@@ -1,5 +1,5 @@
-use jni::errors::{jni_error_code_to_result, StartJvmError, StartJvmResult};
-use jni::{sys, InitArgs};
+use jni::errors::{jni_error_code_to_result, Error, StartJvmError, StartJvmResult};
+use jni::{sys, InitArgs, JNIEnv};
 use jni_sys::{jint, jsize, JavaVM, JavaVMInitArgs, JavaVMOption};
 use libloading::Library;
 use std::borrow::Cow;
@@ -95,4 +95,43 @@ impl JvmWrapper {
             Ok((vm, env))
         }
     }
+}
+
+#[inline]
+pub fn jni_error_handle(env: &JNIEnv,err: &jni::errors::Error, msg_prefix: &str) {
+    if msg_prefix.is_empty() {
+        eprintln!("Error: {}", err.to_string());
+    } else {
+        eprintln!("Error: {}: {}", msg_prefix, err.to_string());
+    }
+    match &err {
+        Error::JavaException => {
+            if let Ok(true) = env.exception_check() {
+                if let Err(err) = env.exception_describe() {
+                    eprintln!("print exception failed: {}", err.to_string());
+                }
+                env.exception_clear().unwrap();
+            }
+        }
+        Error::JniCall(inner_err) => {
+            eprintln!("JniCall Error: {}", inner_err.to_string());
+        }
+        _ => {}
+    }
+}
+
+#[macro_export]
+macro_rules! jni_result_expect {
+    ($env:expr, $result:expr) => {
+        jni_result_expect!($env, $result, "")
+    };
+    ($env:expr, $result:expr, $msg_prefix:expr) => {
+        match $result {
+            Ok(r) => r,
+            Err(err) => {
+                crate::util::jvm_util::jni_error_handle($env, &err, $msg_prefix);
+                std::process::exit(-1)
+            }
+        }
+    };
 }

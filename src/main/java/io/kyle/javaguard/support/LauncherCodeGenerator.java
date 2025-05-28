@@ -69,6 +69,17 @@ public class LauncherCodeGenerator {
         // todo copy to launcher dir
         generateBuildConfigRs(launcherDir, info);
         generateClass(launcherDir, info);
+
+        try {
+            ProcessBuilder processBuilder = new ProcessBuilder("cargo", "build", "--release")
+                    .directory(launcherDir)
+                    .inheritIO();
+            processBuilder.start()
+                    .waitFor();
+        } catch (Exception e) {
+            System.err.println("build launcher failed: " + e.getMessage());
+        }
+
     }
 
     private static void generateBuildConfigRs(File launcherDir, TransformInfo info) throws TransformException {

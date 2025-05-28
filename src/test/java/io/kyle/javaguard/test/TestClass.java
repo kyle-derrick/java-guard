@@ -1,10 +1,13 @@
 package io.kyle.javaguard.test;
 
+import org.junit.Ignore;
+
 import java.io.IOException;
 import java.lang.annotation.*;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
 
+@Ignore
 @TestClass.MyAnnotation(22)
 @TestClass.MyAnnotation2
 public class TestClass<@TestClass.MyTypeAnnotation("asd") T> implements Consumer<TestClass> {

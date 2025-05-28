@@ -5,11 +5,8 @@ use crate::jvm::launcher_helper::{find_launcher_helper_from_env, JvmLauncherHelp
 use crate::util::jvm_util::JvmWrapper;
 use jni::objects::{JClass, JObject};
 use jni::sys::jsize;
-use jni::JNIVersion;
 use jni::JNIEnv;
-use jni_sys::{JavaVMInitArgs, JNI_VERSION_1_1};
-use std::ffi::c_void;
-use std::ptr::null_mut;
+use jni::JNIVersion;
 
 const JAVA_CLASS_PATH_VM_ARG_PREFIX: &str = "-Djava.class.path=";
 
@@ -28,12 +25,12 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
         // todo not currently supported
         panic!("not currently supported run class")
     };
+    if launcher_arg.server() {
+        args_builder = args_builder.option("-server");
+    }
     for item in vm_ops.iter() {
         args_builder = args_builder.option(item.trim());
     };
-    if launcher_arg.server() {
-        args_builder = args_builder.option("--server");
-    }
     let init_args = args_builder
         .option(&java_class_path)
         .build()
@@ -46,20 +43,6 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
     let wrapper = JvmWrapper::load_jvm().unwrap();
     // let wrapper = JvmWrapper::load_jvm_with("D:\\software\\install\\Java\\jdk1.8.0_202\\jre\\bin\\server\\jvm.dll").unwrap();
 
-    // ---------------------
-    // test
-    let mut args1 = JavaVMInitArgs {
-        version: JNI_VERSION_1_1,
-        nOptions: 0,
-        options: null_mut(),
-        ignoreUnrecognized: 0,
-    };
-    let result = unsafe {
-        let p = &mut args1 as *mut JavaVMInitArgs;
-        (wrapper.get_default_java_vm_init_args)(p as *mut c_void)
-    };
-    println!("get_default_java_vm_init_args result: {result}");
-    // ---------------------
 
     let (jvm, mut env) = wrapper.create_java_vm(init_args).unwrap();
     let vers = env.get_version().expect("get jvm version failed!");
@@ -108,6 +91,4 @@ fn call_main(env: &mut JNIEnv, main_class: &JClass, app_args: &Vec<String>) {
             }
         }
     }
-    // env.call_static_method(main_class, "main", "([Ljava/lang/String;)V",
-    //                        &params).unwrap();
 }

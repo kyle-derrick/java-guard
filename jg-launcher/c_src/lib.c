@@ -44,6 +44,7 @@ int init_vm_and_set_callback(JavaVM *vm, jvmtiEventClassFileLoadHook class_file_
         return error;
     }
 
+    // extend url class, 在此处处理是因为放出去之后会导致Retransform失败报错code为99
     JNIEnv *jni_env;
     jni_result = (*vm)->GetEnv(vm, (void**)&jni_env, version);
     if (jni_result != JNI_OK) {

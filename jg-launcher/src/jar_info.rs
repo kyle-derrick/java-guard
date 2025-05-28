@@ -2,6 +2,7 @@ use crate::base::common::{pub_key_pair, MAIN_CLASS_PREFIX, MANIFEST_FILE, SIGN_L
 use crate::util::byte_utils;
 use base64::prelude::BASE64_URL_SAFE_NO_PAD;
 use base64::Engine;
+use ring::signature::VerificationAlgorithm;
 use std::fs::File;
 // use file_lock::{FileLock, FileOptions};
 use std::{fs, io, str};
@@ -30,7 +31,7 @@ fn extract_sign_from_comment(comment: &[u8]) -> Vec<u8> {
         .expect("jar signature info is invalid");
     let sign_base64_len = byte_utils::byte_to_u16(&hex::decode(sign_len_hex)
         .expect("jar signature info is invalid")) as usize;
-    let sign_base64 = str::from_utf8(&comment[(len_without_suffix-sign_base64_len)..len_without_suffix])
+    let sign_base64 = str::from_utf8(&comment[(len_without_suffix-sign_base64_len)..sign_base64_len])
         .expect("jar signature is invalid");
     BASE64_URL_SAFE_NO_PAD.decode(sign_base64)
         .expect("jar signature is invalid")

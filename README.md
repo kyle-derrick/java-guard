@@ -37,7 +37,14 @@ mvn clean package
 编译得到jar：target/java-guard-*.jar
 
 ### 4. 添加加密配置
-参考[config.yml](example_config%2Fconfig.yml)
+
+* 生成公私钥
+```shell
+ssh-keygen -t ed25519 -f example_config/id_ed25519
+# 一直回车即可
+```
+
+* 参考[config.yml](example_config%2Fconfig.yml)
 ```yaml
 # 需加密的文件，通配符
 matches:

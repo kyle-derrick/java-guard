@@ -11,6 +11,9 @@
 
 > Java bytecode protection solution providing JAR encryption and runtime dynamic decryption capabilities, effectively preventing decompilation and code theft.
 > 
+> Mitigates the risk of decryption method exposure inherent in conventional Java agent (-javaagent) and native agent (-agentlib) approaches.
+> 
+
 > The core workflow and functionality are fully implemented. Future improvements include: documentation enhancement, JRE environment signature verification, and class execution support.
 
 ## ✨ Core Features

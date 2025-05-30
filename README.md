@@ -4,6 +4,11 @@
 [![Java](https://img.shields.io/badge/Java-8%2B-orange)](https://java.com)
 [![Rust](https://img.shields.io/badge/Rust-1.41+-red)](https://rust-lang.org)
 
+---
+## 🌐 Other Language
+- [English](README.en.md)
+---
+
 > Java字节码保护解决方案，提供JAR包加密与运行时动态解密能力，有效防止反编译和代码窃取。
 >
 

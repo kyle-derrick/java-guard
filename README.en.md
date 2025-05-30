@@ -4,6 +4,11 @@
 [![Java](https://img.shields.io/badge/Java-8%2B-orange)](https://java.com)
 [![Rust](https://img.shields.io/badge/Rust-1.41+-red)](https://rust-lang.org)
 
+---
+## 🌐 其他语言
+- [简体中文](README.md)
+---
+
 > Java bytecode protection solution providing JAR encryption and runtime dynamic decryption capabilities, effectively preventing decompilation and code theft.
 > 
 > The core workflow and functionality are fully implemented. Future improvements include: documentation enhancement, JRE environment signature verification, and class execution support.

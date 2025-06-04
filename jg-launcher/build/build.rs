@@ -1,12 +1,11 @@
 mod build_config;
 mod bytes_get_generator;
 
+use crate::build_config::*;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
-
-use crate::build_config::*;
 
 const RUNTIME_CLASSES: &str = "runtime.classes";
 // const TRANSFORM_MOD: &str = "transform.mod";
@@ -24,18 +23,37 @@ const DEFAULT_INCLUDES: &str = "jdk_include/linux";
 const DEFAULT_INCLUDES: &str = "jdk_include/darwin";
 
 fn main() {
-    let cargo_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let out_dir = env::var("OUT_DIR").unwrap();
-    println!("{out_dir}");
+    let cargo_dir = match env::var("CARGO_MANIFEST_DIR") {
+        Ok(path) => PathBuf::from(path),
+        Err(_) => {
+            let mut path = env::current_exe().ok().expect("cannot get project root path!");
+            let mut path_result = None;
+            while path.pop() {
+                if path.join("Cargo.toml").exists() {
+                    path_result = Some(path);
+                    break;
+                }
+            }
+            path_result.expect("not found project root path!")
+        }
+    };
+    let out_dir = env::var("OUT_DIR").expect("cannot get build out dir!");
+    println!("generate file dir: {out_dir}");
     let out_path = Path::new(&out_dir);
     let dest_path = out_path.join("_common.rs");
 
     let app_version = env::var("CARGO_PKG_VERSION").unwrap();
 
     let ext_path = Path::new(&cargo_dir).join("build").join("ext");
+    if !ext_path.exists() {
+        panic!("not found ext path!");
+    }
     let runtime_classes_path = ext_path.join(RUNTIME_CLASSES);
     // let transform_mod_path = ext_path.join(TRANSFORM_MOD);
 
+    if !runtime_classes_path.exists() {
+        panic!("not found file: {RUNTIME_CLASSES}");
+    }
     fs::copy(runtime_classes_path, out_path.join(RUNTIME_CLASSES)).unwrap();
     // fs::copy(transform_mod_path, out_path.join(TRANSFORM_MOD)).unwrap();
     #[warn(named_arguments_used_positionally)]

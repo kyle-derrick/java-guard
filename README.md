@@ -65,6 +65,9 @@ replace-with = 'vendored-sources'
 
 [source.vendored-sources]
 directory = 'vendor'" > .cargo/config.toml
+
+# 回到项目根目录
+cd ..
 ```
 
 ### 2. 编译java-guard

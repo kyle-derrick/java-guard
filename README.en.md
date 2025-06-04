@@ -62,6 +62,9 @@ replace-with = 'vendored-sources'
 
 [source.vendored-sources]
 directory = '$(pwd)/vendor'" > .cargo/config.toml
+
+# Back to project root path
+cd ..
 ```
 
 ### 2. Build java-guard

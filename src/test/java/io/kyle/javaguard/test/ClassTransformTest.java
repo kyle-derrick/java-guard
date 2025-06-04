@@ -12,13 +12,11 @@ import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.springframework.core.LocalVariableTableParameterNameDiscoverer;
 
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -49,20 +47,6 @@ public class ClassTransformTest {
         classTransformer.decrypt(encryptStream, outDecryptStream);
         encryptStream.close();
         outDecryptStream.close();
-    }
-
-    @Test
-    public void test2() throws Exception {
-//        byte[] bytes = FileUtils.readFileToByteArray(new File("/home/kyle/data/code/java/JavaGuard/out/e/TestClass.class"));
-//        ClassFile classFile = new ClassFile(new DataInputStream(new ByteArrayInputStream(bytes)));
-//        CtClass ctClass = ClassPool.getDefault().makeClass(classFile);
-//        Class<?> aClass = ctClass.toClass();
-        Class<?> aClass = ClassLoader.getSystemClassLoader().loadClass("io.kyle.javaguard.test.TestClass");
-
-        Method code2 = aClass.getMethod("code2", byte[].class);
-        LocalVariableTableParameterNameDiscoverer discoverer = new LocalVariableTableParameterNameDiscoverer();
-        String[] parameterNames = discoverer.getParameterNames(code2);
-        System.out.println(String.join(",", parameterNames));
     }
 
     @Test

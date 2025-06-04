@@ -29,27 +29,61 @@
 - Maven 3.0+
 - Rust 1.41+
 
+### 1. Clone the Repository
 ```shell
-# 1. Clone repository
+# 1. Clone the repository
 git clone https://github.com/java-guard/java-guard.git
 cd java-guard
 git submodule update --init
+```
 
-# 2. Build project
+#### Offline Encryption Scenario
+> For offline usage, pre-cache jg-launcher dependencies (Note: Dependencies are platform-specific)
+
+* Download dependencies in the subproject `jg-launcher`:
+```shell
+cd jg-launcher
+
+# Generate/update lockfile
+cargo generate-lockfile
+# Download all dependency source code to vendor directory
+cargo vendor ./vendor
+```
+
+* Add cargo configuration
+> Windows users can perform equivalent operations
+```shell
+# Create the .cargo directory
+mkdir .cargo
+
+# Create the .cargo/config.toml file and write the configuration
+echo "[source.crates-io]
+replace-with = 'vendored-sources'
+
+[source.vendored-sources]
+directory = '$(pwd)/vendor'" > .cargo/config.toml
+```
+
+### 2. Build java-guard
+```shell
+# 2. Build the project
 mvn clean package
+```
 
-# 3. Generate keys
+### 3. Encrypt JAR and Launch with Launcher
+```shell
+# 3. Generate key pair
 ssh-keygen -t ed25519 -f config/id_ed25519
 
-# 4. Encrypt JAR (Example)
+# 4. Encrypt JAR (example)
 java -jar target/java-guard-*.jar \
   -c config.yml \
   -o out \
   your-application.jar
 
-# 5. Launch application
+# 5. Launch encrypted application
 ./out/jg-launcher -jar out/your-application.jar
-# if your os is windows:
+# For Windows systems:
 # .\out\jg-launcher.exe -jar out\your-application.jar
 ```
 

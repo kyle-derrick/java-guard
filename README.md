@@ -30,15 +30,51 @@
 - Maven 3.0+
 - Rust 1.41+
 
+### 1. 克隆仓库
 ```shell
 # 1. 克隆仓库
 git clone https://github.com/java-guard/java-guard.git
 cd java-guard
 git submodule update --init
+```
 
+#### 离线加密场景
+> 如果需要离线场景使用可提前缓存jg-launcher依赖（注意：依赖与系统平台相关）
+> 
+
+* 在子项目 jg-launcher 中下载依赖：
+
+```shell
+cd jg-launcher
+
+# 生成/更新锁文件
+cargo generate-lockfile
+# 下载所有依赖源码到vendor目录
+cargo vendor ./vendor
+```
+
+* 添加cargo配置
+> windows 用户可自行使用同等操作
+```shell
+# 创建 .cargo 目录
+mkdir .cargo
+
+# 创建 .cargo/config.toml 文件，并写入配置
+echo "[source.crates-io]
+replace-with = 'vendored-sources'
+
+[source.vendored-sources]
+directory = 'vendor'" > .cargo/config.toml
+```
+
+### 2. 编译java-guard
+```shell
 # 2. 编译项目
 mvn clean package
+```
 
+### 3. 加密jar及使用launcher启动
+```shell
 # 3. 生成密钥对
 ssh-keygen -t ed25519 -f config/id_ed25519
 

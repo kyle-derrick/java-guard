@@ -90,6 +90,7 @@ impl LauncherArg {
 }
 
 fn usage() -> ! {
+/*
     println!(r#"
 usage: launcher [options] -jar <jar file> [args...]
    // or  launcher [options] <class> [args...]
@@ -102,6 +103,23 @@ usage: launcher [options] -jar <jar file> [args...]
     // [-cp -classpath --class-path] <directory and zip/jar file>
     //               like java -classpath argument
     //               (not currently supported!!!!!!)
+    -D<name>=<value>
+                  system property
+    -verbose:[class|module|gc|jni]
+                  enable detail output
+    -version
+    --version     version info
+    -? -h -help
+                  print usage
+    -X            additional options"#);
+ */
+    println!(r#"
+usage: launcher [options] -jar <jar file> [args...]
+
+   Class not currently supported run class!!!!!!
+
+ options:
+    -server
     -D<name>=<value>
                   system property
     -verbose:[class|module|gc|jni]

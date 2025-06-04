@@ -1,4 +1,10 @@
-pub const SIGN_KEY_VERSION: &str = "351b3e3b9318243dd9d79fa6c457443f";
-pub const PUB_KEY: &[u8] = &[48u8,42u8,48u8,5u8,6u8,3u8,43u8,101u8,112u8,3u8,33u8,0u8,176u8,255u8,24u8,63u8,41u8,219u8,250u8,195u8,38u8,250u8,40u8,22u8,247u8,82u8,138u8,222u8,54u8,33u8,184u8,241u8,198u8,148u8,220u8,184u8,66u8,12u8,242u8,132u8,33u8,215u8,18u8,113u8];
-pub const KEY: &[u8] = &[205u8,46u8,176u8,131u8,124u8,155u8,76u8,150u8,44u8,34u8,210u8,255u8,139u8,84u8,65u8,183u8,180u8,88u8,5u8,136u8,127u8,5u8,29u8,57u8,191u8,19u8,59u8,88u8,59u8,175u8,104u8,96u8];
-pub const RESOURCE_KEY: &[u8] = &[129u8,138u8,70u8,110u8,61u8,46u8,202u8,109u8,56u8,6u8,193u8,139u8,62u8,194u8,186u8,42u8,20u8,60u8,153u8,80u8,200u8,131u8,0u8,45u8,43u8,176u8,25u8,63u8,79u8,132u8,243u8,191u8];
+pub const SIGN_KEY_VERSION: &str = "0";
+pub const PUB_KEY: &[u8] = &[0u8; 32];
+pub const KEY: &[u8] = &[0u8; 32];
+pub const RESOURCE_KEY: &[u8] = &[0u8; 32];
+pub const INTERNAL_URL_CONNECTION_CLASS: &str = "io/kyle/javaguard/support/InternalResourceURLConnection";
+pub const INTERNAL_URL_CONNECTION_METHOD: &str = "handleConnection";
+pub const INTERNAL_URL_CONNECTION_DESC: &str = "(Ljava/net/URLConnection;)Ljava/net/URLConnection;";
+pub const RESOURCE_DECRYPT_NATIVE_CLASS: &str = "io/kyle/javaguard/support/InternalResourceDecryptInputStream";
+pub const RESOURCE_DECRYPT_NATIVE_METHOD: &str = "transformer";
+pub const RESOURCE_DECRYPT_NATIVE_DESC: &str = "([BII)I";

@@ -78,6 +78,7 @@ pub fn try_decrypt_class(class_data: &[u8]) -> Option<Vec<u8>> {
             for _ in 0..codes_size {
                 let mut code_range = info.method_codes[info_code_index];
                 info_code_index+=1;
+                // ignore method who not has code
                 while code_range.0 == 0 {
                     code_range = info.method_codes[info_code_index];
                     info_code_index+=1;
@@ -88,6 +89,10 @@ pub fn try_decrypt_class(class_data: &[u8]) -> Option<Vec<u8>> {
                 index += 4;
                 check_index!(data, index);
                 let code_len = byte_utils::byte_be_to_u32_fast(data, code_len_start) as usize;
+                if code_len == 0 {
+                    info_code_index+=1;
+                    continue;
+                }
                 let ori_attr_start = code_range.0 + 2;
                 let ori_code_start = ori_attr_start + 4 + 2 + 2;
                 // check_index!(class_data, ori_code_start+4);

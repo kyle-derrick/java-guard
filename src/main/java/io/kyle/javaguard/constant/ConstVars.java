@@ -20,4 +20,6 @@ public interface ConstVars {
      * \0JGR\0
      */
     byte[] ENCRYPT_RESOURCE_HEADER = {0, 74, 71, 82, 0};
+
+    short ZERO_SHORT = 0;
 }

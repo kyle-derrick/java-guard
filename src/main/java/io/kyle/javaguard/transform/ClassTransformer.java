@@ -126,11 +126,9 @@ public class ClassTransformer extends AbstractTransformer {
         for (AttributeInfo codeAttributeAttribute : codeAttribute.getAttributes()) {
             handleAttribute(codeAttributeAttribute, classTransformInfo);
         }
-        if (codeAttribute.getCodeLength() == 0) {
-            return codeAttribute;
-        }
         if (codeAttribute.getCodeLength() == 0 ||
                 (codeAttribute.getCodeLength() < 2 && codeAttribute.getCode()[0] == (byte) Bytecode.RETURN)) {
+            classTransformInfo.addCode(null);
             return codeAttribute;
         }
 //                codeAttribute.getExceptionTable()

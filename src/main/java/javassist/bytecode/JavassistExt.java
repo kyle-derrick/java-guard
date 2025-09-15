@@ -1,11 +1,18 @@
 package javassist.bytecode;
 
+import io.kyle.javaguard.constant.ConstVars;
+import io.kyle.javaguard.exception.TransformRuntimeException;
+
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.Set;
 
 /**
  * @author kyle kyle_derrick@foxmail.com
  * 2024/10/08 10:32
  */
+@SuppressWarnings({"unused", "ClassEscapesDefinedScope"})
 public class JavassistExt {
 
     public static int methodNameIndex(MethodInfo methodInfo) {
@@ -136,6 +143,19 @@ public class JavassistExt {
                 default:
             }
         }
+    }
+
+    public static byte[] codeToBytes(CodeAttribute codeAttribute) {
+        ByteArrayOutputStream buff = new ByteArrayOutputStream(codeAttribute.length());
+        try (DataOutputStream dataBuff = new DataOutputStream(buff)) {
+            codeAttribute.write(dataBuff);
+        } catch (IOException e) {
+            throw new TransformRuntimeException(e);
+        }
+        byte[] bytes = buff.toByteArray();
+        byte[] dataBytes = new byte[bytes.length - ConstVars.ATTRIBUTE_DATA_OFFSET];
+        System.arraycopy(bytes, ConstVars.ATTRIBUTE_DATA_OFFSET, dataBytes, 0, dataBytes.length);
+        return dataBytes;
     }
 
 //    public static void retainConst(ConstPool constPool, int index, Set<Integer> retainConst) {

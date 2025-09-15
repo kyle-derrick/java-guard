@@ -3,7 +3,6 @@ package javassist.bytecode;
 import io.kyle.javaguard.bean.ClassTransformInfo;
 import io.kyle.javaguard.constant.ClassAttribute;
 import io.kyle.javaguard.constant.ConstBaseType;
-import io.kyle.javaguard.constant.ConstVars;
 import io.kyle.javaguard.util.BytesUtils;
 
 import java.io.ByteArrayOutputStream;
@@ -48,16 +47,12 @@ public class ClassTransformUtils {
             buff.write(BytesUtils.intToBytes(codes.size()));
             for (CodeAttribute codeAttribute : codes) {
                 if (codeAttribute == null) {
-                    buff.write(BytesUtils.shortToBytes(ConstVars.ZERO_SHORT, ByteOrder.BIG_ENDIAN));
-                    buff.write(BytesUtils.shortToBytes(ConstVars.ZERO_SHORT, ByteOrder.BIG_ENDIAN));
                     buff.write(BytesUtils.intToBytes(0));
                     continue;
                 }
-                byte[] code = codeAttribute.getCode();
-                buff.write(BytesUtils.shortToBytes((short) codeAttribute.getMaxStack(), ByteOrder.BIG_ENDIAN));
-                buff.write(BytesUtils.shortToBytes((short) codeAttribute.getMaxLocals(), ByteOrder.BIG_ENDIAN));
-                buff.write(BytesUtils.intToBytes(code.length));
-                buff.write(code);
+                byte[] codeBytes = JavassistExt.codeToBytes(codeAttribute);
+                buff.write(BytesUtils.intToBytes(codeBytes.length));
+                buff.write(codeBytes);
             }
         } catch (Exception e) {
             throw new RuntimeException("cannot convert to byte", e);

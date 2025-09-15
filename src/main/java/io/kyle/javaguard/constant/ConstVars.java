@@ -22,4 +22,7 @@ public interface ConstVars {
     byte[] ENCRYPT_RESOURCE_HEADER = {0, 74, 71, 82, 0};
 
     short ZERO_SHORT = 0;
+
+    String STATIC_BLOCK_METHOD_NAME = "<clinit>";
+    String CONSTRUCTOR_METHOD_NAME = "<init>";
 }

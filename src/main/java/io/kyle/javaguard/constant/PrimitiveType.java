@@ -1,20 +1,24 @@
 package io.kyle.javaguard.constant;
 
 import javassist.bytecode.Descriptor;
+import javassist.bytecode.Opcode;
 import org.apache.commons.lang3.StringUtils;
 
 public enum PrimitiveType {
-    booleanType,
-    charType,
-    byteType,
-    shortType,
-    intType,
-    longType,
-    floatType,
-    doubleType,
-    voidType,
-    objectType,
+    booleanType(Opcode.ICONST_0, Opcode.IRETURN),
+    charType(Opcode.ICONST_0, Opcode.IRETURN),
+    byteType(Opcode.ICONST_0, Opcode.IRETURN),
+    shortType(Opcode.ICONST_0, Opcode.IRETURN),
+    intType(Opcode.ICONST_0, Opcode.IRETURN),
+    longType(Opcode.LCONST_0, Opcode.LRETURN),
+    floatType(Opcode.FCONST_0, Opcode.FRETURN),
+    doubleType(Opcode.DCONST_0, Opcode.DRETURN),
+    voidType(Opcode.NOP, Opcode.RETURN),
+    objectType(Opcode.ACONST_NULL, Opcode.ARETURN),
     ;
+
+    public final int defaultValue;
+    public final int returnOpcode;
 
     public static final char BOOLEAN_TYPE = 'Z';
     public static final char CHAR_TYPE = 'C';
@@ -26,9 +30,14 @@ public enum PrimitiveType {
     public static final char DOUBLE_TYPE = 'D';
     public static final char VOID_TYPE = 'V';
 
+    PrimitiveType(int defaultValue, int returnOpcode) {
+        this.defaultValue = defaultValue;
+        this.returnOpcode = returnOpcode;
+    }
+
     public static PrimitiveType returnType(String desc) {
         if (StringUtils.isEmpty(desc)) {
-            return null;
+            throw new IllegalArgumentException("desc is empty");
         }
         int i = StringUtils.indexOf(desc, ')');
         if (i != -1) {
@@ -39,7 +48,7 @@ public enum PrimitiveType {
 
     public static PrimitiveType[] paramTypes(String desc) {
         if (StringUtils.isEmpty(desc) || desc.charAt(0) != '(') {
-            return null;
+            throw new IllegalArgumentException("desc is empty");
         }
         int size = Descriptor.numOfParameters(desc);
         PrimitiveType[] types = new PrimitiveType[size];

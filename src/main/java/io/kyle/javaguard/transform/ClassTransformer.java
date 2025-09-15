@@ -1,11 +1,15 @@
 package io.kyle.javaguard.transform;
 
+import io.kyle.javaguard.bean.ClassRequiredInfos;
 import io.kyle.javaguard.bean.ClassTransformInfo;
 import io.kyle.javaguard.bean.TransformInfo;
 import io.kyle.javaguard.constant.ClassAttribute;
+import io.kyle.javaguard.constant.ConstVars;
 import io.kyle.javaguard.constant.DefaultReturn;
+import io.kyle.javaguard.constant.PrimitiveType;
 import io.kyle.javaguard.exception.TransformException;
 import io.kyle.javaguard.exception.TransformRuntimeException;
+import io.kyle.javaguard.util.ClassFileUtils;
 import javassist.bytecode.*;
 import javassist.bytecode.annotation.Annotation;
 import javassist.bytecode.annotation.AnnotationExt;
@@ -126,8 +130,7 @@ public class ClassTransformer extends AbstractTransformer {
         for (AttributeInfo codeAttributeAttribute : codeAttribute.getAttributes()) {
             handleAttribute(codeAttributeAttribute, classTransformInfo);
         }
-        if (codeAttribute.getCodeLength() == 0 ||
-                (codeAttribute.getCodeLength() < 2 && codeAttribute.getCode()[0] == (byte) Bytecode.RETURN)) {
+        if (ClassFileUtils.isEmptyCode(codeAttribute)) {
             classTransformInfo.addCode(null);
             return codeAttribute;
         }
@@ -138,6 +141,7 @@ public class ClassTransformer extends AbstractTransformer {
             bytecode.addOpcode(opcode);
         }
 
+        // todo 构造空代码块  + 局部变量表
         CodeAttribute newCodeAttribute = new CodeAttribute(codeAttribute.getConstPool(),
                 bytecode.getMaxStack(), bytecode.getMaxLocals(), bytecode.get(),
                 codeAttribute.getExceptionTable());
@@ -147,6 +151,49 @@ public class ClassTransformer extends AbstractTransformer {
 //                .add(new CodeIndexAttribute(codeAttribute.getConstPool(), classTransformInfo.codesSize()));
         classTransformInfo.addCode(codeAttribute);
         return newCodeAttribute;
+    }
+
+    private void defaultCodeGenerate(ClassFile classFile, MethodInfo method, CodeAttribute codeAttribute, ClassRequiredInfos requiredInfos) {
+        ConstPool constPool = method.getConstPool();
+        Bytecode newCodeBytes = new Bytecode(constPool);
+        switch (method.getName()) {
+            case ConstVars.CONSTRUCTOR_METHOD_NAME:
+                int constructorIndex = ClassFileUtils.constructorSuperInvokeMethodRef(classFile, constPool, codeAttribute);
+                if (constructorIndex == 0) {
+                    System.out.println("WARN: not found init instruction in constructor: " + classFile.getName() + ':' + method.getName());
+                } else {
+                    String desc = constPool.getMethodrefType(constructorIndex);
+                    PrimitiveType[] paramTypes = PrimitiveType.paramTypes(desc);
+                    newCodeBytes.addOpcode(Opcode.ALOAD_0);
+                    for (PrimitiveType parameterType : paramTypes) {
+                        if (parameterType.defaultValue != Opcode.NOP) {
+                            newCodeBytes.addOpcode(parameterType.defaultValue);
+                        }
+                    }
+                    newCodeBytes.addOpcode(Opcode.INVOKESPECIAL);
+                    newCodeBytes.addIndex(constructorIndex);
+                    ClassFileUtils.putCode(requiredInfos.fields, Opcode.PUTFIELD, newCodeBytes);
+                }
+                newCodeBytes.addOpcode(Opcode.RETURN);
+                break;
+            case ConstVars.STATIC_BLOCK_METHOD_NAME:
+                ClassFileUtils.putCode(requiredInfos.staticFields, Opcode.PUTSTATIC, newCodeBytes);
+                newCodeBytes.addOpcode(Opcode.RETURN);
+                break;
+            default:
+                PrimitiveType returnType = PrimitiveType.returnType(method.getDescriptor());
+                if (returnType.defaultValue != Opcode.NOP) {
+                    newCodeBytes.addOpcode(returnType.defaultValue);
+                }
+                newCodeBytes.addOpcode(returnType.returnOpcode);
+        }
+        boolean notStatic = (method.getAccessFlags() & AccessFlag.STATIC) == 0;
+        int locals = Descriptor.numOfParameters(method.getDescriptor());
+        if (notStatic) {
+            locals++;
+        }
+        CodeAttribute newCa = new CodeAttribute(constPool, newCodeBytes.getMaxStack(), locals, newCodeBytes.get(), newCodeBytes.getExceptionTable());
+        ClassFileUtils.codeInnerAttributeHandle(newCodeBytes.length(), codeAttribute, newCa, constPool);
     }
 
     protected AttributeInfo handleAttribute(AttributeInfo attributeInfo, ClassTransformInfo classTransformInfo) {

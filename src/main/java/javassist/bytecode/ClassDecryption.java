@@ -18,7 +18,6 @@ import java.util.function.Function;
  * @author kyle kyle_derrick@foxmail.com
  * 2024/10/08 10:32
  */
-@Deprecated
 public class ClassDecryption {
     private static final String URL_CLASS_NAME = "java/net/URL";
     private static final String SECRET_BOX_TAG = "<SecretBox>";
@@ -38,6 +37,7 @@ public class ClassDecryption {
      * @param data
      * @return result null if not transform
      */
+    @Deprecated
     public byte[] decryptClass(String name, byte[] data) {
         try {
             if (URL_CLASS_NAME.equals(name)) {

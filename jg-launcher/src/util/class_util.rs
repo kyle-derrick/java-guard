@@ -83,31 +83,19 @@ pub fn try_decrypt_class(class_data: &[u8]) -> Option<Vec<u8>> {
                     code_range = info.method_codes[info_code_index];
                     info_code_index+=1;
                 }
+                // data len start index
                 let start = index;
                 index += 4;
-                let code_len_start = index;
-                index += 4;
                 check_index!(data, index);
-                let code_len = byte_utils::byte_be_to_u32_fast(data, code_len_start) as usize;
-                if code_len == 0 {
+                let code_data_len = byte_utils::byte_be_to_u32_fast(data, start) as usize;
+                if code_data_len == 0 {
                     info_code_index+=1;
                     continue;
                 }
                 let ori_attr_start = code_range.0 + 2;
-                let ori_code_start = ori_attr_start + 4 + 2 + 2;
-                // check_index!(class_data, ori_code_start+4);
                 new_class_data_bytes.extend_from_slice(&class_data[copied_index..ori_attr_start]);
-                let ori_attr_len = byte_utils::byte_be_to_u32_fast(class_data, ori_attr_start) as usize;
-                let ori_code_len = byte_utils::byte_be_to_u32_fast(class_data, ori_code_start) as usize;
-                copied_index = ori_code_start + 4 + (ori_code_len);
-                if copied_index >= code_range.1 {
-                    eprintln!("code info error, code len gt than attribute len.");
-                    return None;
-                }
-                // let start = index;
-                index += code_len;
-                new_class_data_bytes.extend_from_slice(&((ori_attr_len - ori_code_len + code_len) as u32).to_be_bytes());
-                // new_class_data_bytes.extend_from_slice(&class_data[ori_attr_start+4..ori_code_start]);
+                copied_index = code_range.1;
+                index += code_data_len;
                 check_index!(data, index);
                 new_class_data_bytes.extend_from_slice(&data[start..index]);
             }

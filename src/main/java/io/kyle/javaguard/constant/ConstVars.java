@@ -30,4 +30,6 @@ public interface ConstVars {
 
     String STATIC_BLOCK_METHOD_NAME = "<clinit>";
     String CONSTRUCTOR_METHOD_NAME = "<init>";
+
+    String TEMP_PATH_PREFIX = "javaguard-data";
 }

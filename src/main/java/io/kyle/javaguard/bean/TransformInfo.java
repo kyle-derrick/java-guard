@@ -12,6 +12,7 @@ public class TransformInfo {
     private KeyInfo keyInfo;
     private KeyInfo resourceKeyInfo;
     private SignatureInfo signature;
+    private AppConfig config;
 
     public SignatureInfo getSignature() {
         return signature;
@@ -51,5 +52,13 @@ public class TransformInfo {
 
     public void setResourceKeyInfo(KeyInfo resourceKeyInfo) {
         this.resourceKeyInfo = resourceKeyInfo;
+    }
+
+    public AppConfig getConfig() {
+        return config;
+    }
+
+    public void setConfig(AppConfig config) {
+        this.config = config;
     }
 }

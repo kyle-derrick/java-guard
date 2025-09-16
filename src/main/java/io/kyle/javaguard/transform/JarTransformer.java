@@ -1,19 +1,26 @@
 package io.kyle.javaguard.transform;
 
+import io.kyle.javaguard.bean.AppConfig;
 import io.kyle.javaguard.bean.TransformInfo;
 import io.kyle.javaguard.constant.ConstVars;
 import io.kyle.javaguard.exception.TransformException;
 import io.kyle.javaguard.filter.DefaultFilter;
 import io.kyle.javaguard.filter.Filter;
 import io.kyle.javaguard.filter.SimpleFilter;
+import io.kyle.javaguard.support.TransformDataOutputStream;
+import io.kyle.javaguard.support.temp.BuffDataTemp;
+import io.kyle.javaguard.support.temp.DataTemp;
+import io.kyle.javaguard.support.temp.FileDataTemp;
 import org.apache.commons.compress.archivers.jar.JarArchiveEntry;
 import org.apache.commons.compress.archivers.jar.JarArchiveInputStream;
 import org.apache.commons.compress.archivers.jar.JarArchiveOutputStream;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 
 /**
  * @author kyle kyle_derrick@foxmail.com
@@ -77,35 +84,79 @@ public class JarTransformer extends AbstractTransformer {
         JarArchiveOutputStream zos = new JarArchiveOutputStream(out);
         zos.setLevel(transformInfo.getLevel());
         JarArchiveEntry entry;
-        while ((entry = zis.getNextEntry()) != null) {
-            zos.putArchiveEntry((ZipArchiveEntry) entry.clone());
-            boolean directory = entry.isDirectory();
-            if (directory) {
-                zos.closeArchiveEntry();
-                continue;
-            }
-            boolean transformed = false;
-            if (!entry.getName().equals(ConstVars.META_INF_MANIFEST)
-                    && filter.filtrate(entry.getName())) {
-                for (Transformer transformer : transformers) {
-                    if (transformer.isSupport(entry.getName())) {
-                        if (encrypt) {
-                            transformed = transformer.encrypt(zis, zos);
-                        } else {
-                            transformed = transformer.decrypt(zis, zos);
-                        }
-                        if (transformed) {
-                            break;
+        AppConfig config = transformInfo.getConfig();
+        File tempFile = null;
+        try {
+            while ((entry = zis.getNextEntry()) != null) {
+                boolean directory = entry.isDirectory();
+                ZipArchiveEntry newEntry = (ZipArchiveEntry) entry.clone();
+                if (directory) {
+                    zos.putArchiveEntry(newEntry);
+                    zos.closeArchiveEntry();
+                    continue;
+                }
+                boolean transformed = false;
+                DataTemp dataTemp = null;
+                boolean needEncrypt = !entry.getName().equals(ConstVars.META_INF_MANIFEST)
+                        && filter.filtrate(entry.getName());
+                if (needEncrypt) {
+                    if (config.isPrintEncryptEntry()) {
+                        System.out.println("INFO: try encrypt entry: " + entry.getName());
+                    }
+                    for (Transformer transformer : transformers) {
+                        if (transformer.isSupport(entry.getName())) {
+                            long uncompressedSize = entry.getSize();
+                            if (uncompressedSize < 0) {
+                                uncompressedSize = entry.getCompressedSize() << 1;
+                            }
+                            if (uncompressedSize < 0 || uncompressedSize > config.getBufferSize()) {
+                                if (tempFile == null) {
+                                    tempFile = Files.createTempFile(ConstVars.TEMP_PATH_PREFIX, ".temp").toFile();
+                                }
+                                dataTemp = new FileDataTemp(tempFile);
+                            } else {
+                                dataTemp = new BuffDataTemp((int) uncompressedSize);
+                            }
+                            try (TransformDataOutputStream outputStream = dataTemp.getOutputStream()) {
+                                if (encrypt) {
+                                    transformed = transformer.encrypt(zis, outputStream);
+                                } else {
+                                    transformed = transformer.decrypt(zis, outputStream);
+                                }
+                                if (transformed) {
+                                    newEntry.setCrc(outputStream.getCrc());
+                                    newEntry.setSize(outputStream.getSize());
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
+                zos.putArchiveEntry(newEntry);
+                if (transformed) {
+                    try (InputStream inputStream = dataTemp.getInputStream()) {
+                        copyStream(inputStream, zos);
+                    }
+                } else {
+                    copyStream(zis, zos);
+                }
+
+                zos.closeArchiveEntry();
+                if (needEncrypt && config.isPrintEncryptEntry()) {
+                    System.out.println("INFO: encrypt entry " + (transformed ? "successful" : "failed") + ": " + entry.getName());
+                }
             }
-            if (!transformed) {
-                copyStream(zis, zos);
-            }
-            zos.closeArchiveEntry();
+            zos.flush();
+            zos.finish();
+        } finally {
+//            if (tempFile != null) {
+//                try {
+//                    FileUtils.forceDelete(tempFile);
+//                } catch (Exception e) {
+//                    FileUtils.forceDeleteOnExit(tempFile);
+//                }
+//            }
         }
 
-        zos.finish();
     }
 }

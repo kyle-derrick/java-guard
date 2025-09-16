@@ -6,7 +6,6 @@ import io.kyle.javaguard.bean.ClassTransformInfo;
 import io.kyle.javaguard.bean.TransformInfo;
 import io.kyle.javaguard.constant.ClassAttribute;
 import io.kyle.javaguard.constant.ConstVars;
-import io.kyle.javaguard.constant.DefaultReturn;
 import io.kyle.javaguard.constant.PrimitiveType;
 import io.kyle.javaguard.exception.TransformException;
 import io.kyle.javaguard.exception.TransformRuntimeException;
@@ -90,7 +89,9 @@ public class ClassTransformer extends AbstractTransformer {
         }
 
         try {
-            classFile.write(new DataOutputStream(out));
+            DataOutputStream stream = new DataOutputStream(out);
+            classFile.write(stream);
+            stream.flush();
         } catch (IOException e) {
             throw new TransformException("write class byte failed", e);
         }
@@ -156,12 +157,6 @@ public class ClassTransformer extends AbstractTransformer {
             classTransformInfo.addCode(null);
             return codeAttribute;
         }
-//                codeAttribute.getExceptionTable()
-        DefaultReturn defaultReturn = DefaultReturn.byDescriptor(descriptor);
-        Bytecode bytecode = new Bytecode(classTransformInfo.getConstPool());
-        for (int opcode : defaultReturn.getOpcodes()) {
-            bytecode.addOpcode(opcode);
-        }
 
         boolean notStatic = (method.getAccessFlags() & AccessFlag.STATIC) == 0;
         int locals = Descriptor.numOfParameters(method.getDescriptor());
@@ -169,11 +164,11 @@ public class ClassTransformer extends AbstractTransformer {
             locals++;
         }
 
+        Bytecode bytecode = defaultCodeGenerate(classFile, method, codeAttribute, requiredInfos);
         CodeAttribute newCodeAttribute = new CodeAttribute(codeAttribute.getConstPool(),
-                bytecode.getMaxStack(), locals, bytecode.get(),
-                codeAttribute.getExceptionTable());
-        newCodeAttribute.getAttributes().addAll(codeAttribute.getAttributes());
-        defaultCodeGenerate(classFile, method, codeAttribute, newCodeAttribute, requiredInfos);
+                bytecode.getMaxStack(), locals, bytecode.get(), bytecode.getExceptionTable());
+//        newCodeAttribute.getAttributes().addAll(codeAttribute.getAttributes());
+        ClassFileUtils.codeInnerAttributeHandle(bytecode.length(), codeAttribute, newCodeAttribute, method.getConstPool());
         // 暂不需要index了，解密时直接按序解密
 //        newCodeAttribute.getAttributes()
 //                .add(new CodeIndexAttribute(codeAttribute.getConstPool(), classTransformInfo.codesSize()));
@@ -181,8 +176,8 @@ public class ClassTransformer extends AbstractTransformer {
         return newCodeAttribute;
     }
 
-    private void defaultCodeGenerate(ClassFile classFile, MethodInfo method, CodeAttribute codeAttribute,
-                                     CodeAttribute newCodeAttribute, ClassRequiredInfos requiredInfos) {
+    private Bytecode defaultCodeGenerate(ClassFile classFile, MethodInfo method, CodeAttribute codeAttribute,
+                                     ClassRequiredInfos requiredInfos) {
         ConstPool constPool = method.getConstPool();
         Bytecode newCodeBytes = new Bytecode(constPool);
         switch (method.getName()) {
@@ -216,7 +211,7 @@ public class ClassTransformer extends AbstractTransformer {
                 }
                 newCodeBytes.addOpcode(returnType.returnOpcode);
         }
-        ClassFileUtils.codeInnerAttributeHandle(newCodeBytes.length(), codeAttribute, newCodeAttribute, constPool);
+        return newCodeBytes;
     }
 
     protected AttributeInfo handleAttribute(AttributeInfo attributeInfo, ClassTransformInfo classTransformInfo) {

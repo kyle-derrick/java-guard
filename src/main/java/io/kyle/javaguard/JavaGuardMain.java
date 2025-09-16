@@ -171,6 +171,7 @@ public class JavaGuardMain {
 
     private static TransformInfo transformInfo(AppConfig config) {
         TransformInfo transformInfo = new TransformInfo();
+        transformInfo.setConfig(config);
         if (config.getMatches() != null) {
             transformInfo.setMatches(config.getMatches());
         }

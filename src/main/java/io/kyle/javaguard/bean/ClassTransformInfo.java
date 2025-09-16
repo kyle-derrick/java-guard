@@ -42,7 +42,9 @@ public class ClassTransformInfo {
 
     public void addCode(CodeAttribute code) {
         this.codes.add(code);
-        codesBytes +=code.getCodeLength();
+        if (code != null) {
+            codesBytes += code.getCodeLength();
+        }
     }
 
     public void addRetainConst(int index) {

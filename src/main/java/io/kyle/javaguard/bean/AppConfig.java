@@ -14,6 +14,8 @@ public class AppConfig {
     private String publicKey;
     private TransformType mode = TransformType.encrypt;
     private String output = "./out";
+    private long bufferSize = 1024 * 1024;
+    private boolean printEncryptEntry = true;
 
     public String[] getMatches() {
         return matches;
@@ -69,5 +71,21 @@ public class AppConfig {
 
     public void setOutput(String output) {
         this.output = output;
+    }
+
+    public long getBufferSize() {
+        return bufferSize;
+    }
+
+    public void setBufferSize(long bufferSize) {
+        this.bufferSize = bufferSize;
+    }
+
+    public boolean isPrintEncryptEntry() {
+        return printEncryptEntry;
+    }
+
+    public void setPrintEncryptEntry(boolean printEncryptEntry) {
+        this.printEncryptEntry = printEncryptEntry;
     }
 }

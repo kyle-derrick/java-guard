@@ -6,6 +6,7 @@ import javassist.bytecode.Opcode;
  * @author kyle kyle_derrick@foxmail.com
  * 2024/10/08 10:32
  */
+@Deprecated
 public enum DefaultReturn {
     /**
      *

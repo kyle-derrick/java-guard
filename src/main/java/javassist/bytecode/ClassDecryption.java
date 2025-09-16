@@ -1,5 +1,6 @@
 package javassist.bytecode;
 
+import io.kyle.javaguard.util.AttributeUtils;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtMethod;
@@ -8,10 +9,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.function.Function;
 
 /**
@@ -121,14 +119,6 @@ public class ClassDecryption {
             }
             decryptConst.put(index, value);
         }
-        int codesSize = buffer.getInt();
-        List<byte[]> codes = new ArrayList<>(codesSize);
-        while (buffer.position() < buffer.capacity()) {
-            int len = buffer.getInt();
-            byte[] bytes = new byte[len];
-            buffer.get(bytes);
-            codes.add(bytes);
-        }
         ConstPool constPool = classFile.getConstPool();
         decryptConst.forEach((index, value) -> {
             ConstInfo item = constPool.getItem(index);
@@ -155,24 +145,51 @@ public class ClassDecryption {
             }
         });
 
-        for (MethodInfo method : classFile.getMethods()) {
-            CodeAttribute codeAttribute = method.getCodeAttribute();
-            if (codeAttribute == null) {
-                continue;
+//        int codesSize = buffer.getInt();
+//        List<byte[]> codes = new ArrayList<>(codesSize);
+        List<MethodInfo> methods = classFile.getMethods();
+        if (methods != null) {
+            Iterator<MethodInfo> methodIterator = methods.iterator();
+            while (buffer.position() < buffer.capacity()) {
+                int len = buffer.getInt();
+                byte[] bytes = new byte[len];
+                buffer.get(bytes);
+                MethodInfo methodInfo = null;
+                CodeAttribute codeAttribute = null;
+                while (methodIterator.hasNext()) {
+                    methodInfo = methodIterator.next();
+                    codeAttribute = methodInfo.getCodeAttribute();
+                    if (codeAttribute == null) {
+                        continue;
+                    }
+                    break;
+                }
+                if (methodInfo == null || codeAttribute == null) {
+                    System.err.println("ERROR: decrypt method size not eq with codes");
+                } else {
+                    AttributeUtils.update(methodInfo.getAttributes(), codeAttribute, new CustomDataAttribute(codeAttribute, bytes));
+//                    codes.add(bytes);
+                }
             }
-            AttributeInfo codeIndexAttribute = codeAttribute.getAttribute(CODE_INDEX_TAG);
-            if (codeIndexAttribute == null) {
-                continue;
-            }
-            int index = ByteArray.read32bit(codeIndexAttribute.get(), 0);
-            byte[] code = codes.get(index);
-            CodeAttribute newCodeAttribute = new CodeAttribute(codeAttribute.getConstPool(), codeAttribute.getMaxStack(), codeAttribute.getMaxLocals(),
-                    code, codeAttribute.getExceptionTable());
-            List<AttributeInfo> attributes = codeAttribute.getAttributes();
-            attributes.remove(codeIndexAttribute);
-            newCodeAttribute.getAttributes().addAll(attributes);
-            method.setCodeAttribute(newCodeAttribute);
         }
+//        for (MethodInfo method : methods) {
+//            CodeAttribute codeAttribute = method.getCodeAttribute();
+//            if (codeAttribute == null) {
+//                continue;
+//            }
+//            AttributeInfo codeIndexAttribute = codeAttribute.getAttribute(CODE_INDEX_TAG);
+//            if (codeIndexAttribute == null) {
+//                continue;
+//            }
+//            int index = ByteArray.read32bit(codeIndexAttribute.get(), 0);
+//            byte[] code = codes.get(index);
+//            CodeAttribute newCodeAttribute = new CodeAttribute(codeAttribute.getConstPool(), codeAttribute.getMaxStack(), codeAttribute.getMaxLocals(),
+//                    code, codeAttribute.getExceptionTable());
+//            List<AttributeInfo> attributes = codeAttribute.getAttributes();
+//            attributes.remove(codeIndexAttribute);
+//            newCodeAttribute.getAttributes().addAll(attributes);
+//            method.setCodeAttribute(newCodeAttribute);
+//        }
         ByteArrayOutputStream out = new ByteArrayOutputStream(data.length);
         classFile.write(new DataOutputStream(out));
         return out.toByteArray();

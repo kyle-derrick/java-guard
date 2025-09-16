@@ -76,7 +76,7 @@ impl JvmWrapper {
         }
     }
 
-    pub fn create_java_vm(&self, args: InitArgs) -> jni::errors::Result<(jni::JavaVM, jni::JNIEnv)> {
+    pub fn create_java_vm(&self, args: InitArgs) -> jni::errors::Result<(jni::JavaVM, jni::JNIEnv<'_>)> {
         let mut ptr: *mut sys::JavaVM = ::std::ptr::null_mut();
         let mut env: *mut sys::JNIEnv = ::std::ptr::null_mut();
 

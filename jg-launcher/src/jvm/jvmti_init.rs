@@ -147,6 +147,9 @@ extern "system" fn jg_class_file_load_hook(
     new_class_data_len: *mut jint,
     new_class_data: *mut *mut std::os::raw::c_uchar,
 ) {
+    if name.is_null() {
+        return;
+    }
     let class_data_arr = unsafe {
         // JNIEnv::from_raw(jni_env).unwrap(),
         std::slice::from_raw_parts(class_data as *const u8, class_data_len as usize)

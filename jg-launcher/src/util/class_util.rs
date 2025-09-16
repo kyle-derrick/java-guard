@@ -25,6 +25,9 @@ pub fn try_decrypt_class(class_data: &[u8]) -> Option<Vec<u8>> {
     match fast_scan_class(class_data, ENCRYPT_DATA_TAG, false) {
         Ok(Some(info)) if info.specify_attribute.is_some() => {
             let data_range = info.specify_attribute?;
+            if data_range.end == data_range.start {
+                return None;
+            }
             let mut en_data = class_data[data_range.start..data_range.end].to_vec();
             let data = match aes_util::decrypt(&mut en_data) {
                 Ok(data) => data,
@@ -75,21 +78,27 @@ pub fn try_decrypt_class(class_data: &[u8]) -> Option<Vec<u8>> {
             check_index!(data, index);
             let codes_size = byte_utils::byte_be_to_u32_fast(data, start) as usize;
             let mut info_code_index = 0;
+            let method_codes_len = info.method_codes.len();
+            'codes_loop:
             for _ in 0..codes_size {
-                let mut code_range = info.method_codes[info_code_index];
-                info_code_index+=1;
-                // ignore method who not has code
-                while code_range.0 == 0 {
-                    code_range = info.method_codes[info_code_index];
+                let code_range = loop {
+                    if info_code_index >= method_codes_len {
+                        eprintln!("ERROR: Method code data mismatch");
+                        break 'codes_loop;
+                    }
+                    let code_range = info.method_codes[info_code_index];
                     info_code_index+=1;
-                }
-                // data len start index
+                    // ignore method who not has code
+                    if code_range.0 == 0 {
+                        continue;
+                    }
+                    break code_range;
+                };
                 let start = index;
                 index += 4;
                 check_index!(data, index);
                 let code_data_len = byte_utils::byte_be_to_u32_fast(data, start) as usize;
                 if code_data_len == 0 {
-                    info_code_index+=1;
                     continue;
                 }
                 let ori_attr_start = code_range.0 + 2;

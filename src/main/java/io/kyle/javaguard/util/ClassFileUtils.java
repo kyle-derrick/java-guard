@@ -18,6 +18,7 @@ import java.util.Map;
  * 2025/9/15 16:40
  */
 public class ClassFileUtils {
+    @SuppressWarnings("unused")
     public static ClassRequiredInfos requiredInfos(ClassFile classFile) {
         Map<String, ClassRequireFieldInfo> fieldMap = new HashMap<>();
         int staticCount = 0;
@@ -35,6 +36,10 @@ public class ClassFileUtils {
             }
             fieldMap.put(fieldInfo.getName() + ' ' + fieldInfo.getDescriptor(), new ClassRequireFieldInfo(fieldInfo.getName(), fieldInfo.getDescriptor(), isStatic));
         }
+        return requiredInfos(classFile, fieldMap, staticCount);
+    }
+
+    public static ClassRequiredInfos requiredInfos(ClassFile classFile, Map<String, ClassRequireFieldInfo> fieldMap, int staticCount) {
         ConstPool constPool = classFile.getConstPool();
         String className = classFile.getName();
         ArrayList<ClassRequireFieldInfo> staticFinalFields = new ArrayList<>(staticCount);

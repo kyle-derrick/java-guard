@@ -1,5 +1,6 @@
 package io.kyle.javaguard.transform;
 
+import io.kyle.javaguard.bean.ClassRequireFieldInfo;
 import io.kyle.javaguard.bean.ClassRequiredInfos;
 import io.kyle.javaguard.bean.ClassTransformInfo;
 import io.kyle.javaguard.bean.TransformInfo;
@@ -10,19 +11,23 @@ import io.kyle.javaguard.constant.PrimitiveType;
 import io.kyle.javaguard.exception.TransformException;
 import io.kyle.javaguard.exception.TransformRuntimeException;
 import io.kyle.javaguard.util.ClassFileUtils;
+import javassist.Modifier;
 import javassist.bytecode.*;
 import javassist.bytecode.annotation.Annotation;
 import javassist.bytecode.annotation.AnnotationExt;
 import org.apache.commons.io.IOUtils;
 
 import java.io.*;
+import java.util.HashMap;
 import java.util.ListIterator;
+import java.util.Map;
 
 /**
  * @author kyle kyle_derrick@foxmail.com
  * 2024/9/30 14:17
  */
 public class ClassTransformer extends AbstractTransformer {
+    @SuppressWarnings("unused")
     public static final int CLASS_ENCRYPT_FLAG = 1 << 15;
 
     public ClassTransformer(TransformInfo transformInfo) {
@@ -36,7 +41,7 @@ public class ClassTransformer extends AbstractTransformer {
 
     @Override
     public boolean encrypt(InputStream in, OutputStream out) throws TransformException {
-        ClassFile classFile = null;
+        ClassFile classFile;
         try {
             classFile = new ClassFile(new DataInputStream(in));
         } catch (IOException e) {
@@ -44,20 +49,33 @@ public class ClassTransformer extends AbstractTransformer {
         }
         ConstPool constPool = classFile.getConstPool();
         ClassTransformInfo classTransformInfo = new ClassTransformInfo(constPool);
+        Map<String, ClassRequireFieldInfo> fieldMap = new HashMap<>();
+        int staticCount = 0;
         for (FieldInfo field : classFile.getFields()) {
             classTransformInfo.addRetainConst(JavassistExt.fieldNameIndex(field));
             classTransformInfo.addRetainConst(JavassistExt.fieldDescriptorIndex(field));
             for (AttributeInfo attribute : field.getAttributes()) {
                 handleAttribute(attribute, classTransformInfo);
             }
+            int accessFlags;
+            if (field.getConstantValue() == 0 && (AccessFlag.FINAL & (accessFlags = field.getAccessFlags())) != 0) {
+                boolean isStatic = Modifier.isStatic(accessFlags);
+                if (isStatic) {
+                    staticCount++;
+                }
+                fieldMap.put(field.getName() + ' ' + field.getDescriptor(), new ClassRequireFieldInfo(field.getName(), field.getDescriptor(), isStatic));
+            }
         }
+
+        ClassRequiredInfos requiredInfos = ClassFileUtils.requiredInfos(classFile, fieldMap, staticCount);
 
         for (MethodInfo method : classFile.getMethods()) {
-            handleMethod(method, classTransformInfo);
+            handleMethod(classFile, method, classTransformInfo, requiredInfos);
         }
 
-        MethodInfo staticInitializer = classFile.getStaticInitializer();
-        handleMethod(staticInitializer, classTransformInfo);
+        // 疑似重复
+//        MethodInfo staticInitializer = classFile.getStaticInitializer();
+//        handleMethod(classFile, staticInitializer, classTransformInfo, requiredInfos);
 
         for (AttributeInfo attribute : classFile.getAttributes()) {
             handleAttribute(attribute, classTransformInfo);
@@ -98,7 +116,8 @@ public class ClassTransformer extends AbstractTransformer {
         return true;
     }
 
-    protected void handleMethod(MethodInfo method, ClassTransformInfo classTransformInfo) {
+    protected void handleMethod(ClassFile classFile, MethodInfo method, ClassTransformInfo classTransformInfo,
+                                ClassRequiredInfos requiredInfos) {
         if (method == null) {
             return;
         }
@@ -109,7 +128,8 @@ public class ClassTransformer extends AbstractTransformer {
             AttributeInfo attribute = iterator.next();
             AttributeInfo attributeInfo;
             if (attribute instanceof CodeAttribute) {
-                attributeInfo = handleCodeAttribute((CodeAttribute) attribute, classTransformInfo, method.getDescriptor());
+                attributeInfo = handleCodeAttribute(classFile, method, (CodeAttribute) attribute, classTransformInfo,
+                        method.getDescriptor(), requiredInfos);
             } else {
                 attributeInfo = handleAttribute(attribute, classTransformInfo);
             }
@@ -123,7 +143,9 @@ public class ClassTransformer extends AbstractTransformer {
 //        }
     }
 
-    protected CodeAttribute handleCodeAttribute(CodeAttribute codeAttribute, ClassTransformInfo classTransformInfo, String descriptor) {
+    protected CodeAttribute handleCodeAttribute(ClassFile classFile, MethodInfo method, CodeAttribute codeAttribute,
+                                                ClassTransformInfo classTransformInfo, String descriptor,
+                                                ClassRequiredInfos requiredInfos) {
         if (codeAttribute == null) {
             return null;
         }
@@ -141,11 +163,17 @@ public class ClassTransformer extends AbstractTransformer {
             bytecode.addOpcode(opcode);
         }
 
-        // todo 构造空代码块  + 局部变量表
+        boolean notStatic = (method.getAccessFlags() & AccessFlag.STATIC) == 0;
+        int locals = Descriptor.numOfParameters(method.getDescriptor());
+        if (notStatic) {
+            locals++;
+        }
+
         CodeAttribute newCodeAttribute = new CodeAttribute(codeAttribute.getConstPool(),
-                bytecode.getMaxStack(), bytecode.getMaxLocals(), bytecode.get(),
+                bytecode.getMaxStack(), locals, bytecode.get(),
                 codeAttribute.getExceptionTable());
         newCodeAttribute.getAttributes().addAll(codeAttribute.getAttributes());
+        defaultCodeGenerate(classFile, method, codeAttribute, newCodeAttribute, requiredInfos);
         // 暂不需要index了，解密时直接按序解密
 //        newCodeAttribute.getAttributes()
 //                .add(new CodeIndexAttribute(codeAttribute.getConstPool(), classTransformInfo.codesSize()));
@@ -153,7 +181,8 @@ public class ClassTransformer extends AbstractTransformer {
         return newCodeAttribute;
     }
 
-    private void defaultCodeGenerate(ClassFile classFile, MethodInfo method, CodeAttribute codeAttribute, ClassRequiredInfos requiredInfos) {
+    private void defaultCodeGenerate(ClassFile classFile, MethodInfo method, CodeAttribute codeAttribute,
+                                     CodeAttribute newCodeAttribute, ClassRequiredInfos requiredInfos) {
         ConstPool constPool = method.getConstPool();
         Bytecode newCodeBytes = new Bytecode(constPool);
         switch (method.getName()) {
@@ -187,13 +216,7 @@ public class ClassTransformer extends AbstractTransformer {
                 }
                 newCodeBytes.addOpcode(returnType.returnOpcode);
         }
-        boolean notStatic = (method.getAccessFlags() & AccessFlag.STATIC) == 0;
-        int locals = Descriptor.numOfParameters(method.getDescriptor());
-        if (notStatic) {
-            locals++;
-        }
-        CodeAttribute newCa = new CodeAttribute(constPool, newCodeBytes.getMaxStack(), locals, newCodeBytes.get(), newCodeBytes.getExceptionTable());
-        ClassFileUtils.codeInnerAttributeHandle(newCodeBytes.length(), codeAttribute, newCa, constPool);
+        ClassFileUtils.codeInnerAttributeHandle(newCodeBytes.length(), codeAttribute, newCodeAttribute, constPool);
     }
 
     protected AttributeInfo handleAttribute(AttributeInfo attributeInfo, ClassTransformInfo classTransformInfo) {
@@ -228,8 +251,8 @@ public class ClassTransformer extends AbstractTransformer {
                 }
                 break;
             case Code:
-                CodeAttribute codeAttribute = (CodeAttribute) attributeInfo;
-                return handleCodeAttribute(codeAttribute, classTransformInfo, null);
+                // codeAttribute ignore, please use handleCodeAttribute
+                return attributeInfo;
             case EnclosingMethod:
                 EnclosingMethodAttribute enclosingMethodAttribute = (EnclosingMethodAttribute) attributeInfo;
                 classTransformInfo.addRetainConst(enclosingMethodAttribute.classIndex());

@@ -17,6 +17,7 @@
                 <include>c_src/**</include>
                 <include>src/**</include>
                 <include>vendor/**</include>
+                <include>.vendor/**</include>
                 <include>Cargo.toml</include>
                 <include>Cargo.lock</include>
                 <include>LICENSE</include>

@@ -1,5 +1,6 @@
-use std::{env, process::exit, sync::OnceLock};
-
+#![allow(unused)]
+use std::{env, process, process::exit, sync::OnceLock};
+use crate::args_parser::LaunchTarget::Jar;
 use crate::base::common::{KEY_VERSION, VERSION};
 use crate::jar_info::JarInfo;
 
@@ -21,6 +22,13 @@ const VM_ARG_PREFIX: &str = "-X";
 const AGENTLIB_ARG_PREFIX: &str = "-agentlib:";
 const AGENTPATH_ARG_PREFIX: &str = "-agentpath:";
 const JAVAAGENT_ARG_PREFIX: &str = "-javaagent:";
+const DEBUG_ARG: &str = "-Xdebug";
+const RUNJDWP_ARG_PREFIX: &str = "-Xrunjdwp:";
+const RE_DISABLE_ATTACH_MECHANISM: &str = "-XX:-DisableAttachMechanism";
+const DISABLE_ATTACH_MECHANISM: &str = "-XX:+DisableAttachMechanism";
+const JAVA_COMMAND_VM_ARG_PREFIX: &str = "-Dsun.java.command=";
+const JAVA_LAUNCHER_ARG: &str = "-Dsun.java.launcher=SUN_STANDARD";
+const JAVA_LAUNCHER_PID_ARG_PREFIX: &str = "-Dsun.java.launcher.pid=";
 
 static LAUNCHER_ARG: OnceLock<LauncherArg> = OnceLock::new();
 
@@ -173,14 +181,15 @@ fn __parse_args() -> LauncherArg {
             },
             _ => {
                 if arg.starts_with(VERBOSE_ARG_PREFIX) {
-                } else if arg.starts_with(AGENTLIB_ARG_PREFIX) ||
-                    arg.starts_with(AGENTPATH_ARG_PREFIX) ||
-                    arg.starts_with(JAVAAGENT_ARG_PREFIX) {
-                    panic!("not allow the agent arg!!!")
                 } else if arg.starts_with(SYSTEM_PROPERTY_ARG_PREFIX) {
-                    vm_args.push(arg);
+                    if !arg.starts_with("-Djava.class.path") {
+                        vm_args.push(arg);
+                    }
                 } else if arg.starts_with(VM_ARG_PREFIX) {
-                    if arg.eq_ignore_ascii_case("-XX:-DisableAttachMechanism") {
+                    #[cfg(not(debug_assertions))]
+                    if arg.eq_ignore_ascii_case(RE_DISABLE_ATTACH_MECHANISM) ||
+                        arg.eq_ignore_ascii_case(DEBUG_ARG) ||
+                        arg.starts_with(RUNJDWP_ARG_PREFIX) {
                         continue
                     }
                     vm_args.push(arg);
@@ -189,12 +198,19 @@ fn __parse_args() -> LauncherArg {
                     // target = Some(LaunchTarget::Class(arg));
                     panic!("Not currently supported run class")
                 } else {
+                    #[cfg(not(debug_assertions))]
+                    if arg.starts_with(AGENTLIB_ARG_PREFIX) ||
+                        arg.starts_with(AGENTPATH_ARG_PREFIX) ||
+                        arg.starts_with(JAVAAGENT_ARG_PREFIX) {
+                        panic!("not allow the agent arg!!!")
+                    }
                     app_args.push(arg);
                 }
             }
         }
     }
     if let Some(target) = target {
+        init_launcher(&target, &mut vm_args, &app_args);
         LauncherArg {
             curr_app_path,
             server,
@@ -206,4 +222,33 @@ fn __parse_args() -> LauncherArg {
     } else {
         usage()
     }
+}
+
+
+fn init_launcher(target: &LaunchTarget, vm_args: &mut Vec<String>, app_args: &Vec<String>) {
+    #[cfg(windows)]
+    {
+        // 初始化 INITCOMMONCONTROLSEX 结构体
+        let mut init_ctrls = winapi::um::commctrl::INITCOMMONCONTROLSEX {
+            dwSize: std::mem::size_of::<winapi::um::commctrl::INITCOMMONCONTROLSEX>() as u32, // 结构体大小，必须设置
+            dwICC: winapi::um::commctrl::ICC_WIN95_CLASSES, // 指定需要初始化的控件类别
+        };
+
+        // 调用 InitCommonControlsEx
+        let result = unsafe { winapi::um::commctrl::InitCommonControlsEx(&mut init_ctrls) };
+
+        if result == 0 {
+            eprintln!("InitCommonControlsEx failed!");
+            // 处理初始化失败的情况，例如获取错误码等
+        }
+    }
+
+    let name = match target {
+        LaunchTarget::Class(class) => class,
+        Jar(jar) => jar.path()
+    };
+    vm_args.push(format!("{}{} {}", JAVA_COMMAND_VM_ARG_PREFIX, name, app_args.join(" ")));
+    vm_args.push(JAVA_LAUNCHER_ARG.to_string());
+    vm_args.push(format!("{}{}", JAVA_LAUNCHER_PID_ARG_PREFIX, process::id()));
+    vm_args.push(DISABLE_ATTACH_MECHANISM.to_string());
 }

@@ -20,9 +20,19 @@ lazy_static="1.5.0"
 #file-lock = "2.1"
 jclass = "0.1"
 
+[target.'cfg(windows)'.dependencies.winapi]
+version = "0.3"
+features = ["commctrl", "libloaderapi"]
+
 [build-dependencies]
 rand="0.8.5"
 cc = "1.0"
 java-locator="0.1"
 #sha2 = "0.10"
 #hex = "0.4"
+
+[profile.release]
+panic = "abort"
+strip = true
+lto = true
+codegen-units = 1

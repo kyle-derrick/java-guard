@@ -14,6 +14,7 @@ import javassist.Modifier;
 import javassist.bytecode.*;
 import javassist.bytecode.annotation.Annotation;
 import javassist.bytecode.annotation.AnnotationExt;
+import javassist.bytecode.annotation.MemberValue;
 import org.apache.commons.io.IOUtils;
 
 import java.io.*;
@@ -222,15 +223,15 @@ public class ClassTransformer extends AbstractTransformer {
         classTransformInfo.addRetainConst(JavassistExt.attributeNameIndex(attributeInfo));
         switch (classAttribute) {
             case AnnotationDefault:
-                // ignore
+                AnnotationDefaultAttribute annotationDefaultAttribute = (AnnotationDefaultAttribute) attributeInfo;
+                MemberValue defaultValue = annotationDefaultAttribute.getDefaultValue();
+                AnnotationExt.retainMembers(defaultValue, classTransformInfo);
                 break;
             case RuntimeInvisibleAnnotations:
             case RuntimeVisibleAnnotations:
                 AnnotationsAttribute attribute = (AnnotationsAttribute) attributeInfo;
                 for (Annotation annotation : attribute.getAnnotations()) {
-                    classTransformInfo.addRetainConst(AnnotationExt.annotationAttributeTypeIndex(annotation));
-                    AnnotationExt.foreachAnnotationAttributeMembers(annotation,
-                            (nameIndex, memberValue) -> classTransformInfo.addRetainConst(nameIndex));
+                    AnnotationExt.retainAnnotation(annotation, classTransformInfo);
                 }
                 break;
             case BootstrapMethods:
@@ -268,20 +269,13 @@ public class ClassTransformer extends AbstractTransformer {
                     classTransformInfo.addRetainConst(innerClassesAttribute.innerNameIndex(i));
                 }
                 break;
+            case LocalVariableTypeTable:
             case LocalVariableTable:
                 LocalVariableAttribute localVariableAttribute = (LocalVariableAttribute) attributeInfo;
                 int lvLen = localVariableAttribute.tableLength();
                 for (int i = 0; i < lvLen; i++) {
                     classTransformInfo.addRetainConst(localVariableAttribute.nameIndex(i));
                     classTransformInfo.addRetainConst(localVariableAttribute.descriptorIndex(i));
-                }
-                break;
-            case LocalVariableTypeTable:
-                LocalVariableTypeAttribute localVariableTypeAttribute = (LocalVariableTypeAttribute) attributeInfo;
-                int lvtLen = localVariableTypeAttribute.tableLength();
-                for (int i = 0; i < lvtLen; i++) {
-                    classTransformInfo.addRetainConst(localVariableTypeAttribute.nameIndex(i));
-                    classTransformInfo.addRetainConst(localVariableTypeAttribute.descriptorIndex(i));
                 }
                 break;
             case MethodParameters:

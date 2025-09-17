@@ -6,10 +6,10 @@ import io.kyle.javaguard.constant.ConstBaseType;
 import io.kyle.javaguard.util.BytesUtils;
 
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -114,11 +114,14 @@ public class ClassTransformUtils {
                     if (RETAIN_STRING.contains(string)) {
                         continue;
                     }
-                    byte[] bytes = string.getBytes(StandardCharsets.UTF_8);
-                    len = bytes.length + Short.BYTES;
+                    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                    DataOutputStream dataStream = new DataOutputStream(buffer);
+                    dataStream.writeUTF(string);
+                    dataStream.close();
+                    byte[] bytes = buffer.toByteArray();
+                    len = bytes.length;
                     type = ConstBaseType.String.getType();
                     put = bb -> {
-                        bb.putShort((short) bytes.length);
                         bb.put(bytes);
                     };
                     utf8Info.string = "*";

@@ -3,28 +3,41 @@ package io.kyle.javaguard.support;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.JarURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.security.Permission;
+import java.security.cert.Certificate;
 import java.util.List;
 import java.util.Map;
+import java.util.jar.Attributes;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.jar.Manifest;
 
 /**
  * @author kyle kyle_derrick@foxmail.com
  * 2025/5/20 11:10
  */
-public final class InternalResourceURLConnection extends URLConnection {
-    private final URLConnection connection;
+public final class InternalResourceURLConnection extends JarURLConnection {
+    private final JarURLConnection connection;
 
-    private InternalResourceURLConnection(URLConnection connection) {
+    private InternalResourceURLConnection(JarURLConnection connection) throws MalformedURLException {
         super(connection.getURL());
         this.connection = connection;
     }
 
     public static URLConnection handleConnection(URLConnection connection) {
-        URL url = connection.getURL();
-        if ("jar".equals(url.getProtocol())) {
-            return new InternalResourceURLConnection(connection);
+        if (connection instanceof JarURLConnection) {
+            URL url = connection.getURL();
+            if ("jar".equals(url.getProtocol())) {
+                try {
+                    return new InternalResourceURLConnection((JarURLConnection) connection);
+                } catch (MalformedURLException e) {
+                    throw new RuntimeException(e);
+                }
+            }
         }
         return connection;
     }
@@ -242,5 +255,45 @@ public final class InternalResourceURLConnection extends URLConnection {
     @Override
     public Map<String, List<String>> getRequestProperties() {
         return connection.getRequestProperties();
+    }
+
+    @Override
+    public URL getJarFileURL() {
+        return connection.getJarFileURL();
+    }
+
+    @Override
+    public String getEntryName() {
+        return connection.getEntryName();
+    }
+
+    @Override
+    public Manifest getManifest() throws IOException {
+        return connection.getManifest();
+    }
+
+    @Override
+    public JarEntry getJarEntry() throws IOException {
+        return connection.getJarEntry();
+    }
+
+    @Override
+    public Attributes getAttributes() throws IOException {
+        return connection.getAttributes();
+    }
+
+    @Override
+    public Attributes getMainAttributes() throws IOException {
+        return connection.getMainAttributes();
+    }
+
+    @Override
+    public Certificate[] getCertificates() throws IOException {
+        return connection.getCertificates();
+    }
+
+    @Override
+    public JarFile getJarFile() throws IOException {
+        return connection.getJarFile();
     }
 }

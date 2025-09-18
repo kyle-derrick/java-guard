@@ -78,6 +78,7 @@ mvn clean package
 ### 3. Encrypt JAR and Launch with Launcher
 ```shell
 # 3. Generate key pair
+mkdir key
 ssh-keygen -t ed25519 -f key/id_ed25519
 
 # 4. Encrypt JAR (example)

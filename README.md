@@ -81,6 +81,7 @@ mvn clean package
 ### 3. 加密jar及使用launcher启动
 ```shell
 # 3. 生成密钥对
+mkdir key
 ssh-keygen -t ed25519 -f key/id_ed25519
 
 # 4. 加密JAR（示例）

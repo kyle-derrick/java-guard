@@ -1,5 +1,8 @@
+# ./config.yml
 matches:
-  - "org/antlr/v4/*"
-key: test_key
-privateKey: example_config/id_ed25519
-publicKey: example_config/id_ed25519.pub
+  - "com/yourcompany/**"     # Encryption path pattern
+  - "META-INF/resources/*"
+
+key: your_encryption_key     # AES key (optional, default to automatic generation)
+privateKey: key/id_ed25519 # ED25519 private key path
+publicKey: key/id_ed25519.pub # ED25519 public key path

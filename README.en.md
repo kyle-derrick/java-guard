@@ -134,7 +134,7 @@ We welcome contributions through:
 3. Improving documentation or adding test cases
 
 [//]: # (Contribution guidelines pending)
-[//]: # (See [CONTRIBUTING.md](CONTRIBUTING.md) for details)
+[//]: # (See [CONTRIBUTING.md]&#40;CONTRIBUTING.md&#41; for details)
 
 ## 📜 License
 Distributed under [MIT License](LICENSE)

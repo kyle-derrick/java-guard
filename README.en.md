@@ -10,6 +10,8 @@
 ---
 
 > Java bytecode protection solution providing JAR encryption and runtime dynamic decryption capabilities, effectively preventing decompilation and code theft.
+>
+> Compatible with frameworks like Spring and Spring Boot that perform bytecode operations.
 > 
 > Mitigates the risk of decryption method exposure inherent in conventional Java agent (-javaagent) and native agent (-agentlib) approaches.
 > 

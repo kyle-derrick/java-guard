@@ -35,7 +35,7 @@
 ### 1. 克隆仓库
 ```shell
 # 1. 克隆仓库
-git clone --depth 1 https://github.com/java-guard/java-guard.git
+git clone --depth 1 https://github.com/kyle-derrick/java-guard.git
 cd java-guard
 git submodule update --init
 ```
@@ -142,5 +142,5 @@ G --> H
 本项目采用 [MIT License](LICENSE)
 
 ## ❓ 获取帮助
-- [问题追踪](https://github.com/java-guard/java-guard/issues)
+- [问题追踪](https://github.com/kyle-derrick/java-guard/issues)
 - 邮箱：feng.kyle@outlook.com

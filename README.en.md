@@ -34,7 +34,7 @@
 ### 1. Clone the Repository
 ```shell
 # 1. Clone the repository
-git clone --depth 1 https://github.com/java-guard/java-guard.git
+git clone --depth 1 https://github.com/kyle-derrick/java-guard.git
 cd java-guard
 git submodule update --init
 ```

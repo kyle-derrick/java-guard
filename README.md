@@ -35,7 +35,7 @@
 ### 1. 克隆仓库
 ```shell
 # 1. 克隆仓库
-git clone https://github.com/java-guard/java-guard.git
+git clone --depth 1 https://github.com/java-guard/java-guard.git
 cd java-guard
 git submodule update --init
 ```
@@ -81,12 +81,12 @@ mvn clean package
 ### 3. 加密jar及使用launcher启动
 ```shell
 # 3. 生成密钥对
-ssh-keygen -t ed25519 -f config/id_ed25519
+ssh-keygen -t ed25519 -f key/id_ed25519
 
 # 4. 加密JAR（示例）
 java -jar target/java-guard-*.jar \
-  -c config.yml \
-  -o out \
+  -c ./config.yml \
+  -o ./out \
   your-application.jar
 
 # 5. 启动加密应用
@@ -97,14 +97,14 @@ java -jar target/java-guard-*.jar \
 
 ## ⚙️ 配置示例
 ```yaml
-# config.yml
+# ./config.yml
 matches: 
   - "com/yourcompany/**"     # 加密路径匹配规则
   - "META-INF/resources/*"
 
-key: your_encryption_key     # AES加密密钥（可选）
-privateKey: config/id_ed25519 # ED25519私钥路径
-publicKey: config/id_ed25519.pub # ED25519公钥路径
+key: your_encryption_key     # AES加密密钥（可选，默认为自动生成）
+privateKey: key/id_ed25519 # ED25519私钥路径
+publicKey: key/id_ed25519.pub # ED25519公钥路径
 ```
 
 ## 🛡️ 整体流程

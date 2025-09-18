@@ -34,7 +34,7 @@
 ### 1. Clone the Repository
 ```shell
 # 1. Clone the repository
-git clone https://github.com/java-guard/java-guard.git
+git clone --depth 1 https://github.com/java-guard/java-guard.git
 cd java-guard
 git submodule update --init
 ```
@@ -78,12 +78,12 @@ mvn clean package
 ### 3. Encrypt JAR and Launch with Launcher
 ```shell
 # 3. Generate key pair
-ssh-keygen -t ed25519 -f config/id_ed25519
+ssh-keygen -t ed25519 -f key/id_ed25519
 
 # 4. Encrypt JAR (example)
 java -jar target/java-guard-*.jar \
-  -c config.yml \
-  -o out \
+  -c ./config.yml \
+  -o ./out \
   your-application.jar
 
 # 5. Launch encrypted application
@@ -94,14 +94,14 @@ java -jar target/java-guard-*.jar \
 
 ## ⚙️ Configuration Example
 ```yaml
-# config.yml
+# ./config.yml
 matches: 
   - "com/yourcompany/**"     # Encryption path pattern
   - "META-INF/resources/*"
 
-key: your_encryption_key     # AES key (optional)
-privateKey: config/id_ed25519 # ED25519 private key path
-publicKey: config/id_ed25519.pub # ED25519 public key path
+key: your_encryption_key     # AES key (optional, default to automatic generation)
+privateKey: key/id_ed25519 # ED25519 private key path
+publicKey: key/id_ed25519.pub # ED25519 public key path
 ```
 
 ## 🛡️ Workflow

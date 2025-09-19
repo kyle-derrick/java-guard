@@ -26,6 +26,9 @@
 - **Zero-Intrusion**: No business code modification required
 
 ## 🚀 Quick Start
+
+If you already have a compiled JAR package, you can ignore the Maven environment requirements and directly jump to [3. Encrypt JAR and Launch with Launcher](#3-encrypt-jar-and-launch-with-launcher)
+
 ### Requirements
 - JDK 1.8+
 - Maven 3.0+
@@ -76,12 +79,16 @@ mvn clean package
 ```
 
 ### 3. Encrypt JAR and Launch with Launcher
+
+* !!! Note that jg-launcher compilation requires the *JAVA_HOME* environment variable
+
 ```shell
 # 3. Generate key pair
 mkdir key
 ssh-keygen -t ed25519 -f key/id_ed25519
 
 # 4. Encrypt JAR (example)
+# After successfully executing java-guard, the process will automatically continue with jg-launcher compilation
 java -jar target/java-guard-*.jar \
   -c ./config.yml \
   -o ./out \

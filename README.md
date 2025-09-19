@@ -27,6 +27,9 @@
 - **零侵入集成**：无需修改业务代码，透明化保护流程
 
 ## 🚀 快速开始
+
+若已是编译后的jar包，可忽略maven环境要求，并直接跳至 [3. 加密jar及使用launcher启动](#3-加密jar及使用launcher启动)
+
 ### 环境要求
 - JDK 1.8+
 - Maven 3.0+
@@ -79,12 +82,16 @@ mvn clean package
 ```
 
 ### 3. 加密jar及使用launcher启动
+
+* ！！！需注意jg-launcher编译需要 *JAVA_HOME* 环境变量
+
 ```shell
 # 3. 生成密钥对
 mkdir key
 ssh-keygen -t ed25519 -f key/id_ed25519
 
 # 4. 加密JAR（示例）
+# 执行java-guard成功后会继续jg-launcher编译，
 java -jar target/java-guard-*.jar \
   -c ./config.yml \
   -o ./out \
@@ -95,6 +102,7 @@ java -jar target/java-guard-*.jar \
 # 如果你的系统是windows:
 # .\out\jg-launcher.exe -jar out\your-application.jar
 ```
+
 
 ## ⚙️ 配置示例
 ```yaml

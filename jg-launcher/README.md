@@ -7,6 +7,8 @@
 > 
 > 注意：需配合 [Java Guard 加密工具](https://github.com/kyle-derrick/java-guard) 使用
 > 
+> 编译时需要 JAVA_HOME 环境变量指定 JDK 路径
+> 
 
 ### 1. **工作流程图**
 ```mermaid

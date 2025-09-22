@@ -19,11 +19,12 @@
 > The core workflow and functionality are fully implemented. Future improvements include: documentation enhancement, JRE environment signature verification, and class execution support.
 
 ## ✨ Core Features
-- **Bytecode Encryption**: AES-GCM-256 encryption for class constants and method bytecode
-- **Resource Protection**: Block-level encryption for any resource files within JARs
-- **Secure Launcher**: Native Rust launcher preventing decryption logic exposure
-- **Signature Verification**: ED25519 signature validation ensuring code integrity
-- **Zero-Intrusion**: No business code modification required
+- **Bytecode Encryption**: AES-GCM-256 encryption for class constants and method bytecode.
+- **Resource Protection**: Block-level encryption for any resource files within JARs.
+- **Secure Launcher**: Native Rust launcher preventing decryption logic exposure.
+- **Signature Verification**: ED25519 signature validation ensuring code integrity.
+- **Zero-Intrusion**: No business code modification required.
+- **JVM Integration**: Directly launches the application via JVM instead of invoking Java as a subprocess.
 
 ## 🚀 Quick Start
 

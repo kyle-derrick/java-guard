@@ -135,6 +135,10 @@ G --> H
 | Native Launcher       | Rust implementation increases reverse-engineering difficulty            |
 | Transparent URL Extension | Dynamically extends bytecode to resolve encrypted resource access           |
 
+## 🚀 Roadmap
+- **JRE environment and classpath JAR signature verification**: Enhance runtime security validation mechanisms
+- **Anti-disassembly detection and protection mechanisms**: Add detection and protection capabilities against code disassembly attempts
+
 ## 🤝 Contributing
 We welcome contributions through:
 1. Submitting issues for bugs/feature requests

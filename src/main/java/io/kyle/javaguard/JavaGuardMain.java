@@ -39,12 +39,15 @@ public class JavaGuardMain {
             new Option("m", "mode", true, "encrypt/decrypt/signature mode (default encrypt)");
     private static final Option OUTPUT_OPTION =
             new Option("o", "output", true, "output dir");
+    private static final Option GENERATE_LAUNCHER_OPTION =
+            new Option("l", "launcher", false, "generate jg launcher");
     private static final Option HELP_OPTION =
             new Option("h", "help", false, "print usage");
     private static final Options OPTIONS = new Options()
             .addOption(CONFIG_OPTION)
             .addOption(MODE_OPTION)
             .addOption(OUTPUT_OPTION)
+            .addOption(GENERATE_LAUNCHER_OPTION)
             .addOption(HELP_OPTION);
 
     static {
@@ -73,35 +76,33 @@ public class JavaGuardMain {
         }
         SignatureInfo signatureInfo = transformInfo.getSignature();
         String[] jars = parse.getArgs();
-        if (ArrayUtils.isEmpty(jars)) {
-            printUsage();
-        }
-        boolean jarEncrypted = false;
-        for (String arg : jars) {
-            if (arg.endsWith(".jar")) {
-                File outFile = new File(outputFile, FilenameUtils.getName(arg));
-                try (FileInputStream in = new FileInputStream(arg);
-                     FileOutputStream out = new FileOutputStream(outFile)) {
-                    JarTransformer jarTransformer = new JarTransformer(transformInfo);
-                    if (isDecrypt) {
-                        jarTransformer.decrypt(in, out);
-                    } else if (TransformType.signature != appConfig.getMode()) {
-                        jarTransformer.encrypt(in, out);
-                        jarEncrypted = true;
-                    } else {
-                        IOUtils.copy(in, out);
-                    }
-                    out.flush();
-                    ZipSignUtils.sign(outFile, signatureInfo.getSignSignature());
+        boolean generateLauncher = GENERATE_LAUNCHER_OPTION.hasArg();
+        if (ArrayUtils.isNotEmpty(jars)) {
+            for (String arg : jars) {
+                if (arg.endsWith(".jar")) {
+                    File outFile = new File(outputFile, FilenameUtils.getName(arg));
+                    try (FileInputStream in = new FileInputStream(arg);
+                         FileOutputStream out = new FileOutputStream(outFile)) {
+                        JarTransformer jarTransformer = new JarTransformer(transformInfo);
+                        if (isDecrypt) {
+                            jarTransformer.decrypt(in, out);
+                        } else if (TransformType.signature != appConfig.getMode()) {
+                            jarTransformer.encrypt(in, out);
+                        } else {
+                            IOUtils.copy(in, out);
+                        }
+                        out.flush();
+                        ZipSignUtils.sign(outFile, signatureInfo.getSignSignature());
 //                    byte[] sign = signFile(outFile.toPath(), signatureInfo);
 //                    FileUtils.writeByteArrayToFile(new File(outFile.getAbsolutePath() + ".sign"), sign);
-                } catch (Exception e) {
-                    throw new Error("transform failed: [" + arg + "]", e);
+                    } catch (Exception e) {
+                        throw new Error("transform failed: [" + arg + "]", e);
+                    }
                 }
             }
         }
 
-        if (jarEncrypted) {
+        if (generateLauncher) {
             try {
                 LauncherCodeGenerator.generate(output, transformInfo);
             } catch (TransformException e) {

@@ -47,6 +47,10 @@ public class ClassTransformer extends AbstractTransformer {
         } catch (IOException e) {
             throw new TransformException("analysis class byte failed", e);
         }
+        AttributeInfo existsSecretBox = classFile.getAttribute(SecretBoxAttribute.tag);
+        if (existsSecretBox != null) {
+            return false;
+        }
         ConstPool constPool = classFile.getConstPool();
         ClassTransformInfo classTransformInfo = new ClassTransformInfo(constPool);
         Map<String, ClassRequireFieldInfo> fieldMap = new HashMap<>();

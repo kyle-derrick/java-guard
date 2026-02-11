@@ -16,10 +16,7 @@ import org.apache.commons.compress.archivers.jar.JarArchiveInputStream;
 import org.apache.commons.compress.archivers.jar.JarArchiveOutputStream;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.file.Files;
 
 /**
@@ -82,6 +79,7 @@ public class JarTransformer extends AbstractTransformer {
     protected void transform(final InputStream in, final OutputStream out, boolean encrypt) throws IOException, TransformException {
         JarArchiveInputStream zis = new JarArchiveInputStream(in);
         JarArchiveOutputStream zos = new JarArchiveOutputStream(out);
+        BufferedInputStream buffZis = new BufferedInputStream(zis, 2048);
         zos.setLevel(transformInfo.getLevel());
         JarArchiveEntry entry;
         AppConfig config = transformInfo.getConfig();
@@ -119,10 +117,11 @@ public class JarTransformer extends AbstractTransformer {
                             }
                             try (TransformDataOutputStream outputStream = dataTemp.getOutputStream()) {
                                 if (encrypt) {
-                                    transformed = transformer.encrypt(zis, outputStream);
+                                    transformed = transformer.encrypt(buffZis, outputStream);
                                 } else {
-                                    transformed = transformer.decrypt(zis, outputStream);
+                                    transformed = transformer.decrypt(buffZis, outputStream);
                                 }
+                                buffZis.reset();
                                 if (transformed) {
                                     newEntry.setCrc(outputStream.getCrc());
                                     newEntry.setSize(outputStream.getSize());

@@ -27,6 +27,17 @@ public class DefaultTransformer extends AbstractTransformer {
     @Override
     public boolean encrypt(InputStream in, OutputStream out) throws TransformException {
         try {
+            in.mark(ConstVars.ENCRYPT_RESOURCE_HEADER.length);
+            boolean encrypted = true;
+            for (byte b : ConstVars.ENCRYPT_RESOURCE_HEADER) {
+                if (in.read() != b) {
+                    encrypted = false;
+                }
+            }
+            in.reset();
+            if (encrypted) {
+                return false;
+            }
             out.write(ConstVars.ENCRYPT_RESOURCE_HEADER);
             StandardResourceInputStream transformInputStream = new StandardResourceInputStream(in, transformInfo.getResourceKeyInfo(), true);
             copyStream(transformInputStream, out);

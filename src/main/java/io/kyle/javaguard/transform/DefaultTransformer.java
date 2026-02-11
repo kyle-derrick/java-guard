@@ -36,7 +36,9 @@ public class DefaultTransformer extends AbstractTransformer {
             }
             in.reset();
             if (encrypted) {
-                return false;
+                out.write(ConstVars.ENCRYPT_RESOURCE_HEADER);
+                copyStream(in, out);
+                return true;
             }
             out.write(ConstVars.ENCRYPT_RESOURCE_HEADER);
             StandardResourceInputStream transformInputStream = new StandardResourceInputStream(in, transformInfo.getResourceKeyInfo(), true);

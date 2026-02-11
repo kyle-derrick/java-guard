@@ -43,13 +43,15 @@ public class ClassTransformer extends AbstractTransformer {
     public boolean encrypt(InputStream in, OutputStream out) throws TransformException {
         ClassFile classFile;
         try {
-            classFile = new ClassFile(new DataInputStream(in));
+            byte[] oriBytes = IOUtils.toByteArray(in);
+            classFile = new ClassFile(new DataInputStream(new ByteArrayInputStream(oriBytes)));
+            AttributeInfo existsSecretBox = classFile.getAttribute(SecretBoxAttribute.tag);
+            if (existsSecretBox != null) {
+                out.write(oriBytes);
+                return true;
+            }
         } catch (IOException e) {
             throw new TransformException("analysis class byte failed", e);
-        }
-        AttributeInfo existsSecretBox = classFile.getAttribute(SecretBoxAttribute.tag);
-        if (existsSecretBox != null) {
-            return false;
         }
         ConstPool constPool = classFile.getConstPool();
         ClassTransformInfo classTransformInfo = new ClassTransformInfo(constPool);

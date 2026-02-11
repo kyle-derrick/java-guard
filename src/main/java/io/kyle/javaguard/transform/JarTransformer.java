@@ -121,7 +121,6 @@ public class JarTransformer extends AbstractTransformer {
                                 } else {
                                     transformed = transformer.decrypt(buffZis, outputStream);
                                 }
-                                buffZis.reset();
                                 if (transformed) {
                                     newEntry.setCrc(outputStream.getCrc());
                                     newEntry.setSize(outputStream.getSize());

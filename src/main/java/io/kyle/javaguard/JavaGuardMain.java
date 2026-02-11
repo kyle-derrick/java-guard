@@ -76,7 +76,6 @@ public class JavaGuardMain {
         }
         SignatureInfo signatureInfo = transformInfo.getSignature();
         String[] jars = parse.getArgs();
-        boolean generateLauncher = GENERATE_LAUNCHER_OPTION.hasArg();
         if (ArrayUtils.isNotEmpty(jars)) {
             for (String arg : jars) {
                 if (arg.endsWith(".jar")) {
@@ -102,6 +101,7 @@ public class JavaGuardMain {
             }
         }
 
+        boolean generateLauncher = parse.hasOption(GENERATE_LAUNCHER_OPTION);
         if (generateLauncher) {
             try {
                 LauncherCodeGenerator.generate(output, transformInfo);

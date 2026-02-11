@@ -96,6 +96,7 @@ ssh-keygen -t ed25519 -f key/id_ed25519
 java -jar target/java-guard-*.jar \
   -c ./config.yml \
   -o ./out \
+  -l \
   your-application.jar
 
 # 5. 启动加密应用

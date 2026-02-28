@@ -174,6 +174,8 @@ fn __parse_args() -> LauncherArg {
                     print_version();
                     println!("launcher version: {}", VERSION);
                     println!("launcher key version: {}", KEY_VERSION);
+                    #[cfg(feature = "dev")]
+                    println!("launcher is [dev] version!");
                     exit(0)
                 },
                 HELP_ARG_KEY | HELP_H_ARG_KEY | HELP_C_ARG_KEY => {

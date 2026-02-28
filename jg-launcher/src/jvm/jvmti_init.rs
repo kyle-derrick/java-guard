@@ -1,13 +1,5 @@
-use std::ffi::{c_void, CStr};
-use std::process::exit;
-use std::ptr::null_mut;
-use jni::{sys, JNIEnv, JavaVM, NativeMethod};
-use jni::objects::{JByteArray, JObject};
-use jni::strings::JNIString;
-use jni_sys::{jbyteArray, jint, jlong, jobject};
-use ring::aead::chacha20_poly1305_openssh::TAG_LEN;
-use ring::aead::NONCE_LEN;
 use crate::base::common::{runtime_classes, RESOURCE_DECRYPT_NATIVE_CLASS, RESOURCE_DECRYPT_NATIVE_DESC, RESOURCE_DECRYPT_NATIVE_METHOD, URL_CLASS_NAME};
+use crate::base::error::MessageError;
 use crate::jni_result_expect;
 use crate::util::aes_util::decrypt_resource;
 use crate::util::byte_utils::byte_be_to_u32_fast;
@@ -15,18 +7,26 @@ use crate::util::class_util;
 use crate::util::class_util::url_extended_processing;
 use crate::util::jvm_util::jni_error_handle;
 use crate::util::jvmti_util::{get_jvmti_from_vm, init_vm_and_set_callback, jvmti_allocate, jvmti_get_class_loader};
+use jni::objects::{JByteArray, JObject};
+use jni::strings::JNIString;
+use jni::{sys, JNIEnv, JavaVM, NativeMethod};
+use jni_sys::{jbyteArray, jint, jlong, jobject};
+use ring::aead::chacha20_poly1305_openssh::TAG_LEN;
+use ring::aead::NONCE_LEN;
+use std::ffi::{c_void, CStr};
+use std::ptr::null_mut;
 
 pub fn set_callbacks(jvm: &JavaVM, version: i32) {
     let result = unsafe {
         init_vm_and_set_callback(jvm.get_java_vm_pointer(), jg_class_file_load_hook, version)
     };
     if 0 != result {
-        eprintln!("set transformer hook failed");
+        eprintln!("Error: set transformer hook failed");
     }
 }
 
-pub fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv) {
-    let url_class = jni_result_expect!(env, env.find_class(URL_CLASS_NAME), "url class cannot found!");
+pub fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv) -> Result<(), MessageError> {
+    let url_class = jni_result_expect!(env, env.find_class(URL_CLASS_NAME), "url class cannot found!")?;
     let jvmti = unsafe {
         get_jvmti_from_vm(jvm.get_java_vm_pointer())
     };
@@ -35,8 +35,7 @@ pub fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv) {
         jvmti_get_class_loader(jvmti, url_class.as_raw(), &mut class_loader)
     };
     if result != 0 {
-        eprintln!("ERROR: cannot found url class's loader!");
-        exit(-1);
+        return Err(MessageError::new("ERROR: cannot found url class's loader!"));
     }
     let classes = runtime_classes();
     let mut index = 0;
@@ -69,7 +68,7 @@ pub fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv) {
         let class_loader = unsafe {
             JObject::from_raw(class_loader)
         };
-        let class_obj = jni_result_expect!(env, env.define_class(&name, &class_loader, class_data), "cannot load extend runtime class");
+        let class_obj = jni_result_expect!(env, env.define_class(&name, &class_loader, class_data), "cannot load extend runtime class")?;
 
         if &name == RESOURCE_DECRYPT_NATIVE_CLASS {
             let native_method = NativeMethod {
@@ -77,9 +76,10 @@ pub fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv) {
                 sig: JNIString::from(RESOURCE_DECRYPT_NATIVE_DESC),
                 fn_ptr: resource_decrypt_native as *mut c_void,
             };
-            jni_result_expect!(env, env.register_native_methods(class_obj, &[native_method]), "cannot bind ext runtime clas");
+            jni_result_expect!(env, env.register_native_methods(class_obj, &[native_method]), "cannot bind ext runtime clas")?;
         }
     }
+    Ok(())
 }
 
 #[allow(unused)]

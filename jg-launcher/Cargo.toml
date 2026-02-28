@@ -1,6 +1,6 @@
 [package]
 name = "jg-launcher"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 build = "build/build.rs"
 
@@ -36,3 +36,10 @@ panic = "abort"
 strip = true
 lto = true
 codegen-units = 1
+
+[profile.release.features]
+dev = { panic = "unwind" }
+
+[features]
+dev = []
+default = []

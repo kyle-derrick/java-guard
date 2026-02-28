@@ -1,8 +1,9 @@
 #![allow(unused)]
-use std::{env, process, process::exit, sync::OnceLock};
-use crate::args_parser::LaunchTarget::Jar;
 use crate::base::common::{KEY_VERSION, VERSION};
 use crate::jar_info::JarInfo;
+use crate::util::jvm_util::{parse_classpath, print_version};
+use std::{env, process, process::exit, sync::OnceLock};
+use clap::arg;
 
 const SERVER_ARG_KEY: &str = "-server";
 const CP_ARG_KEY: &str = "-cp";
@@ -10,7 +11,6 @@ const CLASSPATH_ARG_KEY: &str = "-classpath";
 const CLASS_PATH_ARG_KEY: &str = "--class-path";
 const JAR_ARG_KEY: &str = "-jar";
 const VERSION_ARG_KEY: &str = "-version";
-const _VERSION_ARG_KEY: &str = "--version";
 const HELP_ARG_KEY: &str = "-help";
 const HELP_H_ARG_KEY: &str = "-h";
 const HELP_C_ARG_KEY: &str = "-?";
@@ -24,6 +24,10 @@ const AGENTPATH_ARG_PREFIX: &str = "-agentpath:";
 const JAVAAGENT_ARG_PREFIX: &str = "-javaagent:";
 const DEBUG_ARG: &str = "-Xdebug";
 const RUNJDWP_ARG_PREFIX: &str = "-Xrunjdwp:";
+#[allow(unused)]
+const NOVERIFY_ARG_PREFIX: &str = "-noverify";
+#[allow(unused)]
+const NOVERIFY_ARG_FINAL: &str = "-Xverify:none";
 const RE_DISABLE_ATTACH_MECHANISM: &str = "-XX:-DisableAttachMechanism";
 const DISABLE_ATTACH_MECHANISM: &str = "-XX:+DisableAttachMechanism";
 const JAVA_COMMAND_VM_ARG_PREFIX: &str = "-Dsun.java.command=";
@@ -60,6 +64,10 @@ impl LaunchTarget {
             LaunchTarget::Jar(jar) => jar.path()
         }
     }
+
+    pub fn is_jar(&self) -> bool {
+        matches!(*self, LaunchTarget::Jar(_))
+    }
 }
 
 #[allow(unused)]
@@ -67,7 +75,7 @@ impl LaunchTarget {
 pub struct LauncherArg {
     curr_app_path: String,
     server: bool,
-    classpath: Vec<String>,
+    classpath: Option<Vec<String>>,
     vm_args: Vec<String>,
     target: LaunchTarget,
     app_args: Vec<String>,
@@ -83,7 +91,7 @@ impl LauncherArg {
     pub fn server(&self) -> bool {
         self.server
     }
-    pub fn classpath(&self) -> &Vec<String> {
+    pub fn classpath(&self) -> &Option<Vec<String>> {
         &self.classpath
     }
     pub fn vm_args(&self) -> &Vec<String> {
@@ -142,71 +150,78 @@ usage: launcher [options] -jar <jar file> [args...]
 
 fn __parse_args() -> LauncherArg {
     let mut server = false;
-    let mut classpath: Vec<_> = Vec::new();
+    let mut classpath: Option<Vec<_>> = None;
     let mut vm_args: Vec<_> = Vec::new();
     let mut target = None;
     let mut app_args: Vec<_> = Vec::new();
     let mut arg_iter = env::args();
     let curr_app_path = arg_iter.next().unwrap();
+
     while let Some(arg) = arg_iter.next() {
-        match arg.as_str() {
-            SERVER_ARG_KEY => {
-                server = true;
-            },
-            CP_ARG_KEY | CLASSPATH_ARG_KEY | CLASS_PATH_ARG_KEY => {
-                let classpath_str = arg_iter.next().expect("classpath arg not found");
-                env::split_paths(&classpath_str).for_each(|item| {
-                    if let Some(item) = item.to_str() {
-                        classpath.push(item.to_string())
-                    }
-                });
-                panic!("Not currently supported class path")
-            },
-            VERSION_ARG_KEY | _VERSION_ARG_KEY => {
-                println!("launcher version: {}", VERSION);
-                println!("launcher key version: {}", KEY_VERSION);
-                exit(0)
-            },
-            HELP_ARG_KEY | HELP_H_ARG_KEY | HELP_C_ARG_KEY => {
-                usage()
-            },
-            JAR_ARG_KEY => {
-                if target.is_none() {
+        if target.is_none() {
+            match arg.as_str() {
+                SERVER_ARG_KEY => {
+                    server = true;
+                },
+                CP_ARG_KEY | CLASSPATH_ARG_KEY | CLASS_PATH_ARG_KEY => {
+                    let classpath_str = arg_iter.next().expect("classpath arg not found");
+                    classpath = Some(parse_classpath(&classpath_str));
+
+                    #[cfg(not(feature = "dev"))]
+                    panic!("Not currently supported class path")
+                },
+                VERSION_ARG_KEY => {
+                    print_version();
+                    println!("launcher version: {}", VERSION);
+                    println!("launcher key version: {}", KEY_VERSION);
+                    exit(0)
+                },
+                HELP_ARG_KEY | HELP_H_ARG_KEY | HELP_C_ARG_KEY => {
+                    usage()
+                },
+                JAR_ARG_KEY => {
                     let jar_info = JarInfo::parse(&arg_iter.next().expect("not set jar file: -jar <jar file>"));
+                    #[cfg(not(feature = "dev"))]
                     jar_info.verify();
                     target = Some(LaunchTarget::Jar(jar_info))
-                } else {
-                    app_args.push(arg);
-                }
-            },
-            _ => {
-                if arg.starts_with(VERBOSE_ARG_PREFIX) {
-                } else if arg.starts_with(SYSTEM_PROPERTY_ARG_PREFIX) {
-                    if !arg.starts_with("-Djava.class.path") {
-                        vm_args.push(arg);
-                    }
-                } else if arg.starts_with(VM_ARG_PREFIX) {
-                    #[cfg(not(debug_assertions))]
-                    if arg.eq_ignore_ascii_case(RE_DISABLE_ATTACH_MECHANISM) ||
-                        arg.eq_ignore_ascii_case(DEBUG_ARG) ||
-                        arg.starts_with(RUNJDWP_ARG_PREFIX) {
+                },
+                _ => {
+                    if arg.starts_with(VERBOSE_ARG_PREFIX) {
                         continue
+                    } else if arg.starts_with(SYSTEM_PROPERTY_ARG_PREFIX) {
+                        #[cfg(not(feature = "dev"))]
+                        if arg.starts_with("-Djava.class.path") {
+                            continue;
+                        }
+                    } else if arg.eq_ignore_ascii_case(RE_DISABLE_ATTACH_MECHANISM) ||
+                            arg.eq_ignore_ascii_case(DEBUG_ARG) ||
+                            arg.starts_with(RUNJDWP_ARG_PREFIX) {
+                        #[cfg(not(feature = "dev"))]
+                        continue;
+                    } else if arg.eq(NOVERIFY_ARG_PREFIX) {
+                        #[cfg(feature = "dev")]
+                        vm_args.push(NOVERIFY_ARG_FINAL.to_string());
+                        continue;
+                    } else if arg.starts_with(AGENTLIB_ARG_PREFIX) ||
+                            arg.starts_with(AGENTPATH_ARG_PREFIX) ||
+                            arg.starts_with(JAVAAGENT_ARG_PREFIX) {
+                        #[cfg(not(feature = "dev"))]
+                        panic!("not allow the agent arg!!!");
+                    } else if arg.starts_with('-') {
+                        if !arg.starts_with(VM_ARG_PREFIX) {
+                            panic!("not support vm arg: {arg}");
+                        }
+                    } else if target.is_none() {
+                        // todo 待定
+                        target = Some(LaunchTarget::Class(arg));
+                        continue;
+                        // panic!("Not currently supported run class")
                     }
                     vm_args.push(arg);
-                } else if target.is_none() {
-                    // todo 待定
-                    // target = Some(LaunchTarget::Class(arg));
-                    panic!("Not currently supported run class")
-                } else {
-                    #[cfg(not(debug_assertions))]
-                    if arg.starts_with(AGENTLIB_ARG_PREFIX) ||
-                        arg.starts_with(AGENTPATH_ARG_PREFIX) ||
-                        arg.starts_with(JAVAAGENT_ARG_PREFIX) {
-                        panic!("not allow the agent arg!!!")
-                    }
-                    app_args.push(arg);
                 }
             }
+        } else {
+            app_args.push(arg);
         }
     }
     if let Some(target) = target {
@@ -245,7 +260,7 @@ fn init_launcher(target: &LaunchTarget, vm_args: &mut Vec<String>, app_args: &Ve
 
     let name = match target {
         LaunchTarget::Class(class) => class,
-        Jar(jar) => jar.path()
+        LaunchTarget::Jar(jar) => jar.path()
     };
     vm_args.push(format!("{}{} {}", JAVA_COMMAND_VM_ARG_PREFIX, name, app_args.join(" ")));
     vm_args.push(JAVA_LAUNCHER_ARG.to_string());

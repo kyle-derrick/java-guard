@@ -3,6 +3,7 @@ use crate::base::common::{GET_SYSTEM_CLASS_LOADER_METHOD, GET_SYSTEM_CLASS_LOADE
 use jni::objects::{JClass, JObject, JValue};
 use jni::JNIEnv;
 use jni_sys::jboolean;
+use crate::base::error::MessageError;
 
 const SUN_LAUNCHER_HELPER_CLASS: &str = "sun/launcher/LauncherHelper";
 const CLASS_LOADER: &str = "java/lang/ClassLoader";
@@ -78,10 +79,11 @@ impl<'local> JvmLauncherHelper<'local> for SimpleLauncherHelper<'local> {
 }
 
 
-pub fn find_launcher_helper_from_env<'a>(env: & mut JNIEnv<'a>) -> LauncherHelper<'a> {
+pub fn find_launcher_helper_from_env<'a>(env: & mut JNIEnv<'a>) -> Result<LauncherHelper<'a>, MessageError> {
     match SunLauncherHelper::from_env(env) {
-        Ok(helper) => return LauncherHelper::SunLauncherHelper(helper),
+        Ok(helper) => return Ok(LauncherHelper::SunLauncherHelper(helper)),
         Err(_) => println!("WARN: not found sun launcher helper")
     }
-    LauncherHelper::SimpleLauncherHelper(SimpleLauncherHelper::from_env(env).expect("cannot init launcher helper"))
+    Ok(LauncherHelper::SimpleLauncherHelper(
+        SimpleLauncherHelper::from_env(env).map_err(|e| MessageError::new(&format!("cannot init launcher helper: {e}")))?))
 }

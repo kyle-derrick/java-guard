@@ -21,6 +21,7 @@ pub struct JarInfo {
 // const MAIN_CLASS_PREFIX: &str = "Main-Class:";
 // const SIGNATURE_PREFIX: &str = "JG-Signature:";
 
+#[cfg(not(feature = "dev"))]
 fn extract_sign_from_comment(comment: &[u8]) -> Vec<u8> {
     if comment.len() <= SIGN_LEN_HEX_LEN {
         panic!("jar not signature")
@@ -60,17 +61,15 @@ impl JarInfo {
             panic!("not found Main Class in jar")
         }
         let comment = archive.comment();
+        #[cfg(feature = "dev")]
+        let sign = vec![0_u8; 0];
+        #[cfg(not(feature = "dev"))]
         let sign = extract_sign_from_comment(comment);
-        let signature = Some(sign);
-        if signature.is_none() {
-            // signature = Some(Vec::new());
-            panic!("not found Signature in jar")
-        }
-        if let (Some(main_class), Some(signature)) = (main_class, signature) {
+        if let Some(main_class) = main_class {
             JarInfo {
                 path: path.to_string(),
                 // file: file_lock,
-                signature,
+                signature: sign,
                 jar_data_end_index: jar_file_len as usize - comment.len() - 2,
                 main_class
             }
@@ -79,6 +78,7 @@ impl JarInfo {
         }
     }
 
+    #[cfg(not(feature = "dev"))]
     pub fn verify(&self) {
         let content = fs::read(&self.path).expect(&format!("cannot read jar file: {}", &self.path));
         pub_key_pair().verify(&content[..self.jar_data_end_index], &self.signature)

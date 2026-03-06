@@ -214,22 +214,22 @@ pub fn print_version_info(env: &mut JNIEnv) -> Result<(), MessageError> {
     let version_date = get_sys_property(env, &sys_cls, "java.version.date")?;
     let vm_specification_version = get_sys_property(env, &sys_cls, "java.vm.specification.version")?;
 
-    print!("java version: {}", version.ok_or_else(|| MessageError::new("version is null"))?);
+    eprint!("java version: {}", version.ok_or_else(|| MessageError::new("version is null"))?);
     if let Some(version_date) = version_date {
-        print!(" {}", version_date);
+        eprint!(" {}", version_date);
         if let Some(vm_specification_version) = vm_specification_version {
-            print!(" {}", vm_specification_version);
+            eprint!(" {}", vm_specification_version);
         }
     }
-    println!();
+    eprintln!();
 
     if let Some(runtime_version) = runtime_version {
-        println!("{} (build {})", get_sys_property(env, &sys_cls, "java.runtime.name")?.ok_or_else(|| MessageError::new("runtime name is null"))?, runtime_version);
-        print!("{} (build {}", vm_name.ok_or_else(|| MessageError::new("vm name is null"))?, vm_version.ok_or_else(|| MessageError::new("vm version is null"))?);
+        eprintln!("{} (build {})", get_sys_property(env, &sys_cls, "java.runtime.name")?.ok_or_else(|| MessageError::new("runtime name is null"))?, runtime_version);
+        eprint!("{} (build {}", vm_name.ok_or_else(|| MessageError::new("vm name is null"))?, vm_version.ok_or_else(|| MessageError::new("vm version is null"))?);
         if let Some(vm_info) = vm_info {
-            print!(", {}", vm_info);
+            eprint!(", {}", vm_info);
         }
-        println!(")");
+        eprintln!(")");
     }
     Ok(())
 }

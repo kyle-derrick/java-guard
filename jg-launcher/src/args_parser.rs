@@ -267,5 +267,6 @@ fn init_launcher(target: &LaunchTarget, vm_args: &mut Vec<String>, app_args: &Ve
     vm_args.push(format!("{}{} {}", JAVA_COMMAND_VM_ARG_PREFIX, name, app_args.join(" ")));
     vm_args.push(JAVA_LAUNCHER_ARG.to_string());
     vm_args.push(format!("{}{}", JAVA_LAUNCHER_PID_ARG_PREFIX, process::id()));
+    #[cfg(not(feature = "dev"))]
     vm_args.push(DISABLE_ATTACH_MECHANISM.to_string());
 }

@@ -262,8 +262,11 @@ public class ClassTransformer extends AbstractTransformer {
                 break;
             case Exceptions:
                 ExceptionsAttribute exceptionsAttribute = (ExceptionsAttribute) attributeInfo;
-                for (int exceptionIndex : exceptionsAttribute.getExceptionIndexes()) {
-                    classTransformInfo.addRetainConst(exceptionIndex);
+                int[] exceptionIndexes = exceptionsAttribute.getExceptionIndexes();
+                if (exceptionIndexes != null) {
+                    for (int exceptionIndex : exceptionIndexes) {
+                        classTransformInfo.addRetainConst(exceptionIndex);
+                    }
                 }
                 break;
             case InnerClasses:

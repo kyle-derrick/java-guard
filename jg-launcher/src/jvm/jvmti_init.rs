@@ -14,6 +14,7 @@ use jni_sys::{jbyteArray, jint, jlong, jobject};
 use ring::aead::chacha20_poly1305_openssh::TAG_LEN;
 use ring::aead::NONCE_LEN;
 use std::ffi::{c_void, CStr};
+use std::ops::Add;
 use std::ptr::null_mut;
 
 pub fn set_callbacks(jvm: &JavaVM, version: i32) {
@@ -150,10 +151,17 @@ extern "system" fn jg_class_file_load_hook(
     if name.is_null() {
         return;
     }
-    let class_data_arr = unsafe {
-        // JNIEnv::from_raw(jni_env).unwrap(),
-        std::slice::from_raw_parts(class_data as *const u8, class_data_len as usize)
-    };
+
+    unsafe {
+        if class_data_len <= 5 {
+            return;
+        }
+        let ptr = class_data.add(class_data_len - 5);
+        if !(*ptr == 0 && *ptr.add(1) == 'J' && *ptr.add(2) == 'G' && *ptr.add(3) == 'C' && *ptr.add(4) == 0) {
+            return;
+        }
+    }
+
     let is_url = match unsafe { CStr::from_ptr(name) }.to_str() {
         Ok(name) => {
             // println!(">>>>>>: {name}");
@@ -163,6 +171,11 @@ extern "system" fn jg_class_file_load_hook(
             eprintln!("WARN: class name to str failed: {}", err);
             false
         }
+    };
+
+    let class_data_arr = unsafe {
+        // JNIEnv::from_raw(jni_env).unwrap(),
+        std::slice::from_raw_parts(class_data as *const u8, class_data_len as usize)
     };
 
     if let Some(mut new_class_data_bytes) = class_util::try_decrypt_class(class_data_arr) {

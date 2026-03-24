@@ -9,6 +9,7 @@ import io.kyle.javaguard.constant.ConstVars;
 import io.kyle.javaguard.constant.PrimitiveType;
 import io.kyle.javaguard.exception.TransformException;
 import io.kyle.javaguard.exception.TransformRuntimeException;
+import io.kyle.javaguard.util.BytesUtils;
 import io.kyle.javaguard.util.ClassFileUtils;
 import javassist.Modifier;
 import javassist.bytecode.*;
@@ -44,10 +45,19 @@ public class ClassTransformer extends AbstractTransformer {
         ClassFile classFile;
         try {
             byte[] oriBytes = IOUtils.toByteArray(in);
+            int suffixStart = oriBytes.length - ConstVars.ENCRYPT_CLASS_SUFFIX.length;
+            if (suffixStart > 0 &&
+                    BytesUtils.equalsWith(oriBytes, suffixStart, ConstVars.ENCRYPT_CLASS_SUFFIX, 0, ConstVars.ENCRYPT_CLASS_SUFFIX.length)) {
+                out.write(oriBytes);
+                return true;
+            }
             classFile = new ClassFile(new DataInputStream(new ByteArrayInputStream(oriBytes)));
             AttributeInfo existsSecretBox = classFile.getAttribute(SecretBoxAttribute.tag);
             if (existsSecretBox != null) {
-                out.write(oriBytes);
+                classFile.getAttributes().add(new JGExtAttribute(classFile.getConstPool()));
+                DataOutputStream stream = new DataOutputStream(out);
+                classFile.write(stream);
+                stream.flush();
                 return true;
             }
         } catch (IOException e) {
@@ -91,6 +101,7 @@ public class ClassTransformer extends AbstractTransformer {
         byte[] bytes = ClassTransformUtils.toBytes(classTransformInfo);
         try {
             classFile.addAttribute(new SecretBoxAttribute(constPool, transformInfo.getKeyInfo().encrypt(bytes)));
+            classFile.getAttributes().add(new JGExtAttribute(constPool));
         } catch (Exception e) {
             throw new TransformException("class encrypt failed", e);
         }

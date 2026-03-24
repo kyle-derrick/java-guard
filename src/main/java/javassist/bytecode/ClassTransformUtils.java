@@ -32,6 +32,7 @@ public class ClassTransformUtils {
         }
         RETAIN_STRING.add(CodeIndexAttribute.tag);
         RETAIN_STRING.add(SecretBoxAttribute.tag);
+        RETAIN_STRING.add(JGExtAttribute.tag);
     }
 
     public static byte[] toBytes(ClassTransformInfo info) {

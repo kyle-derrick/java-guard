@@ -22,6 +22,10 @@ public interface ConstVars {
      * \0JGR\0
      */
     byte[] ENCRYPT_RESOURCE_HEADER = {0, 74, 71, 82, 0};
+    /**
+     * \0JGC\0
+     */
+    byte[] ENCRYPT_CLASS_SUFFIX = {0, 74, 71, 67, 0};
 
     @SuppressWarnings("unused")
     short ZERO_SHORT = 0;

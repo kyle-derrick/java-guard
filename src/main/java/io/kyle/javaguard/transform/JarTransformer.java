@@ -93,6 +93,9 @@ public class JarTransformer extends AbstractTransformer {
                     zos.closeArchiveEntry();
                     continue;
                 }
+                if (entry.getMethod() >= 0) {
+                    newEntry.setMethod(entry.getMethod());
+                }
                 boolean transformed = false;
                 DataTemp dataTemp = null;
                 boolean needEncrypt = !entry.getName().equals(ConstVars.META_INF_MANIFEST)

@@ -38,4 +38,13 @@ public class BytesUtils {
         System.arraycopy(bs, start, bytes, 0, len);
         return bytes;
     }
+
+    public static boolean equalsWith(byte[] a, int offsetA, byte[] b, int offsetB, int len) {
+        for (int i = 0; i < len; i++) {
+            if (a[offsetA + i] != b[offsetB + i]) {
+                return false;
+            }
+        }
+        return true;
+    }
 }

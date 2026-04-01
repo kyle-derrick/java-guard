@@ -21,6 +21,12 @@ impl MessageError {
             msg: String::from(msg)
         }
     }
+
+    pub fn new_with(msg: String) -> MessageError {
+        MessageError {
+            msg
+        }
+    }
 }
 
 impl<T> Into<Result<T>> for MessageError {

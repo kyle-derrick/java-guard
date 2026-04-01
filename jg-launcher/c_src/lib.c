@@ -75,6 +75,7 @@ jvmtiEnv* get_jvmti_from_vm(JavaVM *vm) {
 }
 
 int jvmti_allocate(jvmtiEnv *jvmti, jlong size, unsigned char** mem_ptr) {
+    *mem_ptr = NULL;
     jvmtiError err = (*jvmti)->Allocate(jvmti, size, mem_ptr);
     return err == JVMTI_ERROR_NONE && *mem_ptr != NULL;
 }

@@ -1,14 +1,14 @@
 [package]
 name = "jg-launcher"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 build = "build/build.rs"
 
 [dependencies]
 libloading="0.7"
-jni-sys="0.3"
+jni-sys="0.3.1"
 java-locator="0.1"
-jni = { version = "0.21" , features = ["invocation"]}
+jni = { version = "0.21.1" , features = ["invocation"]}
 #jni = { path = "vendor/jni" , features = ["invocation"]}
 ring = "0.17.8"
 clap = "4.5"
@@ -19,10 +19,18 @@ base64 = "0.22.1"
 lazy_static="1.5.0"
 #file-lock = "2.1"
 jclass = "0.1"
+lz4 = "1.28.1"
 
 [target.'cfg(windows)'.dependencies.winapi]
 version = "0.3"
 features = ["commctrl", "libloaderapi"]
+
+[target.'cfg(windows)'.dependencies]
+mimalloc = "0.1.48"
+
+[target.'cfg(unix)'.dependencies]
+tikv-jemallocator = "0.5.4"
+
 
 [build-dependencies]
 rand="0.8.5"

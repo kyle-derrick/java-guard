@@ -1,4 +1,5 @@
 pub const SIGN_KEY_VERSION: &str = "0";
+#[cfg(not(feature = "dev"))]
 pub const PUB_KEY: &[u8] = &[0u8; 32];
 pub const KEY: &[u8] = &[0u8; 32];
 pub const RESOURCE_KEY: &[u8] = &[0u8; 32];

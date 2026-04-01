@@ -42,7 +42,7 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
     match launcher_arg.classpath() {
         Some(classpath) => {
             let cp = match &target {
-                LaunchTarget::Class(class) => {
+                LaunchTarget::Class(_class) => {
                     env::join_paths(classpath)
                 }
                 Jar(jar) => {
@@ -54,7 +54,7 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
         }
         None => {
             match &target {
-                LaunchTarget::Class(class) => {
+                LaunchTarget::Class(_class) => {
                     if let Ok(cp) = env::var("CLASSPATH") {
                         let cp = env::join_paths(parse_classpath(&cp)).expect("failed to handle class path!");
                         java_class_path.push_str(cp.to_str().expect("failed to handle class path!"));

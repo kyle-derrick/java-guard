@@ -1,21 +1,25 @@
-use crate::base::common::{runtime_classes, RESOURCE_DECRYPT_NATIVE_CLASS, RESOURCE_DECRYPT_NATIVE_DESC, RESOURCE_DECRYPT_NATIVE_METHOD, URL_CLASS_NAME};
+use std::any::Any;
+use crate::base::common::{runtime_classes, MAGIC_LEN, RESOURCE_DECRYPT_NATIVE_CLASS, RESOURCE_DECRYPT_NATIVE_DESC, RESOURCE_DECRYPT_NATIVE_METHOD, SIGN_LEN, URL_CLASS_NAME};
 use crate::base::error::MessageError;
-use crate::jni_result_expect;
 use crate::util::aes_util::decrypt_resource;
 use crate::util::byte_utils::byte_be_to_u32_fast;
-use crate::util::class_util;
 use crate::util::class_util::url_extended_processing;
-use crate::util::jvm_util::jni_error_handle;
 use crate::util::jvmti_util::{get_jvmti_from_vm, init_vm_and_set_callback, jvmti_allocate, jvmti_get_class_loader};
+use crate::{jni_result_expect, with_message};
+use jni::objects::ReleaseMode::CopyBack;
 use jni::objects::{JByteArray, JObject};
 use jni::strings::JNIString;
 use jni::{sys, JNIEnv, JavaVM, NativeMethod};
 use jni_sys::{jbyteArray, jint, jlong, jobject};
+use lz4::block::decompress;
 use ring::aead::chacha20_poly1305_openssh::TAG_LEN;
 use ring::aead::NONCE_LEN;
 use std::ffi::{c_void, CStr};
-use std::ops::Add;
+use std::panic;
 use std::ptr::null_mut;
+
+const BYTE_H_SIGN:u8 = 0x80;
+const BYTE_L_SIGN:u8 = 0x7F;
 
 pub fn set_callbacks(jvm: &JavaVM, version: i32) {
     let result = unsafe {
@@ -71,7 +75,7 @@ pub fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv) -> Result<(), MessageErr
         };
         let class_obj = jni_result_expect!(env, env.define_class(&name, &class_loader, class_data), "cannot load extend runtime class")?;
 
-        if &name == RESOURCE_DECRYPT_NATIVE_CLASS {
+        if name.as_str() == RESOURCE_DECRYPT_NATIVE_CLASS {
             let native_method = NativeMethod {
                 name: JNIString::from(RESOURCE_DECRYPT_NATIVE_METHOD),
                 sig: JNIString::from(RESOURCE_DECRYPT_NATIVE_DESC),
@@ -83,12 +87,36 @@ pub fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv) -> Result<(), MessageErr
     Ok(())
 }
 
+fn print_err(err: Box<dyn Any+Send>) {
+    if let Some(msg) = err.downcast_ref::<&str>() {
+        eprintln!("ERROR: native method: unknown err: {}", msg);
+    } else if let Some(msg) = err.downcast_ref::<String>() {
+        eprintln!("ERROR: native method: unknown err: {}", msg);
+    } else {
+        eprintln!("ERROR: native method: unknown err!!!");
+    }
+}
+
 #[allow(unused)]
 extern "system" fn resource_decrypt_native(env: *mut sys::JNIEnv, object: jobject, data: jbyteArray, off: jint, len: jint) -> jint {
+    match panic::catch_unwind(|| _resource_decrypt_native(env, object, data, off, len)) {
+        Ok(r) => r,
+        Err(err) => {
+            print_err(err);
+            len
+        }
+    }
+}
+
+fn _resource_decrypt_native(env: *mut sys::JNIEnv, _object: jobject, data: jbyteArray, off: jint, len: jint) -> jint {
+    if env.is_null() || data.is_null() {
+        return len;
+    }
     if (len as usize) < NONCE_LEN + TAG_LEN {
         return len;
     }
-    let env = match unsafe {
+
+    let mut env = match unsafe {
         JNIEnv::from_raw(env)
     } {
         Ok(env) => {
@@ -100,39 +128,37 @@ extern "system" fn resource_decrypt_native(env: *mut sys::JNIEnv, object: jobjec
         }
     };
     let data_arr = unsafe { JByteArray::from_raw(data) };
-    let mut data_rs = match env.convert_byte_array(&data_arr) {
-        Ok(data) => {
-            data
-        }
-        Err(err) => {
-            jni_error_handle(&env, &err, "ERROR: native method: cannot convert data");
-            // eprintln!("ERROR: native method: cannot convert data: {err}");
-            return len;
+
+    let slice_len = len as usize;
+
+    let raw_ptr = unsafe {
+        match env.get_array_elements_critical(&data_arr, CopyBack) {
+            Ok(v) => v,
+            Err(err) => {
+                eprintln!("ERROR: GetPrimitiveArrayCritical failed: {err}");
+                return len;
+            }
         }
     };
-    let end = (off + len) as usize;
-    let off = off as usize;
-    match decrypt_resource(&mut data_rs[off..end]) {
+    if raw_ptr.is_empty() {
+        return len;
+    }
+
+    let data_rs: &mut [u8] = unsafe {
+        std::slice::from_raw_parts_mut(raw_ptr.as_ptr().add(off as usize) as *mut u8, slice_len)
+    };
+
+    let result = match decrypt_resource(data_rs) {
         Ok(de_data) => {
             let de_data_len = de_data.len();
-            let de_data = unsafe {
-                std::slice::from_raw_parts(de_data.as_ptr() as *const i8, de_data_len)
-            };
-
-            match env.set_byte_array_region(&data_arr, 0, de_data) {
-                Ok(r) => r,
-                Err(err) => {
-                    jni_error_handle(&env, &err, "");
-                    return len;
-                }
-            }
             de_data_len as jint
         }
         Err(err) => {
             eprintln!("ERROR: native method: decrypt resource failed: {err}");
             len
         }
-    }
+    };
+    result
 }
 
 #[allow(unused)]
@@ -148,23 +174,32 @@ extern "system" fn jg_class_file_load_hook(
     new_class_data_len: *mut jint,
     new_class_data: *mut *mut std::os::raw::c_uchar,
 ) {
+    if let Err(err) = panic::catch_unwind(|| _jg_class_file_load_hook(jvmti_env, jni_env, class_being_redefined,
+                                                          loader, name, protection_domain,
+                                                          class_data_len, class_data, new_class_data_len,
+                                                          new_class_data)) {
+        print_err(err);
+    }
+}
+
+fn _jg_class_file_load_hook(
+    jvmti_env: *mut c_void,
+    _jni_env: *mut jni_sys::JNIEnv,
+    _class_being_redefined: jni_sys::jclass,
+    _loader: jobject,
+    name: *const std::os::raw::c_char,
+    _protection_domain: jobject,
+    class_data_len: jint,
+    class_data: *const std::os::raw::c_uchar,
+    new_class_data_len: *mut jint,
+    new_class_data: *mut *mut std::os::raw::c_uchar,
+) {
     if name.is_null() {
         return;
     }
 
-    unsafe {
-        if class_data_len <= 5 {
-            return;
-        }
-        let ptr = class_data.add(class_data_len - 5);
-        if !(*ptr == 0 && *ptr.add(1) == 'J' && *ptr.add(2) == 'G' && *ptr.add(3) == 'C' && *ptr.add(4) == 0) {
-            return;
-        }
-    }
-
     let is_url = match unsafe { CStr::from_ptr(name) }.to_str() {
         Ok(name) => {
-            // println!(">>>>>>: {name}");
             name == URL_CLASS_NAME
         },
         Err(err) => {
@@ -173,36 +208,73 @@ extern "system" fn jg_class_file_load_hook(
         }
     };
 
-    let class_data_arr = unsafe {
-        // JNIEnv::from_raw(jni_env).unwrap(),
-        std::slice::from_raw_parts(class_data as *const u8, class_data_len as usize)
+    let (has_sign, is_encrypt_class) = unsafe {
+        if class_data_len <= 5 {
+            return;
+        }
+        let ptr = class_data.add(class_data_len as usize - 5) as *const u8;
+        (*ptr == BYTE_H_SIGN, (*ptr & BYTE_L_SIGN) == 0 && *ptr.add(1) == b'J' && *ptr.add(2) == b'G' && *ptr.add(3) == b'C' && *ptr.add(4) == 0)
     };
 
-    if let Some(mut new_class_data_bytes) = class_util::try_decrypt_class(class_data_arr) {
-        if is_url {
-            if let Some(extended_class_data) = url_extended_processing(&new_class_data_bytes) {
-                new_class_data_bytes = extended_class_data;
-            }
-        }
-        set_new_class_data(jvmti_env, &new_class_data_bytes, new_class_data_len, new_class_data);
-    } else if is_url {
-        if let Some(extended_class_data) = url_extended_processing(class_data_arr) {
-            set_new_class_data(jvmti_env, &extended_class_data, new_class_data_len, new_class_data);
-        }
+    if !(is_encrypt_class || is_url) {
+        return;
     }
 
-    // if transformed {
-    //     return;
-    // }
-    // unsafe {
-    //     *new_class_data = class_data as *mut c_uchar;
-    //     *new_class_data_len = class_data_len;
-    // }
+    let class_data_len = class_data_len as usize;
+    let class_data_arr = unsafe {
+        // JNIEnv::from_raw(jni_env).unwrap(),
+        std::slice::from_raw_parts(class_data as *const u8, class_data_len)
+    };
+
+    if is_encrypt_class {
+        match decrypt_class(class_data_arr, class_data_len, has_sign) {
+            Ok(mut ori_class_data) => {
+                if is_url {
+                    if let Some(extended_class_data) = url_extended_processing(&ori_class_data) {
+                        ori_class_data = extended_class_data;
+                    }
+                }
+                set_new_class_data(jvmti_env, &ori_class_data, new_class_data_len, new_class_data);
+                return;
+            }
+            Err(e) => {
+                eprintln!("transform class data failed: {}", e);
+            }
+        };
+    }
+    if let Some(extended_class_data) = url_extended_processing(class_data_arr) {
+        set_new_class_data(jvmti_env, &extended_class_data, new_class_data_len, new_class_data);
+    }
+}
+
+fn decrypt_class(class_data_arr: &[u8], class_data_len: usize, has_sign: bool) -> Result<Vec<u8>, MessageError> {
+    let len_index = if has_sign {
+        class_data_len - MAGIC_LEN - SIGN_LEN - size_of::<u32>()
+    } else {
+        class_data_len - MAGIC_LEN - size_of::<u32>()
+    };
+    if len_index > class_data_len {
+        return Err(MessageError::new_with(format!("transform data failed, the length exceeds the actual length of the data: {len_index} > {class_data_len}")));
+    }
+    let en_data_len = byte_be_to_u32_fast(class_data_arr, len_index);
+    let en_data_start = len_index - en_data_len as usize;
+    if en_data_start > class_data_len {
+        return Err(MessageError::new_with(format!("transform data failed, the length exceeds the actual length of the data: {en_data_start} > {class_data_len}")));
+    }
+
+    let mut buffer = class_data_arr[en_data_start..len_index].to_vec();
+    let de_data = crate::util::aes_util::decrypt(&mut buffer)?;
+
+    let len = byte_be_to_u32_fast(de_data, 0) as i32;
+    if len < 0 {
+        return Err(MessageError::new(&format!("compress data too long: {}", len as u32)))
+    }
+    with_message!(decompress(&de_data[size_of::<u32>()..], Some(len)), "data decompress failed")
 }
 
 fn set_new_class_data(jvmti_env: *mut c_void, class_data: &[u8], new_class_data_len: *mut jint, new_class_data: *mut *mut std::os::raw::c_uchar) -> bool {
     let new_class_data_bytes_len = class_data.len();
-    let mut new_class_data_ptr = std::ptr::null_mut();
+    let mut new_class_data_ptr = null_mut();
     if 0 == unsafe { jvmti_allocate(jvmti_env, new_class_data_bytes_len as jlong, &mut new_class_data_ptr) } {
         eprintln!("allocate decrypted class data failed");
         return false;

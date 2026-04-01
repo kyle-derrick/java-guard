@@ -9,6 +9,7 @@ use std::{env, fs};
 
 const RUNTIME_CLASSES: &str = "runtime.classes";
 // const TRANSFORM_MOD: &str = "transform.mod";
+#[cfg(not(feature = "dev"))]
 const PUB_KEY_NAME: &str = "pub_key";
 const INNER_KEY_NAME: &str = "inner_key";
 const RESOURCE_KEY_NAME: &str = "resource_key";
@@ -66,14 +67,15 @@ fn main() {
                                  resourceDecryptNativeClass = RESOURCE_DECRYPT_NATIVE_CLASS,
                                  resourceDecryptNativeDesc = RESOURCE_DECRYPT_NATIVE_DESC,
                                  resourceDecryptNativeMethod = RESOURCE_DECRYPT_NATIVE_METHOD,);
-    let mut file = File::create(&dest_path).expect("cannot generate common.rs");
+    let mut file = File::create(dest_path.as_path()).expect("cannot generate common.rs");
     let f = &mut file;
     write_file(f, &common_content);
 
-    write_file(f, &generate_func_field(PUB_KEY_NAME));
-    write_file(f, &generate_func_field(INNER_KEY_NAME));
-    write_file(f, &generate_func_field(RESOURCE_KEY_NAME));
+    // write_file(f, &generate_func_field(PUB_KEY_NAME));
+    // write_file(f, &generate_func_field(INNER_KEY_NAME));
+    // write_file(f, &generate_func_field(RESOURCE_KEY_NAME));
     write_file(f, &bytes_get_generator::get_common_func_code());
+    #[cfg(not(feature = "dev"))]
     for item in &bytes_get_generator::generate_func_code(PUB_KEY, PUB_KEY_NAME) {
         write_file(f, item);
     }
@@ -97,10 +99,6 @@ fn main() {
         .include("c_src/")
         .file("c_src/lib.c")
         .compile("jg-jvmti-lib");
-}
-
-fn generate_func_field(name: &str) -> String {
-    format!("lazy_static::lazy_static! {{ pub static ref {}: Vec<u8> = {}(); }}", name.to_ascii_uppercase(), name)
 }
 
 fn write_file(file: &mut File, content: &str) {

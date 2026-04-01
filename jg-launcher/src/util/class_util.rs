@@ -1,128 +1,13 @@
-use crate::base::common::{ENCRYPT_DATA_TAG, INTERNAL_URL_CONNECTION_CLASS, INTERNAL_URL_CONNECTION_DESC, INTERNAL_URL_CONNECTION_METHOD};
+use crate::base::common::{INTERNAL_URL_CONNECTION_CLASS, INTERNAL_URL_CONNECTION_DESC, INTERNAL_URL_CONNECTION_METHOD};
 use crate::base::opcode::opcodes;
-use crate::util::{aes_util, byte_utils};
 use jclass::attribute_info::CodeAttribute;
 use jclass::common::constants::CODE_TAG;
 use jclass::constant_pool::{ConstantPool, ConstantValue};
 use jclass::jclass_info::JClassInfo;
-use jclass::util::class_scan::fast_scan_class;
 use std::io::{BufWriter, Cursor};
 use std::string::ToString;
 
 const URL_OPEN_CONNECTION_METHOD_NAME: &str = "openConnection";
-
-macro_rules! check_index {
-    ($arr: expr, $read_len: expr) => {
-        if $arr.len() < $read_len {
-            eprintln!("class data is invalid, index: {}, max len: {}", $read_len, $arr.len());
-            return None;
-        }
-    };
-}
-
-#[inline]
-pub fn try_decrypt_class(class_data: &[u8]) -> Option<Vec<u8>> {
-    match fast_scan_class(class_data, ENCRYPT_DATA_TAG, false) {
-        Ok(Some(info)) if info.specify_attribute.is_some() => {
-            let data_range = info.specify_attribute?;
-            if data_range.end == data_range.start {
-                return None;
-            }
-            let mut en_data = class_data[data_range.start..data_range.end].to_vec();
-            let data = match aes_util::decrypt(&mut en_data) {
-                Ok(data) => data,
-                Err(err) => {
-                    eprintln!("decrypt class data attribute failed: {}", err);
-                    return None;
-                }
-            };
-
-            let mut new_class_data_bytes = Vec::with_capacity(class_data.len());
-            let mut index = 0;
-            let mut copied_index = 0;
-            loop {
-                let start = index;
-                index += 2;
-                check_index!(data, index);
-                let const_index = byte_utils::byte_be_to_u16_fast(data, start) as usize;
-                let len = match data[index] {
-                    b'I' | b'F' => {
-                        4
-                    }
-                    b'L' | b'D' => {
-                        8
-                    }
-                    b'S' => {
-                        check_index!(data, index+3);
-                        2 + (byte_utils::byte_be_to_u16_fast(data, index + 1) as usize)
-                    }
-                    _ => {
-                        index += 1;
-                        break;
-                    }
-                };
-                index += 1;
-                let const_start = info.consts.get(const_index - 1)? + 1;
-                let const_end = *info.consts.get(const_index)?;
-                // check_index!(class_data, const_start);
-                new_class_data_bytes.extend_from_slice(&class_data[copied_index..const_start]);
-                copied_index = const_end;
-                let start = index;
-                index += len;
-                check_index!(data, index);
-                new_class_data_bytes.extend_from_slice(&data[start..index]);
-            }
-
-            let start = index;
-            index += 4;
-            check_index!(data, index);
-            let codes_size = byte_utils::byte_be_to_u32_fast(data, start) as usize;
-            let mut info_code_index = 0;
-            let method_codes_len = info.method_codes.len();
-            'codes_loop:
-            for _ in 0..codes_size {
-                let code_range = loop {
-                    if info_code_index >= method_codes_len {
-                        eprintln!("ERROR: Method code data mismatch");
-                        break 'codes_loop;
-                    }
-                    let code_range = info.method_codes[info_code_index];
-                    info_code_index+=1;
-                    // ignore method who not has code
-                    if code_range.0 == 0 {
-                        continue;
-                    }
-                    break code_range;
-                };
-                let start = index;
-                index += 4;
-                check_index!(data, index);
-                let code_data_len = byte_utils::byte_be_to_u32_fast(data, start) as usize;
-                if code_data_len == 0 {
-                    continue;
-                }
-                let ori_attr_start = code_range.0 + 2;
-                new_class_data_bytes.extend_from_slice(&class_data[copied_index..ori_attr_start]);
-                copied_index = code_range.1;
-                index += code_data_len;
-                check_index!(data, index);
-                new_class_data_bytes.extend_from_slice(&data[start..index]);
-            }
-            new_class_data_bytes.extend_from_slice(&class_data[copied_index..data_range.start - 4]);
-            new_class_data_bytes.extend_from_slice(&[0, 0, 0, 0]);
-            new_class_data_bytes.extend_from_slice(&class_data[data_range.end..]);
-
-            Some(new_class_data_bytes)
-        }
-        Err(err) => {
-            eprintln!("analysis class failed: {}", err);
-            None
-        }
-        _ => {
-            None
-        }
-    }
-}
 
 pub fn url_extended_processing(class_data: &[u8]) -> Option<Vec<u8>> {
     let mut info = match JClassInfo::from_reader(&mut Cursor::new(class_data).into()) {
@@ -192,42 +77,9 @@ pub fn url_extended_processing(class_data: &[u8]) -> Option<Vec<u8>> {
 fn check_name(const_pool: &ConstantPool, name_index: u16, name: &str) -> bool {
     let const_item = const_pool.get_constant_item(name_index);
     if let ConstantValue::ConstantUtf8(method_name) = const_item {
-        if method_name == name {
+        if method_name.as_str() == name {
             return true;
         }
     }
     false
-}
-
-
-#[cfg(test)]
-mod test {
-    use crate::util::class_util::try_decrypt_class;
-    use jclass::util::class_scan::fast_scan_class;
-    use std::fs::File;
-    use std::io::{Read, Write};
-    use std::time::Instant;
-
-    #[test]
-    fn class_decrypt_test() {
-        let mut f = File::open("D:\\data\\code\\project\\java-guard\\out\\tmp\\antlr-4.13.2-complete\\org\\antlr\\v4\\Tool.class").unwrap();
-        let mut class_data = Vec::with_capacity(32 * 1024);
-        f.read_to_end(&mut class_data).unwrap();
-
-        let new_class_data = try_decrypt_class(&class_data).unwrap();
-
-        let mut of = File::create("D:\\data\\code\\project\\java-guard\\out\\tmp\\antlr-4.13.2-complete\\org\\antlr\\v4\\Tool.2.class").unwrap();
-        of.write_all(&new_class_data).unwrap();
-        // println!("{:?}", new_class_data_bytes);
-
-        let i = fast_scan_class(&new_class_data, &[], true).unwrap();
-        println!("{:?}", i);
-
-
-        let now = Instant::now();
-        for i in 0..1000 {
-            let new_class_data = try_decrypt_class(&class_data).unwrap();
-        }
-        println!("{} ns", now.elapsed().as_nanos());
-    }
 }

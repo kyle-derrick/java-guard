@@ -7,13 +7,9 @@ struct BytesSplitNode {
     index: usize,
     child: Vec<BytesSplitNode>
 }
-const LAYER_MAX_NODE: usize = 36;
+const LAYER_MAX_NODE: usize = 8;
 
-const BYTE_LIST_VARIABLE_NAME: &str = "bytes";
-const BYTE_SIGN_VARIABLE_NAME: &str = "sign";
-const BYTE_HANDLE_FUNC_NAME: &str = "handle_bytes";
-
-fn generate_code_from_bytes(bytes: &[u8], rng: &mut ThreadRng, sign: u8) -> String {
+fn generate_code_from_bytes(bytes: &[u8], rng: &mut ThreadRng, sign: u8, bytes_index: usize) -> String {
     if bytes.len() > 5 {
         let signs = (0..rng.gen_range(1..=bytes.len())).map(|_| rng.gen::<u8>()).collect::<Vec<u8>>();
         let mut new_bytes = Vec::with_capacity(bytes.len());
@@ -22,43 +18,53 @@ fn generate_code_from_bytes(bytes: &[u8], rng: &mut ThreadRng, sign: u8) -> Stri
         }
         let bs: String = new_bytes.join(",");
         let signs: String = signs.iter().map(u8::to_string).collect::<Vec<String>>().join(",");
-        format!("  {BYTE_HANDLE_FUNC_NAME}({BYTE_LIST_VARIABLE_NAME}, &[{bs}], &[{signs}], {BYTE_SIGN_VARIABLE_NAME});")
+        let bytes_end = bytes_index + bytes.len();
+        format!("  handle_bytes(&mut bytes[{bytes_index}..{bytes_end}], &[{bs}], &[{signs}], sign);")
     //       format!(r#"
     // let bs = [{bs}];
     // let signs = [{signs}];
     // for (i, item) in (&bs).iter().enumerate() {{
-    //   {BYTE_LIST_VARIABLE_NAME}.push((|a, b| item ^ a ^ b)({BYTE_SIGN_VARIABLE_NAME}, signs[i%signs.len()]));
+    //   bytes.push((|a, b| item ^ a ^ b)(sign, signs[i%signs.len()]));
     // }}"#)
     } else {
         let mut code_list: Vec<String> = Vec::with_capacity(bytes.len());
+        let mut bytes_index = bytes_index;
         for b in bytes {
             let sub_sign = rng.gen::<u8>();
             let b = b ^ sign ^ sub_sign;
-            code_list.push(format!("  {BYTE_LIST_VARIABLE_NAME}.push((|a, b| {b}u8 ^ a ^ b)({BYTE_SIGN_VARIABLE_NAME}, {sub_sign}u8));"))
+            code_list.push(format!("  bytes[{bytes_index}] = (|a, b| {b}u8 ^ a ^ b)(sign, {sub_sign}u8);"));
+            bytes_index += 1;
         }
         code_list.join("\n")
     }
 }
 
 fn generate_code_from_node(tree: &BytesSplitNode, rng: &mut ThreadRng, funcs: &mut Vec<String>, prefix: &str, sign: u8) -> String {
+    let mut index = 0;
+    _generate_code_from_node(tree, rng, funcs, prefix, sign, &mut index)
+}
+
+fn _generate_code_from_node(tree: &BytesSplitNode, rng: &mut ThreadRng, funcs: &mut Vec<String>, prefix: &str, sign: u8, bytes_index: &mut usize) -> String {
     let child = &tree.child;
     let mut code_list = Vec::with_capacity(child.len() + 1);
     for (index, node) in child.iter().enumerate() {
         if index == tree.index {
-            code_list.push(generate_code_from_bytes(tree.value.as_slice(), rng, sign));
+            code_list.push(generate_code_from_bytes(tree.value.as_slice(), rng, sign, *bytes_index));
+            *bytes_index += tree.value.len();
         }
         let sign = rng.gen::<u8>();
-        let name = generate_code_from_node(node, rng, funcs, prefix, sign);
-        code_list.push(format!("  {name}({BYTE_LIST_VARIABLE_NAME}, {sign});"));
+        let name = _generate_code_from_node(node, rng, funcs, prefix, sign, bytes_index);
+        code_list.push(format!("  {name}(bytes, {sign});"));
     }
     if tree.index == child.len() {
-        code_list.push(generate_code_from_bytes(tree.value.as_slice(), rng, sign));
+        code_list.push(generate_code_from_bytes(tree.value.as_slice(), rng, sign, *bytes_index));
+        *bytes_index += tree.value.len();
     }
     let code_content = code_list.join("\n");
     let seq = funcs.len();
     let name = format!("{prefix}_{seq}");
     funcs.push(format!(r#"
-fn {name}({BYTE_LIST_VARIABLE_NAME}: &mut Vec<u8>, sign: u8) {{
+fn {name}(bytes: &mut [u8], sign: u8) {{
   {}
 }}"#, &code_content));
     name
@@ -121,9 +127,9 @@ fn generate_node(bytes: &[u8], rng: &mut ThreadRng) -> BytesSplitNode {
 }
 pub fn get_common_func_code() -> String {
     format!(r#"
-fn handle_bytes({BYTE_LIST_VARIABLE_NAME}: &mut Vec<u8>, bs: &[u8], signs: &[u8], sign: u8) {{
+fn handle_bytes(bytes: &mut [u8], bs: &[u8], signs: &[u8], sign: u8) {{
   for (i, item) in (&bs).iter().enumerate() {{
-    {BYTE_LIST_VARIABLE_NAME}.push((|a, b| item ^ a ^ b)({BYTE_SIGN_VARIABLE_NAME}, signs[i%signs.len()]));
+    bytes[i] = (|a, b| item ^ a ^ b)(sign, signs[i%signs.len()]);
   }}
 }}"#)
 }
@@ -136,8 +142,8 @@ pub fn generate_func_code(bytes: &[u8], name: &str) -> Vec<String> {
     let prefix = format!("__{name}");
     let func_name = generate_code_from_node(&node, &mut rng, &mut func_codes, &prefix, sign);
     func_codes.push(format!(r#"
-pub fn {name}() -> Vec<u8> {{
-  let mut bytes = Vec::with_capacity({len});
+pub fn {name}() -> [u8;{len}] {{
+  let mut bytes = [0u8;{len}];
   {func_name}(&mut bytes, {sign}u8);
   bytes
 }}"#));

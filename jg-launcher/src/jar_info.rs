@@ -1,10 +1,15 @@
-use crate::base::common::{pub_key_pair, MAIN_CLASS_PREFIX, MANIFEST_FILE, SIGN_LEN_HEX_LEN};
-use crate::util::byte_utils;
-use base64::prelude::BASE64_URL_SAFE_NO_PAD;
-use base64::Engine;
+use crate::base::common::{MAIN_CLASS_PREFIX, MANIFEST_FILE};
+#[cfg(not(feature = "dev"))]
+use {
+    crate::util::byte_utils,
+    base64::prelude::BASE64_URL_SAFE_NO_PAD,
+    base64::Engine,
+    crate::base::common::{pub_key_pair, SIGN_LEN_HEX_LEN},
+    std::fs,
+};
 use std::fs::File;
 // use file_lock::{FileLock, FileOptions};
-use std::{fs, io, str};
+use std::{io, str};
 use zip::ZipArchive;
 
 #[allow(unused)]
@@ -91,6 +96,7 @@ impl JarInfo {
     // pub fn file(&self) -> &FileLock {
     //     &self.file
     // }
+    #[allow(unused)]
     pub fn signature(&self) -> &Vec<u8> {
         &self.signature
     }

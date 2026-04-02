@@ -1,13 +1,12 @@
 use rand::rngs::ThreadRng;
 use rand::{thread_rng, Rng};
-use std::cmp::min;
+use std::cmp::{max, min};
 
 struct BytesSplitNode {
     value: Vec<u8>,
     index: usize,
     child: Vec<BytesSplitNode>
 }
-const LAYER_MAX_NODE: usize = 8;
 
 fn generate_code_from_bytes(bytes: &[u8], rng: &mut ThreadRng, sign: u8, bytes_index: usize) -> String {
     if bytes.len() > 5 {
@@ -70,7 +69,7 @@ fn {name}(bytes: &mut [u8], sign: u8) {{
     name
 }
 
-fn generate_node(bytes: &[u8], rng: &mut ThreadRng) -> BytesSplitNode {
+fn generate_node(bytes: &[u8], rng: &mut ThreadRng, layer_max_node: usize) -> BytesSplitNode {
     let len = bytes.len();
     let value_len = if len == 1 {
         1
@@ -90,7 +89,7 @@ fn generate_node(bytes: &[u8], rng: &mut ThreadRng) -> BytesSplitNode {
     let node_size = if remaining_len == 1 {
         1
     } else {
-        rng.gen_range(1..=min(remaining_len, LAYER_MAX_NODE))
+        rng.gen_range(1..=min(remaining_len, layer_max_node))
     };
     let value_index = rng.gen_range(0..=node_size);
     let mut remaining_items = remaining_len - node_size;
@@ -111,7 +110,7 @@ fn generate_node(bytes: &[u8], rng: &mut ThreadRng) -> BytesSplitNode {
         } else {
             1
         };
-        let node = generate_node(&bytes[curr_index..curr_index + sub_len], rng);
+        let node = generate_node(&bytes[curr_index..curr_index + sub_len], rng, layer_max_node);
         curr_index += sub_len;
         nodes.push(node);
     }
@@ -127,6 +126,7 @@ fn generate_node(bytes: &[u8], rng: &mut ThreadRng) -> BytesSplitNode {
 }
 pub fn get_common_func_code() -> String {
     format!(r#"
+#[allow(unused)]
 fn handle_bytes(bytes: &mut [u8], bs: &[u8], signs: &[u8], sign: u8) {{
   for (i, item) in (&bs).iter().enumerate() {{
     bytes[i] = (|a, b| item ^ a ^ b)(sign, signs[i%signs.len()]);
@@ -136,7 +136,7 @@ fn handle_bytes(bytes: &mut [u8], bs: &[u8], signs: &[u8], sign: u8) {{
 pub fn generate_func_code(bytes: &[u8], name: &str) -> Vec<String> {
     let mut rng = thread_rng();
     let len = bytes.len();
-    let node = generate_node(bytes, &mut rng);
+    let node = generate_node(bytes, &mut rng, min(max(8, len >> 2), 24));
     let mut func_codes = Vec::new();
     let sign = rng.gen::<u8>();
     let prefix = format!("__{name}");

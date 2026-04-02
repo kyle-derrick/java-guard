@@ -22,6 +22,12 @@ public class BytesUtils {
         return buffer.getShort();
     }
 
+    public static int bytesToInt(byte[] bs, int offset) {
+        ByteBuffer buffer = ByteBuffer.wrap(bs, offset, Integer.BYTES);
+        buffer.order(ByteOrder.BIG_ENDIAN);
+        return buffer.getInt();
+    }
+
     public static byte[] shortToBytes(short s, ByteOrder order) {
         ByteBuffer buffer = ByteBuffer.allocate(Short.BYTES);
         buffer.order(order);

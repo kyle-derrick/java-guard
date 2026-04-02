@@ -1,5 +1,7 @@
 package io.kyle.javaguard.bean;
 
+import org.objectweb.asm.tree.FieldNode;
+
 import java.util.List;
 
 /**
@@ -7,10 +9,10 @@ import java.util.List;
  * 2025/9/15 18:00
  */
 public class ClassRequiredInfos {
-    public final List<ClassRequireFieldInfo> fields;
-    public final List<ClassRequireFieldInfo> staticFields;
+    public final List<FieldNode> fields;
+    public final List<FieldNode> staticFields;
 
-    public ClassRequiredInfos(List<ClassRequireFieldInfo> fields, List<ClassRequireFieldInfo> staticFields) {
+    public ClassRequiredInfos(List<FieldNode> fields, List<FieldNode> staticFields) {
         this.fields = fields;
         this.staticFields = staticFields;
     }

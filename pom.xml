@@ -6,7 +6,7 @@
 
     <groupId>io.kyle.javaguard</groupId>
     <artifactId>java-guard</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
@@ -15,11 +15,28 @@
     </properties>
 
     <dependencies>
-        <!-- https://mvnrepository.com/artifact/org.javassist/javassist -->
+        <!-- https://mvnrepository.com/artifact/org.ow2.asm/asm -->
         <dependency>
-            <groupId>org.javassist</groupId>
-            <artifactId>javassist</artifactId>
-            <version>3.30.2-GA</version>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm</artifactId>
+            <version>9.7</version>
+        </dependency>
+        <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-tree</artifactId>
+            <version>9.7</version>
+        </dependency>
+        <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-commons</artifactId>
+            <version>9.7</version>
+        </dependency>
+        <!-- Source: https://mvnrepository.com/artifact/at.yawk.lz4/lz4-java -->
+        <dependency>
+            <groupId>at.yawk.lz4</groupId>
+            <artifactId>lz4-java</artifactId>
+            <version>1.10.4</version>
+            <scope>compile</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/commons-cli/commons-cli -->
         <dependency>

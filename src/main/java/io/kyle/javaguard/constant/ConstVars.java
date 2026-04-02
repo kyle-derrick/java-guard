@@ -27,10 +27,15 @@ public interface ConstVars {
      */
     byte[] ENCRYPT_CLASS_SUFFIX = {0, 74, 71, 67, 0};
 
+    byte BYTE_H_SIGN = (byte) (1 << 7);
+    byte BYTE_L_SIGN = ~BYTE_H_SIGN;
+
     @SuppressWarnings("unused")
     short ZERO_SHORT = 0;
 
     int ATTRIBUTE_DATA_OFFSET = 6;
+
+    int SIGN_LENGTH = 64;
 
     String STATIC_BLOCK_METHOD_NAME = "<clinit>";
     String CONSTRUCTOR_METHOD_NAME = "<init>";

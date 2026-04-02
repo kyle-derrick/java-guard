@@ -1,35 +1,34 @@
 package io.kyle.javaguard.transform;
 
-import io.kyle.javaguard.bean.ClassRequireFieldInfo;
-import io.kyle.javaguard.bean.ClassRequiredInfos;
-import io.kyle.javaguard.bean.ClassTransformInfo;
 import io.kyle.javaguard.bean.TransformInfo;
-import io.kyle.javaguard.constant.ClassAttribute;
 import io.kyle.javaguard.constant.ConstVars;
-import io.kyle.javaguard.constant.PrimitiveType;
 import io.kyle.javaguard.exception.TransformException;
-import io.kyle.javaguard.exception.TransformRuntimeException;
+import io.kyle.javaguard.support.asm.JGInfoAttribute;
 import io.kyle.javaguard.util.BytesUtils;
 import io.kyle.javaguard.util.ClassFileUtils;
-import javassist.Modifier;
-import javassist.bytecode.*;
-import javassist.bytecode.annotation.Annotation;
-import javassist.bytecode.annotation.AnnotationExt;
-import javassist.bytecode.annotation.MemberValue;
+import io.kyle.javaguard.util.ClassStubGenerator;
+import net.jpountz.lz4.LZ4Compressor;
+import net.jpountz.lz4.LZ4Factory;
+import net.jpountz.lz4.LZ4FastDecompressor;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.ArrayUtils;
 
-import java.io.*;
-import java.util.HashMap;
-import java.util.ListIterator;
-import java.util.Map;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.ArrayList;
 
 /**
  * @author kyle kyle_derrick@foxmail.com
  * 2024/9/30 14:17
  */
 public class ClassTransformer extends AbstractTransformer {
-    @SuppressWarnings("unused")
-    public static final int CLASS_ENCRYPT_FLAG = 1 << 15;
+    private final LZ4Factory lz4Factory = LZ4Factory.fastestJavaInstance();
+    private final LZ4Compressor lz4Compressor = lz4Factory.highCompressor();
+    private final LZ4FastDecompressor lz4Decompressor = lz4Factory.fastDecompressor();
+    private byte[] buffer = ArrayUtils.EMPTY_BYTE_ARRAY;
 
     public ClassTransformer(TransformInfo transformInfo) {
         super(transformInfo);
@@ -42,74 +41,33 @@ public class ClassTransformer extends AbstractTransformer {
 
     @Override
     public boolean encrypt(InputStream in, OutputStream out) throws TransformException {
-        ClassFile classFile;
+        byte[] oriBytes;
         try {
-            byte[] oriBytes = IOUtils.toByteArray(in);
-            int suffixStart = oriBytes.length - ConstVars.ENCRYPT_CLASS_SUFFIX.length;
-            if (suffixStart > 0 &&
-                    BytesUtils.equalsWith(oriBytes, suffixStart, ConstVars.ENCRYPT_CLASS_SUFFIX, 0, ConstVars.ENCRYPT_CLASS_SUFFIX.length)) {
+            oriBytes = IOUtils.toByteArray(in);
+            if (ClassFileUtils.isEncryptClass(oriBytes)) {
                 out.write(oriBytes);
-                return true;
-            }
-            classFile = new ClassFile(new DataInputStream(new ByteArrayInputStream(oriBytes)));
-            AttributeInfo existsSecretBox = classFile.getAttribute(SecretBoxAttribute.tag);
-            if (existsSecretBox != null) {
-                classFile.getAttributes().add(new JGExtAttribute(classFile.getConstPool()));
-                DataOutputStream stream = new DataOutputStream(out);
-                classFile.write(stream);
-                stream.flush();
                 return true;
             }
         } catch (IOException e) {
             throw new TransformException("analysis class byte failed", e);
         }
-        ConstPool constPool = classFile.getConstPool();
-        ClassTransformInfo classTransformInfo = new ClassTransformInfo(constPool);
-        Map<String, ClassRequireFieldInfo> fieldMap = new HashMap<>();
-        int staticCount = 0;
-        for (FieldInfo field : classFile.getFields()) {
-            classTransformInfo.addRetainConst(JavassistExt.fieldNameIndex(field));
-            classTransformInfo.addRetainConst(JavassistExt.fieldDescriptorIndex(field));
-            for (AttributeInfo attribute : field.getAttributes()) {
-                handleAttribute(attribute, classTransformInfo);
+        int maxLen = lz4Compressor.maxCompressedLength(oriBytes.length) + 4;
+        if (maxLen > buffer.length) {
+            buffer = new byte[maxLen];
+        }
+        ByteBuffer buffer = ByteBuffer.wrap(this.buffer);
+        buffer.order(ByteOrder.BIG_ENDIAN);
+        buffer.putInt(oriBytes.length);
+        int len = lz4Compressor.compress(oriBytes, 0, oriBytes.length, this.buffer, Integer.BYTES);
+        byte[] encrypt = transformInfo.getKeyInfo().encrypt(this.buffer, 0, len + Integer.BYTES);
+        byte[] bytes = ClassStubGenerator.generateStubClass(oriBytes, node -> {
+            if (node.attrs == null) {
+                node.attrs = new ArrayList<>();
             }
-            int accessFlags;
-            if (field.getConstantValue() == 0 && (AccessFlag.FINAL & (accessFlags = field.getAccessFlags())) != 0) {
-                boolean isStatic = Modifier.isStatic(accessFlags);
-                if (isStatic) {
-                    staticCount++;
-                }
-                fieldMap.put(field.getName() + ' ' + field.getDescriptor(), new ClassRequireFieldInfo(field.getName(), field.getDescriptor(), isStatic));
-            }
-        }
-
-        ClassRequiredInfos requiredInfos = ClassFileUtils.requiredInfos(classFile, fieldMap, staticCount);
-
-        for (MethodInfo method : classFile.getMethods()) {
-            handleMethod(classFile, method, classTransformInfo, requiredInfos);
-        }
-
-        // 疑似重复
-//        MethodInfo staticInitializer = classFile.getStaticInitializer();
-//        handleMethod(classFile, staticInitializer, classTransformInfo, requiredInfos);
-
-        for (AttributeInfo attribute : classFile.getAttributes()) {
-            handleAttribute(attribute, classTransformInfo);
-        }
-        JavassistExt.retainClassInfoConst(classTransformInfo.getConstPool(), classTransformInfo.getRetainConst());
-
-        byte[] bytes = ClassTransformUtils.toBytes(classTransformInfo);
+            node.attrs.add(new JGInfoAttribute(encrypt, 0, encrypt.length));
+        });
         try {
-            classFile.addAttribute(new SecretBoxAttribute(constPool, transformInfo.getKeyInfo().encrypt(bytes)));
-            classFile.getAttributes().add(new JGExtAttribute(constPool));
-        } catch (Exception e) {
-            throw new TransformException("class encrypt failed", e);
-        }
-
-        try {
-            DataOutputStream stream = new DataOutputStream(out);
-            classFile.write(stream);
-            stream.flush();
+            out.write(bytes);
         } catch (IOException e) {
             throw new TransformException("write class byte failed", e);
         }
@@ -118,238 +76,32 @@ public class ClassTransformer extends AbstractTransformer {
 
     @Override
     public boolean decrypt(InputStream in, OutputStream out) throws TransformException {
-        byte[] classByte;
+        byte[] bytes;
         try {
-            classByte = IOUtils.toByteArray(in);
-            byte[] bytes = ClassDecryption.decryptClass(classByte, data -> {
-                try {
-                    return transformInfo.getKeyInfo().decrypt(data);
-                } catch (Exception e) {
-                    throw new TransformRuntimeException("decrypt failed", e);
+            bytes = IOUtils.toByteArray(in);
+            if (ClassFileUtils.isEncryptClass(bytes)) {
+                int hasSignIndex = bytes.length - ConstVars.ENCRYPT_CLASS_SUFFIX.length;
+                boolean hasSign = bytes[hasSignIndex] != ConstVars.ENCRYPT_CLASS_SUFFIX[0];
+                int lenIndex = hasSignIndex - Integer.BYTES;
+                if (hasSign) {
+                    lenIndex -= ConstVars.SIGN_LENGTH;
                 }
-            });
-            out.write(bytes);
+                int dataLen = BytesUtils.bytesToInt(bytes, lenIndex);
+                int dataStart = lenIndex - dataLen;// encrypt 2555 compress 2523 ori 4473
+                bytes = transformInfo.getKeyInfo().decrypt(bytes, dataStart, lenIndex);
+
+                int decompressLen = BytesUtils.bytesToInt(bytes, 0);
+                if (decompressLen > buffer.length) {
+                    buffer = new byte[decompressLen];
+                }
+                lz4Decompressor.decompress(bytes, Integer.BYTES, buffer, 0, decompressLen);
+                out.write(buffer, 0, decompressLen);
+            } else {
+                out.write(bytes);
+            }
         } catch (IOException e) {
             throw new TransformException("decrypt class data failed", e);
         }
         return true;
-    }
-
-    protected void handleMethod(ClassFile classFile, MethodInfo method, ClassTransformInfo classTransformInfo,
-                                ClassRequiredInfos requiredInfos) {
-        if (method == null) {
-            return;
-        }
-        classTransformInfo.addRetainConst(JavassistExt.methodNameIndex(method));
-        classTransformInfo.addRetainConst(JavassistExt.methodDescriptorIndex(method));
-        ListIterator<AttributeInfo> iterator = method.getAttributes().listIterator();
-        while (iterator.hasNext()) {
-            AttributeInfo attribute = iterator.next();
-            AttributeInfo attributeInfo;
-            if (attribute instanceof CodeAttribute) {
-                attributeInfo = handleCodeAttribute(classFile, method, (CodeAttribute) attribute, classTransformInfo,
-                        method.getDescriptor(), requiredInfos);
-            } else {
-                attributeInfo = handleAttribute(attribute, classTransformInfo);
-            }
-            if (attributeInfo != attribute) {
-                iterator.set(attributeInfo);
-            }
-        }
-//        CodeAttribute codeAttribute = method.getCodeAttribute();
-//        if (codeAttribute != null) {
-//            method.setCodeAttribute(handleCodeAttribute(codeAttribute, classTransformInfo, method.getDescriptor()));
-//        }
-    }
-
-    protected CodeAttribute handleCodeAttribute(ClassFile classFile, MethodInfo method, CodeAttribute codeAttribute,
-                                                ClassTransformInfo classTransformInfo, String descriptor,
-                                                ClassRequiredInfos requiredInfos) {
-        if (codeAttribute == null) {
-            return null;
-        }
-        for (AttributeInfo codeAttributeAttribute : codeAttribute.getAttributes()) {
-            handleAttribute(codeAttributeAttribute, classTransformInfo);
-        }
-        if (ClassFileUtils.isEmptyCode(codeAttribute)) {
-            classTransformInfo.addCode(null);
-            return codeAttribute;
-        }
-
-        boolean notStatic = (method.getAccessFlags() & AccessFlag.STATIC) == 0;
-        int locals = Descriptor.numOfParameters(method.getDescriptor());
-        if (notStatic) {
-            locals++;
-        }
-
-        Bytecode bytecode = defaultCodeGenerate(classFile, method, codeAttribute, requiredInfos);
-        CodeAttribute newCodeAttribute = new CodeAttribute(codeAttribute.getConstPool(),
-                bytecode.getMaxStack(), locals, bytecode.get(), bytecode.getExceptionTable());
-//        newCodeAttribute.getAttributes().addAll(codeAttribute.getAttributes());
-        ClassFileUtils.codeInnerAttributeHandle(bytecode.length(), codeAttribute, newCodeAttribute, method.getConstPool());
-        // 暂不需要index了，解密时直接按序解密
-//        newCodeAttribute.getAttributes()
-//                .add(new CodeIndexAttribute(codeAttribute.getConstPool(), classTransformInfo.codesSize()));
-        classTransformInfo.addCode(codeAttribute);
-        return newCodeAttribute;
-    }
-
-    private Bytecode defaultCodeGenerate(ClassFile classFile, MethodInfo method, CodeAttribute codeAttribute,
-                                     ClassRequiredInfos requiredInfos) {
-        ConstPool constPool = method.getConstPool();
-        Bytecode newCodeBytes = new Bytecode(constPool);
-        switch (method.getName()) {
-            case ConstVars.CONSTRUCTOR_METHOD_NAME:
-                int constructorIndex = ClassFileUtils.constructorSuperInvokeMethodRef(classFile, constPool, codeAttribute);
-                if (constructorIndex == 0) {
-                    System.out.println("WARN: not found init instruction in constructor: " + classFile.getName() + ':' + method.getName());
-                } else {
-                    String desc = constPool.getMethodrefType(constructorIndex);
-                    PrimitiveType[] paramTypes = PrimitiveType.paramTypes(desc);
-                    newCodeBytes.addOpcode(Opcode.ALOAD_0);
-                    for (PrimitiveType parameterType : paramTypes) {
-                        if (parameterType.defaultValue != Opcode.NOP) {
-                            newCodeBytes.addOpcode(parameterType.defaultValue);
-                        }
-                    }
-                    newCodeBytes.addOpcode(Opcode.INVOKESPECIAL);
-                    newCodeBytes.addIndex(constructorIndex);
-                    ClassFileUtils.putCode(requiredInfos.fields, Opcode.PUTFIELD, newCodeBytes);
-                }
-                newCodeBytes.addOpcode(Opcode.RETURN);
-                break;
-            case ConstVars.STATIC_BLOCK_METHOD_NAME:
-                ClassFileUtils.putCode(requiredInfos.staticFields, Opcode.PUTSTATIC, newCodeBytes);
-                newCodeBytes.addOpcode(Opcode.RETURN);
-                break;
-            default:
-                PrimitiveType returnType = PrimitiveType.returnType(method.getDescriptor());
-                if (returnType.defaultValue != Opcode.NOP) {
-                    newCodeBytes.addOpcode(returnType.defaultValue);
-                }
-                newCodeBytes.addOpcode(returnType.returnOpcode);
-        }
-        return newCodeBytes;
-    }
-
-    protected AttributeInfo handleAttribute(AttributeInfo attributeInfo, ClassTransformInfo classTransformInfo) {
-        ClassAttribute classAttribute = ClassAttribute.of(attributeInfo.getName());
-        if (classAttribute == null) {
-            return attributeInfo;
-        }
-        classTransformInfo.addRetainConst(JavassistExt.attributeNameIndex(attributeInfo));
-        switch (classAttribute) {
-            case AnnotationDefault:
-                AnnotationDefaultAttribute annotationDefaultAttribute = (AnnotationDefaultAttribute) attributeInfo;
-                MemberValue defaultValue = annotationDefaultAttribute.getDefaultValue();
-                AnnotationExt.retainMembers(defaultValue, classTransformInfo);
-                break;
-            case RuntimeInvisibleAnnotations:
-            case RuntimeVisibleAnnotations:
-                AnnotationsAttribute attribute = (AnnotationsAttribute) attributeInfo;
-                for (Annotation annotation : attribute.getAnnotations()) {
-                    AnnotationExt.retainAnnotation(annotation, classTransformInfo);
-                }
-                break;
-            case BootstrapMethods:
-                BootstrapMethodsAttribute bootstrapMethodsAttribute = (BootstrapMethodsAttribute) attributeInfo;
-                for (BootstrapMethodsAttribute.BootstrapMethod method : bootstrapMethodsAttribute.getMethods()) {
-                    classTransformInfo.addRetainConst(method.methodRef);
-                    if (method.arguments == null) {
-                        continue;
-                    }
-                    for (int argument : method.arguments) {
-                        classTransformInfo.addRetainConst(argument);
-                    }
-                }
-                break;
-            case Code:
-                // codeAttribute ignore, please use handleCodeAttribute
-                return attributeInfo;
-            case EnclosingMethod:
-                EnclosingMethodAttribute enclosingMethodAttribute = (EnclosingMethodAttribute) attributeInfo;
-                classTransformInfo.addRetainConst(enclosingMethodAttribute.classIndex());
-                classTransformInfo.addRetainConst(enclosingMethodAttribute.methodIndex());
-                break;
-            case Exceptions:
-                ExceptionsAttribute exceptionsAttribute = (ExceptionsAttribute) attributeInfo;
-                int[] exceptionIndexes = exceptionsAttribute.getExceptionIndexes();
-                if (exceptionIndexes != null) {
-                    for (int exceptionIndex : exceptionIndexes) {
-                        classTransformInfo.addRetainConst(exceptionIndex);
-                    }
-                }
-                break;
-            case InnerClasses:
-                InnerClassesAttribute innerClassesAttribute = (InnerClassesAttribute) attributeInfo;
-                int icLen = innerClassesAttribute.tableLength();
-                for (int i = 0; i < icLen; i++) {
-                    classTransformInfo.addRetainConst(innerClassesAttribute.outerClassIndex(i));
-                    classTransformInfo.addRetainConst(innerClassesAttribute.innerClassIndex(i));
-                    classTransformInfo.addRetainConst(innerClassesAttribute.innerNameIndex(i));
-                }
-                break;
-            case LocalVariableTypeTable:
-            case LocalVariableTable:
-                LocalVariableAttribute localVariableAttribute = (LocalVariableAttribute) attributeInfo;
-                int lvLen = localVariableAttribute.tableLength();
-                for (int i = 0; i < lvLen; i++) {
-                    classTransformInfo.addRetainConst(localVariableAttribute.nameIndex(i));
-                    classTransformInfo.addRetainConst(localVariableAttribute.descriptorIndex(i));
-                }
-                break;
-            case MethodParameters:
-                MethodParametersAttribute methodParametersAttribute = (MethodParametersAttribute) attributeInfo;
-                int mpSize = methodParametersAttribute.size();
-                for (int i = 0; i < mpSize; i++) {
-                    classTransformInfo.addRetainConst(methodParametersAttribute.name(i));
-                }
-                break;
-            case NestHost:
-                NestHostAttribute nestHostAttribute = (NestHostAttribute) attributeInfo;
-                classTransformInfo.addRetainConst(nestHostAttribute.hostClassIndex());
-                break;
-            case NestMembers:
-                NestMembersAttribute nestMembersAttribute = (NestMembersAttribute) attributeInfo;
-                int nmLen = nestMembersAttribute.numberOfClasses();
-                for (int i = 0; i < nmLen; i++) {
-                    classTransformInfo.addRetainConst(nestMembersAttribute.memberClass(i));
-                }
-                break;
-            case Signature:
-                SignatureAttribute signatureAttribute = (SignatureAttribute) attributeInfo;
-                classTransformInfo.addRetainConst(JavassistExt.signatureAttributeIndex(signatureAttribute));
-                break;
-            case SourceFile:
-                SourceFileAttribute sourceFileAttribute = (SourceFileAttribute) attributeInfo;
-                classTransformInfo.addRetainConst(JavassistExt.sourceFileAttributeIndex(sourceFileAttribute));
-                break;
-            case ConstantValue:
-//                ConstantAttribute constantAttribute = (ConstantAttribute) attributeInfo;
-                break;
-            case Deprecated:
-//                DeprecatedAttribute deprecatedAttribute = (DeprecatedAttribute) attributeInfo;
-                break;
-            case LineNumberTable:
-//                LineNumberAttribute lineNumberAttribute = (LineNumberAttribute) attributeInfo;
-                // 没有常量池引用
-                break;
-            case StackMap:
-//                StackMap stackMap = (StackMap) attributeInfo;
-                break;
-            case StackMapTable:
-//                StackMapTable stackMapTable = (StackMapTable) attributeInfo;
-                break;
-            case Synthetic:
-//                SyntheticAttribute syntheticAttribute = (SyntheticAttribute) attributeInfo;
-                break;
-            case RuntimeVisibleTypeAnnotations:
-            case RuntimeInvisibleTypeAnnotations:
-//                TypeAnnotationsAttribute typeAnnotationsAttribute = (TypeAnnotationsAttribute) attributeInfo;
-                // 先不管
-                break;
-            default:
-        }
-        return attributeInfo;
     }
 }

@@ -11,6 +11,7 @@ import net.lingala.zip4j.io.inputstream.ZipInputStream;
 import net.lingala.zip4j.model.LocalFileHeader;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringSubstitutor;
 
 import java.io.*;
@@ -61,6 +62,12 @@ public class LauncherCodeGenerator {
                     }
                 } else {
                     FileUtils.copyToFile(zip, file);
+                    if (StringUtils.contains(fileName, "/tikv-jemalloc-sys/") &&
+                            StringUtils.endsWithAny(".sh", "/configure", "/config.guess", "/config.sub", "/install-sh")) {
+                        if (!file.setExecutable(true)) {
+                            System.err.println("WARN: set tikv jemalloc script executable failed: " + fileName);
+                        }
+                    }
                 }
             }
         } catch (Exception e) {

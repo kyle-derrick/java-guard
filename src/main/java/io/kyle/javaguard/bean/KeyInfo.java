@@ -48,8 +48,9 @@ public class KeyInfo {
         GcmCipherContext context = this.getCipher(true);
         byte[] nonce = context.getNonce();
         byte[] output = new byte[context.getOutputSize(end - off) + GcmCipherContext.IV_SIZE];
-        context.transform(plainText, off, end, output, GcmCipherContext.IV_SIZE);
-        System.arraycopy(nonce, off, output, 0, GcmCipherContext.IV_SIZE);
+        int enLen = context.transform(plainText, off, end, output, 0);
+        System.arraycopy(nonce, off, output, enLen, GcmCipherContext.IV_SIZE);
+        assert enLen + GcmCipherContext.IV_SIZE == output.length;
         return output;
     }
 
@@ -58,10 +59,11 @@ public class KeyInfo {
     }
 
     public byte[] decrypt(byte[] plainText, int off, int end) throws TransformException {
-        byte[] iv = Arrays.copyOfRange(plainText, off, off += GcmCipherContext.IV_SIZE);
+        int enDataEnd = end - GcmCipherContext.IV_SIZE;
+        byte[] iv = Arrays.copyOfRange(plainText, enDataEnd, end);
         GcmCipherContext context = this.getCipher(false, iv);
-        byte[] output = new byte[context.getOutputSize(end - off)];
-        context.transform(plainText, off, end, output, 0);
+        byte[] output = new byte[context.getOutputSize(enDataEnd - off)];
+        context.transform(plainText, off, enDataEnd, output, 0);
         return output;
     }
 }

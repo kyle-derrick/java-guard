@@ -5,6 +5,7 @@ import org.junit.Ignore;
 import java.io.IOException;
 import java.lang.annotation.*;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.function.Consumer;
 
 @Ignore
@@ -20,6 +21,7 @@ public class TestClass<@TestClass.MyTypeAnnotation("asd") T> implements Consumer
     @MyAnnotation(2)
     private int t2 = 3;
     private int t3;
+    private Map.Entry<String, String> testE;
 
     @MyAnnotation(12)
     public TestClass(int t2) {
@@ -27,6 +29,8 @@ public class TestClass<@TestClass.MyTypeAnnotation("asd") T> implements Consumer
     }
 
     public TestClass() {
+        Runnable runnable = () -> System.out.println();
+        runnable.run();
     }
 
     @MyAnnotation(value = 122, name = "asdasd")

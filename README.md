@@ -237,11 +237,11 @@ G --> H
 - **自动化 CI**：仅在 Ubuntu 上使用 JDK 8 执行 `mvn clean verify`，并对同一次构建生成的 CLI JAR 在 JDK 8、11、17、21 上运行 `--help`；不包含 Native launcher 编译、加密应用启动或 JDK/JRE 打包验证。
 - **手工端到端验证**：已在 Windows 和 Linux 完成 Native launcher 编译、加密应用实际启动以及 JDK/JRE 打包的完整流程验证。
 - **Spring Boot 手工验证**：默认可执行 JAR 已验证 Spring Boot 2.1.9、3.3.13，以及 3.4 系列中一个未记录确切补丁号的版本；不得据此推断全部 3.4.x 版本均已验证。
-- **尚未验证**：macOS 以及除上述 Windows/Linux 手工测试所用 CPU 架构之外的其他 CPU 架构尚未测试。
+- **尚未验证**：macOS 尚未完成手工验证。launcher 会按当前 Rust target 编译，使用时应确保 launcher 与被打包 JDK/JRE 的操作系统和 CPU 架构一致。
 
 ## 🚀 后续计划
-- **自动化现有验证**：将现有 Windows/Linux Native launcher 编译、加密应用实际启动、JDK/JRE 打包和 Spring Boot 手工验证纳入自动化测试。
-- **扩展平台与路径覆盖**：扩展到 macOS、更多 CPU 架构，以及代表性的 Spring Boot 可执行 JAR 布局、嵌套依赖和加密资源读取路径。
+- **自动化现有验证**：将现有 Windows/Linux Native launcher 编译、加密应用实际启动、JDK/JRE 打包和 Spring Boot 手工验证纳入自动化测试，并记录测试环境的 CPU 架构。
+- **扩展平台与路径覆盖**：补充 macOS，以及代表性的 Spring Boot 可执行 JAR 布局、嵌套依赖和加密资源读取路径测试。
 - **JRE 环境及 classpath 下 JAR 文件签名校验**：增强运行时安全校验机制
 - **反汇编检测与防护机制**：增加对代码反汇编行为的检测和防护能力
 

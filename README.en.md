@@ -238,11 +238,11 @@ G --> H
 - **Automated CI**: Only runs `mvn clean verify` with JDK 8 on Ubuntu and executes `--help` against the CLI JAR from that same build on JDK 8, 11, 17, and 21. It does not validate native launcher compilation, encrypted-application startup, or JDK/JRE packaging.
 - **Manual end-to-end validation**: The full native launcher compilation, encrypted-application startup, and JDK/JRE packaging flow has been validated on Windows and Linux.
 - **Manual Spring Boot validation**: Default executable JARs have been validated with Spring Boot 2.1.9, 3.3.13, and one 3.4-series version whose exact patch number was not recorded. This must not be interpreted as validation of all 3.4.x versions.
-- **Not tested**: macOS and CPU architectures other than those used for the preceding Windows/Linux manual tests have not been tested.
+- **Not tested**: macOS has not yet been manually validated. The launcher is compiled for the current Rust target, so it must match the operating system and CPU architecture of the packaged JDK/JRE.
 
 ## 🚀 Roadmap
-- **Automate existing validation**: Add automation for the existing Windows/Linux native launcher compilation, encrypted-application startup, JDK/JRE packaging, and Spring Boot manual validation.
-- **Expand platform and path coverage**: Extend testing to macOS, additional CPU architectures, and representative Spring Boot executable-JAR layouts, nested dependencies, and encrypted-resource loading paths.
+- **Automate existing validation**: Add automation for the existing Windows/Linux native launcher compilation, encrypted-application startup, JDK/JRE packaging, and Spring Boot manual validation, recording the CPU architecture of each test environment.
+- **Expand platform and path coverage**: Add macOS coverage and tests for representative Spring Boot executable-JAR layouts, nested dependencies, and encrypted-resource loading paths.
 - **JRE and classpath JAR signature verification**: Improve runtime integrity validation
 - **Anti-disassembly detection and protection**: Add detection and protection against disassembly attempts
 

@@ -22,6 +22,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -43,26 +44,30 @@ public class JgFileUtils {
     }
 
     public static void copyFile(File from, File to) throws TransformException {
-        if (from.exists()) {
-            try {
-                FileUtils.copyFile(from, to);
-            } catch (IOException e) {
-                throw new TransformException("拷贝文件失败: " + from.getPath() + " -> " + to.getPath(), e);
-            }
+        if (!from.exists()) {
+            throw new TransformException("拷贝文件失败，源文件不存在: " + from.getPath());
+        }
+        try {
+            FileUtils.copyFile(from, to);
+        } catch (IOException e) {
+            throw new TransformException("拷贝文件失败: " + from.getPath() + " -> " + to.getPath(), e);
         }
     }
 
     public static void copyFileToDirectory(File from, File to) throws TransformException {
-        if (from.exists()) {
-            try {
-                FileUtils.copyFileToDirectory(from, to);
-            } catch (IOException e) {
-                throw new TransformException("拷贝文件失败: " + from.getPath() + " -> " + to.getPath(), e);
-            }
+        if (!from.exists()) {
+            throw new TransformException("拷贝文件失败，源文件不存在: " + from.getPath());
+        }
+        try {
+            FileUtils.copyFileToDirectory(from, to);
+        } catch (IOException e) {
+            throw new TransformException("拷贝文件失败: " + from.getPath() + " -> " + to.getPath(), e);
         }
     }
 
-    private static ZipArchiveEntry zipJavaBinHandle(ZipArchiveEntry zipEntry, ZipArchiveOutputStream zipOut, File binFile, String binExtension) throws IOException {
+    private static ZipArchiveEntry zipJavaBinHandle(ZipArchiveEntry zipEntry, ZipArchiveOutputStream zipOut,
+                                                     File binFile, String binExtension,
+                                                     ReplacementTracker replacementTracker) throws IOException {
         String fullName = zipEntry.getName();
         String name = FilenameUtils.getName(fullName);
         String baseName = FilenameUtils.getBaseName(name);
@@ -97,39 +102,55 @@ public class JgFileUtils {
             }
 
             zipEntry = oriZipEntry;
+            replacementTracker.replaced = true;
         }
         return zipEntry;
     }
 
     public static void zipJava(File source, File target, File binFile) throws IOException {
         checkFile(source, target);
-        Path sourcePath = source.toPath();
-        PrintUtils printUtils = new PrintUtils();
-        String extension = FilenameUtils.getExtension(binFile.getName());
-        try (ZipArchiveInputStream zipIn = new ZipArchiveInputStream(Files.newInputStream(sourcePath));
-             ZipArchiveOutputStream zipOut = new ZipArchiveOutputStream(Files.newOutputStream(target.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE))) {
-            ZipArchiveEntry zipEntry;
-            while ((zipEntry = zipIn.getNextEntry()) != null) {
-                zipEntry = (ZipArchiveEntry) zipEntry.clone();
-                if (zipEntry.isDirectory()) {
-                    zipOut.putArchiveEntry(zipEntry);
-                    zipOut.closeArchiveEntry();
-                    printUtils.printInline("zip directory %s", zipEntry.getName());
-                } else {
-                    zipEntry = zipJavaBinHandle(zipEntry, zipOut, binFile, extension);
-                    zipOut.putArchiveEntry(zipEntry);
-                    IOUtils.copy(zipIn, zipOut);
-                    zipOut.closeArchiveEntry();
-                    printUtils.printInline("zip file %s", zipEntry.getName());
+        Path temporary = createSiblingTempFile(target.toPath());
+        boolean replaced = false;
+        try {
+            Path sourcePath = source.toPath();
+            PrintUtils printUtils = new PrintUtils();
+            String extension = FilenameUtils.getExtension(binFile.getName());
+            ReplacementTracker replacementTracker = new ReplacementTracker();
+            try (ZipArchiveInputStream zipIn = new ZipArchiveInputStream(Files.newInputStream(sourcePath));
+                 ZipArchiveOutputStream zipOut = new ZipArchiveOutputStream(Files.newOutputStream(temporary,
+                         StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE))) {
+                ZipArchiveEntry zipEntry;
+                while ((zipEntry = zipIn.getNextEntry()) != null) {
+                    zipEntry = (ZipArchiveEntry) zipEntry.clone();
+                    if (zipEntry.isDirectory()) {
+                        zipOut.putArchiveEntry(zipEntry);
+                        zipOut.closeArchiveEntry();
+                        printUtils.printInline("zip directory %s", zipEntry.getName());
+                    } else {
+                        zipEntry = zipJavaBinHandle(zipEntry, zipOut, binFile, extension, replacementTracker);
+                        zipOut.putArchiveEntry(zipEntry);
+                        IOUtils.copy(zipIn, zipOut);
+                        zipOut.closeArchiveEntry();
+                        printUtils.printInline("zip file %s", zipEntry.getName());
+                    }
                 }
+                zipOut.flush();
             }
-            zipOut.flush();
+            requireJavaReplacement(replacementTracker);
+            safeReplace(temporary, target.toPath());
+            replaced = true;
+            printUtils.over();
+            System.out.println("java zip file [" + target.getPath() + "] finished!");
+        } finally {
+            if (!replaced) {
+                Files.deleteIfExists(temporary);
+            }
         }
-        printUtils.over();
-        System.out.println("java zip file [" + target.getPath() + "] finished!");
     }
 
-    private static TarArchiveEntry tarGzJavaBinHandle(TarArchiveEntry tarEntry, TarArchiveOutputStream tarOut, File binFile, String binExtension) throws IOException {
+    private static TarArchiveEntry tarGzJavaBinHandle(TarArchiveEntry tarEntry, TarArchiveOutputStream tarOut,
+                                                      File binFile, String binExtension,
+                                                      ReplacementTracker replacementTracker) throws IOException {
         String fullName = tarEntry.getName();
         String name = FilenameUtils.getName(fullName);
         String baseName = FilenameUtils.getBaseName(name);
@@ -145,34 +166,47 @@ public class JgFileUtils {
 
             String oriName = parent + baseName + "_ori" + (StringUtils.isEmpty(binExtension) ? StringUtils.EMPTY : ("." + binExtension));
             tarEntry.setName(oriName);
+            replacementTracker.replaced = true;
         }
         return tarEntry;
     }
 
     public static void tarGzJava(File source, File target, File binFile) throws IOException {
         checkFile(source, target);
-        Path sourcePath = source.toPath();
-        PrintUtils printUtils = new PrintUtils();
-        String extension = FilenameUtils.getExtension(binFile.getName());
-        try (TarArchiveInputStream tarIn = new TarArchiveInputStream(new GzipCompressorInputStream(Files.newInputStream(sourcePath)));
-             TarArchiveOutputStream tarOut = new TarArchiveOutputStream(new GzipCompressorOutputStream(Files.newOutputStream(target.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE)))) {
-            tarOut.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
-            TarArchiveEntry tarEntry;
-            while ((tarEntry = tarIn.getNextEntry()) != null) {
-                if (tarEntry.isDirectory()) {
-                    tarOut.putArchiveEntry(tarEntry);
-                    tarOut.closeArchiveEntry();
-                    printUtils.printInline("tar directory %s", tarEntry.getName());
-                } else {
-                    tarOut.putArchiveEntry(tarGzJavaBinHandle(tarEntry, tarOut, binFile, extension));
-                    IOUtils.copy(tarIn, tarOut);
-                    tarOut.closeArchiveEntry();
-                    printUtils.printInline("tar file %s", tarEntry.getName());
+        Path temporary = createSiblingTempFile(target.toPath());
+        boolean replaced = false;
+        try {
+            Path sourcePath = source.toPath();
+            PrintUtils printUtils = new PrintUtils();
+            String extension = FilenameUtils.getExtension(binFile.getName());
+            ReplacementTracker replacementTracker = new ReplacementTracker();
+            try (TarArchiveInputStream tarIn = new TarArchiveInputStream(new GzipCompressorInputStream(Files.newInputStream(sourcePath)));
+                 TarArchiveOutputStream tarOut = new TarArchiveOutputStream(new GzipCompressorOutputStream(Files.newOutputStream(temporary,
+                         StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)))) {
+                tarOut.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
+                TarArchiveEntry tarEntry;
+                while ((tarEntry = tarIn.getNextEntry()) != null) {
+                    if (tarEntry.isDirectory()) {
+                        tarOut.putArchiveEntry(tarEntry);
+                        tarOut.closeArchiveEntry();
+                        printUtils.printInline("tar directory %s", tarEntry.getName());
+                    } else {
+                        tarOut.putArchiveEntry(tarGzJavaBinHandle(tarEntry, tarOut, binFile, extension, replacementTracker));
+                        IOUtils.copy(tarIn, tarOut);
+                        tarOut.closeArchiveEntry();
+                        printUtils.printInline("tar file %s", tarEntry.getName());
+                    }
                 }
             }
-
+            requireJavaReplacement(replacementTracker);
+            safeReplace(temporary, target.toPath());
+            replaced = true;
             printUtils.over();
             System.out.println("java tar file [" + target.getPath() + "] finished!");
+        } finally {
+            if (!replaced) {
+                Files.deleteIfExists(temporary);
+            }
         }
     }
 
@@ -181,16 +215,45 @@ public class JgFileUtils {
     }
 
     public static void zipJavaDirectory(File source, File target, File binFile) throws IOException {
-        zip(source, target, ((entry, out) ->
-                zipJavaBinHandle(entry, out, binFile, FilenameUtils.getExtension(binFile.getName()))
-        ));
+        checkFile(source, target);
+        Path temporary = createSiblingTempFile(target.toPath());
+        boolean replaced = false;
+        try {
+            ReplacementTracker replacementTracker = new ReplacementTracker();
+            zip(source, temporary.toFile(), ((entry, out) ->
+                    zipJavaBinHandle(entry, out, binFile, FilenameUtils.getExtension(binFile.getName()), replacementTracker)
+            ));
+            requireJavaReplacement(replacementTracker);
+            safeReplace(temporary, target.toPath());
+            replaced = true;
+        } finally {
+            if (!replaced) {
+                Files.deleteIfExists(temporary);
+            }
+        }
     }
 
     public static void zip(File source, File target, EntryHandler<ZipArchiveEntry, ZipArchiveOutputStream> entryHandler) throws IOException {
         checkFile(source, target);
+        Path temporary = createSiblingTempFile(target.toPath());
+        boolean replaced = false;
+        try {
+            writeZip(source, temporary.toFile(), entryHandler);
+            safeReplace(temporary, target.toPath());
+            replaced = true;
+        } finally {
+            if (!replaced) {
+                Files.deleteIfExists(temporary);
+            }
+        }
+    }
+
+    private static void writeZip(File source, File target,
+                                 EntryHandler<ZipArchiveEntry, ZipArchiveOutputStream> entryHandler) throws IOException {
         Path sourcePath = source.toPath();
         PrintUtils printUtils = new PrintUtils();
-        try (ZipArchiveOutputStream zipOut = new ZipArchiveOutputStream(Files.newOutputStream(target.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE));
+        try (ZipArchiveOutputStream zipOut = new ZipArchiveOutputStream(Files.newOutputStream(target.toPath(),
+                StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE));
              Stream<Path> filePaths = Files.walk(sourcePath)) {
             ZipParameters parameters = new ZipParameters();
             parameters.setCompressionLevel(CompressionLevel.NORMAL);
@@ -202,14 +265,15 @@ public class JgFileUtils {
             while (iterator.hasNext()) {
                 Path filePath = iterator.next();
                 Path relativePath = sourcePathParent.relativize(filePath);
+                String entryName = toArchiveName(relativePath);
 
                 if (Files.isDirectory(filePath)) {
-                    ZipArchiveEntry entry = new ZipArchiveEntry(filePath, relativePath.toString());
+                    ZipArchiveEntry entry = new ZipArchiveEntry(filePath, entryName);
                     zipOut.putArchiveEntry(entry);
                     zipOut.closeArchiveEntry();
                     printUtils.printInline("zip directory %s", filePath.toString());
                 } else if (Files.isRegularFile(filePath)) {
-                    ZipArchiveEntry entry = new ZipArchiveEntry(filePath, relativePath.toString());
+                    ZipArchiveEntry entry = new ZipArchiveEntry(filePath, entryName);
 
                     if (entryHandler != null) {
                         entry = entryHandler.handle(entry, zipOut);
@@ -235,16 +299,45 @@ public class JgFileUtils {
     }
 
     public static void tarGzJavaDirectory(File source, File target, File binFile) throws IOException {
-        tarGz(source, target, ((entry, out) ->
-            tarGzJavaBinHandle(entry, out, binFile, FilenameUtils.getExtension(binFile.getName()))
-        ));
+        checkFile(source, target);
+        Path temporary = createSiblingTempFile(target.toPath());
+        boolean replaced = false;
+        try {
+            ReplacementTracker replacementTracker = new ReplacementTracker();
+            tarGz(source, temporary.toFile(), ((entry, out) ->
+                tarGzJavaBinHandle(entry, out, binFile, FilenameUtils.getExtension(binFile.getName()), replacementTracker)
+            ));
+            requireJavaReplacement(replacementTracker);
+            safeReplace(temporary, target.toPath());
+            replaced = true;
+        } finally {
+            if (!replaced) {
+                Files.deleteIfExists(temporary);
+            }
+        }
     }
 
     public static void tarGz(File source, File target, EntryHandler<TarArchiveEntry, TarArchiveOutputStream> entryHandler) throws IOException {
         checkFile(source, target);
+        Path temporary = createSiblingTempFile(target.toPath());
+        boolean replaced = false;
+        try {
+            writeTarGz(source, temporary.toFile(), entryHandler);
+            safeReplace(temporary, target.toPath());
+            replaced = true;
+        } finally {
+            if (!replaced) {
+                Files.deleteIfExists(temporary);
+            }
+        }
+    }
+
+    private static void writeTarGz(File source, File target,
+                                   EntryHandler<TarArchiveEntry, TarArchiveOutputStream> entryHandler) throws IOException {
         Path sourcePath = source.toPath();
         PrintUtils printUtils = new PrintUtils();
-        try (TarArchiveOutputStream tarOut = new TarArchiveOutputStream(new GzipCompressorOutputStream(Files.newOutputStream(target.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE)));
+        try (TarArchiveOutputStream tarOut = new TarArchiveOutputStream(new GzipCompressorOutputStream(Files.newOutputStream(target.toPath(),
+                     StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)));
              Stream<Path> filePaths = Files.walk(sourcePath)) {
             tarOut.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
             Path sourcePathParent = sourcePath.getParent();
@@ -252,21 +345,23 @@ public class JgFileUtils {
             while (iterator.hasNext()) {
                 Path filePath = iterator.next();
                 Path relativePath = sourcePathParent.relativize(filePath);
+                String entryName = toArchiveName(relativePath);
 
                 if (Files.isSymbolicLink(filePath)) {
-                    TarArchiveEntry linkEntry = new TarArchiveEntry(relativePath.toString(), true);
+                    TarArchiveEntry linkEntry = new TarArchiveEntry(entryName, true);
                     Path linkTarget = Files.readSymbolicLink(filePath);
-                    linkEntry.setLinkName(linkTarget.toString());
+                    linkEntry.setLinkName(toArchiveName(linkTarget));
                     linkEntry.setMode(0777);
                     tarOut.putArchiveEntry(linkEntry);
                     tarOut.closeArchiveEntry();
                     printUtils.printInline("create link: %s", filePath.toString());
                 } else if (Files.isDirectory(filePath)) {
-                    TarArchiveEntry entry = new TarArchiveEntry(filePath, relativePath.toString());
+                    TarArchiveEntry entry = new TarArchiveEntry(filePath, entryName);
                     tarOut.putArchiveEntry(entry);
+                    tarOut.closeArchiveEntry();
                     printUtils.printInline("tar dir add: %s", filePath.toString());
                 } else if (Files.isRegularFile(filePath)) {
-                    TarArchiveEntry entry = new TarArchiveEntry(filePath, relativePath.toString());
+                    TarArchiveEntry entry = new TarArchiveEntry(filePath, entryName);
                     int mode;
                     if (Files.isExecutable(filePath)) {
                         mode = 0755;
@@ -295,9 +390,94 @@ public class JgFileUtils {
         if (!source.exists()) {
             throw new FileNotFoundException(source.getPath());
         }
-        if (target.exists()) {
-            FileUtils.forceDelete(target);
+        if (target.exists() && target.isDirectory()) {
+            throw new IOException("Target is a directory: " + target.getPath());
         }
+    }
+
+    private static String toArchiveName(Path path) {
+        return path.toString().replace(File.separatorChar, '/');
+    }
+
+    private static Path createSiblingTempFile(Path target) throws IOException {
+        Path absoluteTarget = target.toAbsolutePath();
+        Path parent = absoluteTarget.getParent();
+        if (parent == null) {
+            parent = new File(".").toPath().toAbsolutePath();
+        }
+        Files.createDirectories(parent);
+        String fileName = absoluteTarget.getFileName().toString();
+        String prefix = fileName.length() >= 3 ? fileName : "jg-" + fileName;
+        return Files.createTempFile(parent, "." + prefix + "-", ".tmp");
+    }
+
+    public static void safeReplace(Path source, Path destination) throws IOException {
+        safeReplace(source, destination, Files::move);
+    }
+
+    static void safeReplace(Path source, Path destination, FileMover mover) throws IOException {
+        try {
+            mover.move(source, destination, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            return;
+        } catch (AtomicMoveNotSupportedException ignored) {
+            // Fall through to a rollback-capable non-atomic replacement.
+        }
+
+        Path backup = null;
+        boolean destinationBackedUp = false;
+        try {
+            if (Files.exists(destination)) {
+                backup = createSiblingTempFile(destination);
+                Files.delete(backup);
+                mover.move(destination, backup);
+                destinationBackedUp = true;
+            }
+            try {
+                mover.move(source, destination);
+            } catch (IOException replacementFailure) {
+                if (destinationBackedUp) {
+                    try {
+                        Files.deleteIfExists(destination);
+                        mover.move(backup, destination);
+                        destinationBackedUp = false;
+                    } catch (IOException rollbackFailure) {
+                        replacementFailure.addSuppressed(rollbackFailure);
+                    }
+                }
+                throw replacementFailure;
+            }
+            destinationBackedUp = false;
+            if (backup != null) {
+                try {
+                    Files.deleteIfExists(backup);
+                } catch (IOException cleanupFailure) {
+                    backup.toFile().deleteOnExit();
+                }
+            }
+        } finally {
+            if (!destinationBackedUp && backup != null) {
+                try {
+                    Files.deleteIfExists(backup);
+                } catch (IOException cleanupFailure) {
+                    backup.toFile().deleteOnExit();
+                }
+            }
+        }
+    }
+
+    @FunctionalInterface
+    interface FileMover {
+        Path move(Path source, Path destination, java.nio.file.CopyOption... options) throws IOException;
+    }
+
+    private static void requireJavaReplacement(ReplacementTracker replacementTracker) throws IOException {
+        if (!replacementTracker.replaced) {
+            throw new IOException("Java package does not contain a matching bin/java launcher");
+        }
+    }
+
+    private static final class ReplacementTracker {
+        private boolean replaced;
     }
 
     @FunctionalInterface

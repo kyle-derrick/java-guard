@@ -3,7 +3,7 @@
 [![CI](https://github.com/kyle-derrick/java-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/kyle-derrick/java-guard/actions/workflows/ci.yml)
 [![Release](https://github.com/kyle-derrick/java-guard/actions/workflows/release.yml/badge.svg)](https://github.com/kyle-derrick/java-guard/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Java](https://img.shields.io/badge/Java-8--21-orange)](https://java.com)
+[![Java](https://img.shields.io/badge/bytecode-Java%208-orange)](https://java.com)
 [![Rust](https://img.shields.io/badge/Rust-stable-red)](https://rust-lang.org)
 
 ---
@@ -13,7 +13,7 @@
 
 > Java 字节码保护解决方案，提供 JAR 包加密与运行时动态解密能力，有效增加反编译和代码窃取的难度。
 >
-> 支持 Spring、Spring Boot 等需要进行字节码操作或解析的框架和场景。
+> 可用于 Spring/Spring Boot 应用，但兼容性取决于具体框架版本、打包方式和资源加载路径；当前尚无完整版本矩阵保证。
 >
 > 降低传统 Java 代理（`-javaagent`）和本机代理（`-agentlib`）方案中解密方法暴露的风险。
 
@@ -26,20 +26,20 @@
 - **签名校验**：集成 ED25519 签名验证确保代码完整性。
 - **零侵入集成**：无需修改业务代码，透明化保护流程。
 - **JVM 集成**：直接调用 JVM 启动应用，而非通过子进程调用 Java。
-- **JDK 8–21 支持**：支持处理和运行 JDK 8 至 JDK 21 应用。
+- **Java 8 字节码目标**：项目以 Java 8 为编译目标；CI 使用 JDK 8 构建，并仅对生成的 CLI JAR 在 JDK 8、11、17、21 上执行 `--help` 冒烟测试。完整 launcher/应用运行矩阵尚未验证。
 - **Java 环境打包**：生成启动器时，可将其写入指定 JDK/JRE 并生成平台压缩包。
 
 ## 📥 获取发行包
 
-可从 [GitHub Releases](https://github.com/kyle-derrick/java-guard/releases) 下载已打包的可执行 fat JAR 及 SHA-256 校验文件。发行包已经内嵌 `jg-launcher` 源码，无需 Maven 即可执行 Java Guard；生成 Native 启动器时仍需要 Rust/Cargo 和本机编译工具链。
+可从 [GitHub Releases](https://github.com/kyle-derrick/java-guard/releases) 下载已打包的可执行 fat JAR、SHA-256 校验文件及两个范围明确的 CycloneDX JSON SBOM：`java-guard-maven-sbom.json` 描述 Maven/Java 组件，`jg-launcher-cargo-sbom.json` 则根据 `jg-launcher/Cargo.toml` 和 `jg-launcher/Cargo.lock` 单独描述 Rust launcher；任一 SBOM 都不能单独代表两个组件。发行包已经内嵌 `jg-launcher` 源码，无需 Maven 即可执行 Java Guard；生成 Native 启动器时仍需要 Rust/Cargo 和本机编译工具链。
 
 ## 🚀 快速开始
 
 若使用已发布的 JAR，可忽略 Maven 要求并直接跳至 [3. 加密 JAR 并生成 launcher](#3-加密-jar-并生成-launcher)。
 
 ### 环境要求
-- JDK 8–21
-- Maven 3.0+（仅源码构建 Java Guard 时需要）
+- JDK 8（源码构建基线）；生成的 CLI JAR 仅在 JDK 8、11、17、21 上进行基础冒烟测试
+- Maven 3.6.3+（仅源码构建 Java Guard 时需要）
 - 当前 stable Rust/Cargo（仅使用 `-l` 编译 Native 启动器时需要）
 - 对应平台的本机 C 编译工具链
 
@@ -199,9 +199,9 @@ java -jar java-guard-0.4.0.jar \
 
 - 一个最终应用中的多个加密依赖应使用同一 AES 密钥，并由使用该密钥生成的应用专用 launcher 运行。
 - 普通 `java -jar`、IDE 直接运行或构建期间执行加密依赖，只会得到 stub 方法的默认行为；真实实现必须通过匹配的 launcher 加载。
-- Spring Boot 推荐将加密依赖原样保留在 `BOOT-INF/lib`。Shade 重定位、最小化、插桩或其他字节码重写可能丢失加密载荷或改变类名，不保证可用。
+- Spring Boot 场景建议将加密依赖原样保留在 `BOOT-INF/lib`，但当前并未宣称对所有 Spring Boot 版本或打包布局兼容。Shade 重定位、最小化、插桩或其他字节码重写可能丢失加密载荷或改变类名，不保证可用。
 - 外层 JAR 的 `signature` 必须是最后一个打包步骤；签名后修改 manifest、嵌套依赖或其他内容都会导致校验失败。
-- 加密资源是否能被 Spring Boot 或自定义 ClassLoader 透明读取，取决于具体的 URL/URLConnection 实现，应针对目标框架版本验证。
+- 加密资源能否被 Spring Boot 或自定义 ClassLoader 透明读取，取决于具体的 URL/URLConnection 实现；在自动化资源测试矩阵完成前，应针对目标框架版本和打包布局验证。
 - 不应向开发者分发 AES 密钥、ED25519 私钥、供应方配置文件或生成目录中的 `jg-launcher-source`。
 
 ### 安全边界
@@ -232,6 +232,8 @@ G --> H
 | JDK/JRE 打包 | 把应用专用 launcher 写入 Java 环境并生成平台压缩包 |
 
 ## 🚀 后续计划
+- **完整跨平台 launcher/JDK 矩阵**：在 Windows、Linux、macOS 及支持的 CPU 架构上，覆盖 launcher 编译、JDK/JRE 打包和实际应用启动，并据测试结果明确支持的 JDK 范围
+- **Spring Boot 资源测试**：覆盖代表性的 Spring Boot 版本、可执行 JAR 布局、嵌套依赖及加密资源读取路径
 - **JRE 环境及 classpath 下 JAR 文件签名校验**：增强运行时安全校验机制
 - **反汇编检测与防护机制**：增加对代码反汇编行为的检测和防护能力
 

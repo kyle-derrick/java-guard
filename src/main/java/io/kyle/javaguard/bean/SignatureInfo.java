@@ -13,6 +13,7 @@ import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters;
 import org.bouncycastle.crypto.signers.Ed25519Signer;
 import org.bouncycastle.crypto.util.OpenSSHPrivateKeyUtil;
 import org.bouncycastle.crypto.util.OpenSSHPublicKeyUtil;
+import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
 
 import java.io.File;
@@ -20,8 +21,9 @@ import java.io.FileReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.security.*;
-import java.security.spec.*;
+import java.security.InvalidKeyException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * @author kyle kyle_derrick@foxmail.com
@@ -32,7 +34,7 @@ public class SignatureInfo {
     private Ed25519PublicKeyParameters publicKey;
     private Signer signature;
 
-    public Signer getSignSignature() throws InvalidKeyException, InvalidKeySpecException, NoSuchAlgorithmException {
+    public Signer getSignSignature() throws InvalidKeyException, NoSuchAlgorithmException {
         if (signature == null) {
             signature = newSignSigner();
         }
@@ -40,70 +42,74 @@ public class SignatureInfo {
     }
 
     public static SignatureInfo fromConfig(AppConfig config) {
+        String privateKeyPath = configuredPath(config.getPrivateKey(), ConstVars.DEFAULT_PRIVATE_KEY);
+        if (privateKeyPath == null) {
+            throw new IllegalArgumentException("signing requires an Ed25519 private key");
+        }
+
         SignatureInfo signatureInfo = new SignatureInfo();
-        String privateKeyPath = config.getPrivateKey();
-        // todo 只有私钥或者没有指定时，生成
-        if (StringUtils.isBlank(privateKeyPath)) {
-            if (Files.exists(Paths.get(ConstVars.DEFAULT_PRIVATE_KEY))) {
-                privateKeyPath = ConstVars.DEFAULT_PRIVATE_KEY;
-            } else {
-                privateKeyPath = null;
-            }
-        }
-        if (privateKeyPath != null) {
-            try (PemReader privateKeyReader = new PemReader(new FileReader(privateKeyPath))) {
-                AsymmetricKeyParameter keyParameter = OpenSSHPrivateKeyUtil.parsePrivateKeyBlob(privateKeyReader.readPemObject().getContent());
-                if (!(keyParameter instanceof Ed25519PrivateKeyParameters)) {
-                    throw new Error("the private key is not Ed25519 private key!");
-                }
-                signatureInfo.setPrivateKey((Ed25519PrivateKeyParameters) keyParameter);
-            } catch (Exception e) {
-                System.err.println("Failed to read private key: [" + privateKeyPath + "]: " + e.getMessage());
-            }
-        }
-        String publicKeyPath = config.getPublicKey();
-        // todo 只有私钥或者没有指定时，生成
-        if (StringUtils.isBlank(publicKeyPath)) {
-            if (Files.exists(Paths.get(ConstVars.DEFAULT_PUBLIC_KEY))) {
-                publicKeyPath = ConstVars.DEFAULT_PUBLIC_KEY;
-            } else {
-                publicKeyPath = null;
-            }
-        }
+        signatureInfo.setPrivateKey(readPrivateKey(privateKeyPath));
+        Ed25519PublicKeyParameters derivedPublicKey = signatureInfo.privateKey.generatePublicKey();
+
+        String publicKeyPath = StringUtils.isBlank(config.getPublicKey()) ? null : config.getPublicKey();
         if (publicKeyPath != null) {
-            try {
-                String content = FileUtils.readFileToString(new File(publicKeyPath), StandardCharsets.UTF_8);
-                String[] split = content.split(StringUtils.SPACE);
-                if (split.length > 2) {
-                    AsymmetricKeyParameter keyParameter = OpenSSHPublicKeyUtil.parsePublicKey(Base64.decodeBase64(split[1]));
-                    if (!(keyParameter instanceof Ed25519PublicKeyParameters)) {
-                        throw new Error("the public key is not Ed25519 public key!");
-                    }
-
-//                    X509EncodedKeySpec keySpec = new X509EncodedKeySpec(Base64.decodeBase64(split[1]));
-//                    PublicKey publicKey = KeyFactory.getInstance(ConstVars.SIGN_ALGORITHM).generatePublic(keySpec);
-                    signatureInfo.setPublicKey((Ed25519PublicKeyParameters) keyParameter);
-                } else {
-                    System.out.println("WARN: public key parse failed: " + content);
-                }
-            } catch (Exception e) {
-                System.err.println("Failed to read public key: [" + publicKeyPath + "]: " + e.getMessage());
+            Ed25519PublicKeyParameters configuredPublicKey = readPublicKey(publicKeyPath);
+            if (!MessageDigest.isEqual(derivedPublicKey.getEncoded(), configuredPublicKey.getEncoded())) {
+                throw new IllegalArgumentException("public key does not match the configured private key: " + publicKeyPath);
             }
         }
-
-        if (signatureInfo.publicKey == null && signatureInfo.privateKey == null) {
-            return null;
-        }
-        if (signatureInfo.publicKey == null) {
-            try {
-//                PublicKey publicKey = KeyFactory.getInstance(ConstVars.SIGN_ALGORITHM)
-//                        .generatePublic(new PKCS8EncodedKeySpec(signatureInfo.privateKey.getEncoded()));
-                signatureInfo.setPublicKey(signatureInfo.privateKey.generatePublicKey());
-            } catch (Exception e) {
-                throw new Error("cannot generate public key from private key!", e);
-            }
-        }
+        signatureInfo.setPublicKey(derivedPublicKey);
         return signatureInfo;
+    }
+
+    private static String configuredPath(String configuredPath, String defaultPath) {
+        if (StringUtils.isNotBlank(configuredPath)) {
+            return configuredPath;
+        }
+        return Files.isRegularFile(Paths.get(defaultPath)) ? defaultPath : null;
+    }
+
+    private static Ed25519PrivateKeyParameters readPrivateKey(String path) {
+        try (PemReader reader = new PemReader(new FileReader(path))) {
+            PemObject pemObject = reader.readPemObject();
+            if (pemObject == null) {
+                throw new IllegalArgumentException("private key PEM is empty");
+            }
+            AsymmetricKeyParameter key = OpenSSHPrivateKeyUtil.parsePrivateKeyBlob(pemObject.getContent());
+            if (!(key instanceof Ed25519PrivateKeyParameters)) {
+                throw new IllegalArgumentException("private key is not an Ed25519 private key");
+            }
+            return (Ed25519PrivateKeyParameters) key;
+        } catch (Exception e) {
+            if (e instanceof IllegalArgumentException) {
+                throw (IllegalArgumentException) e;
+            }
+            throw new IllegalArgumentException("failed to read private key [" + path + "]", e);
+        }
+    }
+
+    private static Ed25519PublicKeyParameters readPublicKey(String path) {
+        try {
+            String content = FileUtils.readFileToString(new File(path), StandardCharsets.UTF_8).trim();
+            String[] fields = content.split("\\s+");
+            if (fields.length < 2 || !"ssh-ed25519".equals(fields[0])) {
+                throw new IllegalArgumentException("public key is not in OpenSSH Ed25519 format");
+            }
+            byte[] encoded = Base64.decodeBase64(fields[1]);
+            if (encoded.length == 0 || !Base64.isBase64(fields[1])) {
+                throw new IllegalArgumentException("public key contains invalid base64");
+            }
+            AsymmetricKeyParameter key = OpenSSHPublicKeyUtil.parsePublicKey(encoded);
+            if (!(key instanceof Ed25519PublicKeyParameters)) {
+                throw new IllegalArgumentException("public key is not an Ed25519 public key");
+            }
+            return (Ed25519PublicKeyParameters) key;
+        } catch (Exception e) {
+            if (e instanceof IllegalArgumentException) {
+                throw (IllegalArgumentException) e;
+            }
+            throw new IllegalArgumentException("failed to read public key [" + path + "]", e);
+        }
     }
 
     public String getKeyHash() {
@@ -115,20 +121,20 @@ public class SignatureInfo {
     }
 
     public Signer newSignSigner() throws InvalidKeyException, NoSuchAlgorithmException {
-        Ed25519PrivateKeyParameters privateKey = getPrivateKey();
+        if (privateKey == null) {
+            throw new InvalidKeyException("signing requires an Ed25519 private key");
+        }
         Ed25519Signer signer = new Ed25519Signer();
         signer.init(true, privateKey);
-//        Signature signature = Signature.getInstance(ConstVars.SIGN_ALGORITHM);
-//        signature.initSign(privateKey);
         return signer;
     }
 
     public Signer newVerifySigner() throws InvalidKeyException, NoSuchAlgorithmException {
-        Ed25519PublicKeyParameters publicKey = getPublicKey();
+        if (publicKey == null) {
+            throw new InvalidKeyException("verification requires an Ed25519 public key");
+        }
         Ed25519Signer signer = new Ed25519Signer();
         signer.init(false, publicKey);
-//        Signature signature = Signature.getInstance(ConstVars.SIGN_ALGORITHM);
-//        signature.initVerify(publicKey);
         return signer;
     }
 
@@ -138,6 +144,7 @@ public class SignatureInfo {
 
     public void setPrivateKey(Ed25519PrivateKeyParameters privateKey) {
         this.privateKey = privateKey;
+        this.signature = null;
     }
 
     public Ed25519PublicKeyParameters getPublicKey() {

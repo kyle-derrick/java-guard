@@ -146,6 +146,11 @@ fabric.properties
 # Android studio 3.1+ serialized cache file
 .idea/caches/build_file_checksums.ser
 
+# Workspace-local and sensitive files
+/.idea/
+/.zcode/
+/key/
+
 ### Gradle template
 .gradle
 **/build/

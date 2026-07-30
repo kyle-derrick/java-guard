@@ -42,8 +42,17 @@ public final class InternalResourceDecryptInputStream extends FilterInputStream 
             if (read == -1) {
                 break;
             }
-            totalRead += read;
-            needRead -= read;
+            if (read == 0) {
+                int value = in.read();
+                if (value == -1) {
+                    break;
+                }
+                buffer[totalRead++] = (byte) value;
+                needRead--;
+            } else {
+                totalRead += read;
+                needRead -= read;
+            }
         } while (needRead > 0);
 
         if (totalRead > 0) {
@@ -70,6 +79,9 @@ public final class InternalResourceDecryptInputStream extends FilterInputStream 
 
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
+        if (len == 0) {
+            return 0;
+        }
         if (checkEofAndLoadNextChunk()) {
             return -1;
         }
@@ -91,7 +103,7 @@ public final class InternalResourceDecryptInputStream extends FilterInputStream 
 
     @Override
     public long skip(long n) throws IOException {
-        if (checkEofAndLoadNextChunk()) {
+        if (n <= 0 || checkEofAndLoadNextChunk()) {
             return 0;
         }
         long remaining = n;
@@ -99,7 +111,7 @@ public final class InternalResourceDecryptInputStream extends FilterInputStream 
         do {
             int bufferRemaining = end - curr;
             if (remaining <= bufferRemaining) {
-                curr += bufferRemaining;
+                curr += (int) remaining;
                 return n;
             }
             remaining -= bufferRemaining;

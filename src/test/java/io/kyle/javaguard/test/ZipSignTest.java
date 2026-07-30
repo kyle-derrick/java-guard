@@ -1,60 +1,122 @@
 package io.kyle.javaguard.test;
 
-import io.kyle.javaguard.bean.AppConfig;
 import io.kyle.javaguard.bean.SignatureInfo;
 import io.kyle.javaguard.util.ZipSignUtils;
-import org.apache.commons.io.FileUtils;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.junit.Ignore;
+import net.lingala.zip4j.ZipFile;
+import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters;
+import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
-import java.security.Security;
+import java.io.FileOutputStream;
+import java.io.RandomAccessFile;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
-/**
- * @author kyle kyle_derrick@foxmail.com
- * 2024/10/29 15:26
- */
-@Ignore
 public class ZipSignTest {
-    private static final String zipPath = "out/sign/antlr-4.13.2-complete.jar";
-    private static final String zipSignPath = "out/sign/antlr-4.13.2-complete.sign.jar";
-    static {
-        Security.addProvider(new BouncyCastleProvider());
-    }
+    @Rule
+    public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+
     @Test
-    public void testSign() throws Exception {
-        File zipFile = new File(zipPath);
-        File zipSignFile = new File(zipSignPath);
-        if (zipSignFile.exists()) {
-            FileUtils.forceDelete(zipSignFile);
-        }
-        FileUtils.copyFile(zipFile, zipSignFile);
-        AppConfig appConfig = new AppConfig();
-        appConfig.setPrivateKey("out\\id_ed25519");
-        appConfig.setPublicKey("out\\id_ed25519.pub");
-        SignatureInfo signatureInfo = SignatureInfo.fromConfig(appConfig);
-        if (signatureInfo == null) {
-            return;
-        }
+    public void signsAndVerifiesZipWithoutExistingComment() throws Exception {
+        File zip = createZip(null);
+        SignatureInfo keys = newKeys();
 
-        ZipSignUtils.sign(zipSignFile, signatureInfo.getSignSignature());
+        ZipSignUtils.sign(zip, keys.newSignSigner());
 
-        ZipSignUtils.verify(zipSignFile, signatureInfo.newVerifySigner());
+        Assert.assertTrue(ZipSignUtils.verify(zip, keys.newVerifySigner()));
     }
 
     @Test
-    public void verify() throws Exception {
-        String path = "out/tmp/antlr-4.13.2-complete.jar";
-        File zipSignFile = new File(path);
-        AppConfig appConfig = new AppConfig();
-        appConfig.setPrivateKey("out\\id_ed25519");
-        appConfig.setPublicKey("out\\id_ed25519.pub");
-        SignatureInfo signatureInfo = SignatureInfo.fromConfig(appConfig);
-        if (signatureInfo == null) {
-            return;
+    public void signsAndVerifiesZipWhilePreservingExistingComment() throws Exception {
+        String originalComment = "existing portable comment";
+        File zip = createZip(originalComment);
+        SignatureInfo keys = newKeys();
+
+        ZipSignUtils.sign(zip, keys.newSignSigner());
+
+        Assert.assertTrue(ZipSignUtils.verify(zip, keys.newVerifySigner()));
+        Assert.assertTrue(new ZipFile(zip).getComment().startsWith(originalComment));
+    }
+
+    @Test
+    public void repeatedSigningReplacesSignatureAndPreservesOriginalComment() throws Exception {
+        String originalComment = "original comment";
+        File zip = createZip(originalComment);
+        SignatureInfo keys = newKeys();
+
+        ZipSignUtils.sign(zip, keys.newSignSigner());
+        String firstSignedComment = new ZipFile(zip).getComment();
+        ZipSignUtils.sign(zip, keys.newSignSigner());
+        String secondSignedComment = new ZipFile(zip).getComment();
+
+        Assert.assertTrue(ZipSignUtils.verify(zip, keys.newVerifySigner()));
+        Assert.assertTrue(secondSignedComment.startsWith(originalComment));
+        Assert.assertEquals(firstSignedComment.length(), secondSignedComment.length());
+    }
+
+    @Test
+    public void rejectsMalformedSignatureSuffixWithoutReadingBeforeComment() throws Exception {
+        File zip = createZip("ordinary-comment-not-a-signatureffff");
+        SignatureInfo keys = newKeys();
+
+        try {
+            ZipSignUtils.verify(zip, keys.newVerifySigner());
+            Assert.fail("expected missing signature failure");
+        } catch (io.kyle.javaguard.exception.TransformException expected) {
+            Assert.assertTrue(expected.getMessage().contains("not found signer"));
+        }
+    }
+
+    @Test
+    public void signingTreatsMalformedSuffixAsOriginalComment() throws Exception {
+        String originalComment = "ordinary-comment-not-a-signatureffff";
+        File zip = createZip(originalComment);
+        SignatureInfo keys = newKeys();
+
+        ZipSignUtils.sign(zip, keys.newSignSigner());
+
+        Assert.assertTrue(ZipSignUtils.verify(zip, keys.newVerifySigner()));
+        Assert.assertTrue(new ZipFile(zip).getComment().startsWith(originalComment));
+    }
+
+    @Test
+    public void verificationFailsAfterSignedContentIsTampered() throws Exception {
+        File zip = createZip("comment");
+        SignatureInfo keys = newKeys();
+        ZipSignUtils.sign(zip, keys.newSignSigner());
+
+        try (RandomAccessFile file = new RandomAccessFile(zip, "rw")) {
+            file.seek(0);
+            file.write(file.read() ^ 1);
         }
 
-        ZipSignUtils.verify(zipSignFile, signatureInfo.newVerifySigner());
+        Assert.assertFalse(ZipSignUtils.verify(zip, keys.newVerifySigner()));
+    }
+
+    private File createZip(String comment) throws Exception {
+        File zip = temporaryFolder.newFile("archive-" + System.nanoTime() + ".zip");
+        try (ZipOutputStream output = new ZipOutputStream(new FileOutputStream(zip))) {
+            if (comment != null) {
+                output.setComment(comment);
+            }
+            output.putNextEntry(new ZipEntry("content.txt"));
+            output.write("signed content".getBytes(StandardCharsets.UTF_8));
+            output.closeEntry();
+        }
+        return zip;
+    }
+
+    private static SignatureInfo newKeys() {
+        Ed25519PrivateKeyParameters privateKey =
+                new Ed25519PrivateKeyParameters(new SecureRandom());
+        SignatureInfo keys = new SignatureInfo();
+        keys.setPrivateKey(privateKey);
+        keys.setPublicKey(privateKey.generatePublicKey());
+        return keys;
     }
 }

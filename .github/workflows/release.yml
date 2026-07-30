@@ -30,6 +30,16 @@ jobs:
           java-version: '8'
           cache: maven
 
+      - name: Verify tag is on main
+        shell: bash
+        run: |
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          TAG_SHA="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
+          git merge-base --is-ancestor "$TAG_SHA" origin/main || {
+            echo "Tag $GITHUB_REF_NAME ($TAG_SHA) is not an ancestor of origin/main" >&2
+            exit 1
+          }
+
       - name: Validate release versions
         id: version
         shell: bash
@@ -49,9 +59,25 @@ jobs:
 
           echo "version=$POM_VERSION" >> "$GITHUB_OUTPUT"
           echo "jar=target/java-guard-$POM_VERSION.jar" >> "$GITHUB_OUTPUT"
+          echo "maven_sbom=target/java-guard-maven-sbom.json" >> "$GITHUB_OUTPUT"
+          echo "launcher_sbom=target/jg-launcher-cargo-sbom.json" >> "$GITHUB_OUTPUT"
 
       - name: Build release package
         run: mvn --batch-mode --no-transfer-progress clean verify
+
+      - name: Name Maven SBOM
+        run: mv target/java-guard-sbom.json "${{ steps.version.outputs.maven_sbom }}"
+
+      - name: Install cargo-cyclonedx
+        run: cargo install cargo-cyclonedx --version 0.5.9 --locked
+
+      - name: Generate launcher Cargo SBOM
+        run: |
+          cargo cyclonedx \
+            --manifest-path jg-launcher/Cargo.toml \
+            --format json \
+            --target all \
+            --override-filename ../target/jg-launcher-cargo-sbom
 
       - name: Smoke-test executable JAR
         run: java -jar "${{ steps.version.outputs.jar }}" --help
@@ -67,6 +93,8 @@ jobs:
           path: |
             ${{ steps.version.outputs.jar }}
             ${{ steps.version.outputs.jar }}.sha256
+            ${{ steps.version.outputs.maven_sbom }}
+            ${{ steps.version.outputs.launcher_sbom }}
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -76,6 +104,8 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             "${{ steps.version.outputs.jar }}" \
             "${{ steps.version.outputs.jar }}.sha256" \
+            "${{ steps.version.outputs.maven_sbom }}" \
+            "${{ steps.version.outputs.launcher_sbom }}" \
             --verify-tag \
             --generate-notes \
             --title "$GITHUB_REF_NAME"

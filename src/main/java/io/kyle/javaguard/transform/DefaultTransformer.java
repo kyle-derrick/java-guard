@@ -5,9 +5,12 @@ import io.kyle.javaguard.constant.ConstVars;
 import io.kyle.javaguard.exception.TransformException;
 import io.kyle.javaguard.support.StandardResourceInputStream;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Objects;
+import java.io.SequenceInputStream;
+import java.util.Arrays;
 
 /**
  * @author kyle kyle_derrick@foxmail.com
@@ -27,21 +30,16 @@ public class DefaultTransformer extends AbstractTransformer {
     @Override
     public boolean encrypt(InputStream in, OutputStream out) throws TransformException {
         try {
-            in.mark(ConstVars.ENCRYPT_RESOURCE_HEADER.length);
-            boolean encrypted = true;
-            for (byte b : ConstVars.ENCRYPT_RESOURCE_HEADER) {
-                if (in.read() != b) {
-                    encrypted = false;
-                }
-            }
-            in.reset();
-            if (encrypted) {
-                out.write(ConstVars.ENCRYPT_RESOURCE_HEADER);
-                copyStream(in, out);
+            byte[] header = new byte[ConstVars.ENCRYPT_RESOURCE_HEADER.length];
+            int headerLength = readHeader(in, header);
+            InputStream resource = new SequenceInputStream(
+                    new ByteArrayInputStream(header, 0, headerLength), in);
+            if (headerLength == header.length && Arrays.equals(header, ConstVars.ENCRYPT_RESOURCE_HEADER)) {
+                copyStream(resource, out);
                 return true;
             }
             out.write(ConstVars.ENCRYPT_RESOURCE_HEADER);
-            StandardResourceInputStream transformInputStream = new StandardResourceInputStream(in, transformInfo.getResourceKeyInfo(), true);
+            StandardResourceInputStream transformInputStream = new StandardResourceInputStream(resource, transformInfo.getResourceKeyInfo(), true);
             copyStream(transformInputStream, out);
         } catch (TransformException e) {
             throw e;
@@ -55,12 +53,12 @@ public class DefaultTransformer extends AbstractTransformer {
     public boolean decrypt(InputStream in, OutputStream out) throws TransformException {
         byte[] header = new byte[ConstVars.ENCRYPT_RESOURCE_HEADER.length];
         try {
-            int read = in.read(header);
+            int read = readHeader(in, header);
             if (read < header.length) {
-                out.write(header, 0, header.length);
+                out.write(header, 0, read);
                 return true;
             }
-            if (!Objects.deepEquals(header, ConstVars.ENCRYPT_RESOURCE_HEADER)) {
+            if (!Arrays.equals(header, ConstVars.ENCRYPT_RESOURCE_HEADER)) {
                 out.write(header);
                 copyStream(in, out);
                 return true;
@@ -73,5 +71,25 @@ public class DefaultTransformer extends AbstractTransformer {
             throw new TransformException("decrypt resource failed", e);
         }
         return true;
+    }
+
+    private static int readHeader(InputStream in, byte[] header) throws IOException {
+        int totalRead = 0;
+        while (totalRead < header.length) {
+            int read = in.read(header, totalRead, header.length - totalRead);
+            if (read == -1) {
+                break;
+            }
+            if (read == 0) {
+                int value = in.read();
+                if (value == -1) {
+                    break;
+                }
+                header[totalRead++] = (byte) value;
+            } else {
+                totalRead += read;
+            }
+        }
+        return totalRead;
     }
 }

@@ -9,6 +9,7 @@ import io.kyle.javaguard.constant.TransformType;
 import io.kyle.javaguard.exception.TransformException;
 import io.kyle.javaguard.support.LauncherCodeGenerator;
 import io.kyle.javaguard.transform.JarTransformer;
+import io.kyle.javaguard.util.JgFileUtils;
 import io.kyle.javaguard.util.ZipSignUtils;
 import org.apache.commons.cli.*;
 import org.apache.commons.codec.binary.Base64;
@@ -24,6 +25,8 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.security.Security;
 import java.util.Arrays;
@@ -61,26 +64,56 @@ public class JavaGuardMain {
     }
 
     public static void main(String[] args) {
-        int argsLen = args.length;
-        CommandLine parse = parseArgs(args);
-        if (parse == null || argsLen == 0) {
-            printUsage();
-            return;
+        int result = run(args);
+        if (result != 0) {
+            throw new IllegalStateException("java-guard failed with exit code " + result);
         }
-        AppConfig appConfig = appArgs(parse);
+    }
+
+    static int run(String[] args) {
+        if (args.length == 0) {
+            printUsage();
+            return 1;
+        }
+        CommandLine parse;
+        try {
+            parse = parseArgs(args);
+        } catch (ParseException e) {
+            System.err.println("invalid arguments: " + e.getMessage());
+            printUsage();
+            return 1;
+        }
+        if (parse.hasOption(HELP_OPTION)) {
+            printUsage();
+            return 0;
+        }
+        AppConfig appConfig;
+        try {
+            appConfig = appArgs(parse);
+        } catch (Exception e) {
+            System.err.println("configuration failed: " + message(e));
+            return 1;
+        }
         String output = appConfig.getOutput();
         boolean isDecrypt = appConfig.getMode() == TransformType.decrypt;
-        TransformInfo transformInfo = transformInfo(appConfig);
+        TransformInfo transformInfo;
+        try {
+            transformInfo = transformInfo(appConfig);
+        } catch (RuntimeException e) {
+            System.err.println("configuration failed: " + message(e));
+            return 1;
+        }
         if (transformInfo == null) {
-            return;
+            return 1;
         }
         File outputFile = new File(output);
         if (outputFile.exists() && outputFile.isFile()) {
             System.err.println("output dir is exists file: " + output);
-            return;
+            return 1;
         }
-        if (!outputFile.exists()) {
-            outputFile.mkdirs();
+        if (!outputFile.exists() && !outputFile.mkdirs()) {
+            System.err.println("cannot create output dir: " + output);
+            return 1;
         }
         SignatureInfo signatureInfo = transformInfo.getSignature();
         String[] jars = parse.getArgs();
@@ -88,22 +121,34 @@ public class JavaGuardMain {
             for (String arg : jars) {
                 if (arg.endsWith(".jar")) {
                     File outFile = new File(outputFile, FilenameUtils.getName(arg));
-                    try (FileInputStream in = new FileInputStream(arg);
-                         FileOutputStream out = new FileOutputStream(outFile)) {
-                        JarTransformer jarTransformer = new JarTransformer(transformInfo);
-                        if (isDecrypt) {
-                            jarTransformer.decrypt(in, out);
-                        } else if (TransformType.signature != appConfig.getMode()) {
-                            jarTransformer.encrypt(in, out);
-                        } else {
-                            IOUtils.copy(in, out);
+                    Path tempFile = null;
+                    try {
+                        tempFile = Files.createTempFile(outputFile.toPath(), ".java-guard-", ".jar");
+                        try (FileInputStream in = new FileInputStream(arg);
+                             FileOutputStream out = new FileOutputStream(tempFile.toFile())) {
+                            JarTransformer jarTransformer = new JarTransformer(transformInfo);
+                            if (isDecrypt) {
+                                jarTransformer.decrypt(in, out);
+                            } else if (TransformType.signature != appConfig.getMode()) {
+                                jarTransformer.encrypt(in, out);
+                            } else {
+                                IOUtils.copy(in, out);
+                            }
                         }
-                        out.flush();
-                        ZipSignUtils.sign(outFile, signatureInfo.getSignSignature());
-//                    byte[] sign = signFile(outFile.toPath(), signatureInfo);
-//                    FileUtils.writeByteArrayToFile(new File(outFile.getAbsolutePath() + ".sign"), sign);
+                        ZipSignUtils.sign(tempFile.toFile(), signatureInfo.newSignSigner());
+                        JgFileUtils.safeReplace(tempFile, outFile.toPath());
+                        tempFile = null;
                     } catch (Exception e) {
-                        throw new Error("transform failed: [" + arg + "]", e);
+                        System.err.println("transform failed: [" + arg + "]: " + e.getMessage());
+                        return 1;
+                    } finally {
+                        if (tempFile != null) {
+                            try {
+                                Files.deleteIfExists(tempFile);
+                            } catch (IOException ignored) {
+                                tempFile.toFile().deleteOnExit();
+                            }
+                        }
                     }
                 }
             }
@@ -113,10 +158,12 @@ public class JavaGuardMain {
             try {
                 LauncherCodeGenerator.generate(output, transformInfo);
             } catch (TransformException e) {
-                System.err.println("ERROR: jd launcher generate failed: " + e.getMessage());
+                System.err.println("ERROR: jg launcher generate failed: " + e.getMessage());
                 e.printStackTrace();
+                return 1;
             }
         }
+        return 0;
     }
 
 //    private static byte[] signFile(Path path, SignatureInfo signatureInfo) {
@@ -133,22 +180,19 @@ public class JavaGuardMain {
 //        }
 //    }
 
-    private static CommandLine parseArgs(String[] args) {
-        DefaultParser defaultParser = new DefaultParser();
-        try {
-            CommandLine parse = defaultParser.parse(OPTIONS, args);
-            if (!parse.hasOption(HELP_OPTION)) {
-                return parse;
-            }
-        } catch (ParseException ignored) {
-        }
-        printUsage();
-        return null;
+    private static CommandLine parseArgs(String[] args) throws ParseException {
+        return new DefaultParser().parse(OPTIONS, args);
+    }
+
+    private static String message(Throwable throwable) {
+        String message = throwable.getMessage();
+        return message == null || message.trim().isEmpty()
+                ? throwable.getClass().getSimpleName()
+                : message;
     }
 
     private static void printUsage() {
         new HelpFormatter().printHelp("java-guard", OPTIONS);
-        System.exit(0);
     }
 
     private static AppConfig appArgs(CommandLine parse) {
@@ -161,14 +205,19 @@ public class JavaGuardMain {
             Yaml yaml = new Yaml();
             appConfig = yaml.loadAs(new InputStreamReader(inputStream, StandardCharsets.UTF_8), AppConfig.class);
         } catch (IOException e) {
-            throw new Error("Failed to read config file: " + configPath, e);
+            throw new IllegalArgumentException("Failed to read config file: " + configPath, e);
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException("Malformed config file: " + configPath, e);
+        }
+        if (appConfig == null) {
+            throw new IllegalArgumentException("Config file is empty: " + configPath);
         }
         TransformType transformType;
         if (mode != null) {
             try {
                 transformType = TransformType.valueOf(mode);
             } catch (Exception e) {
-                throw new Error("not support mode: " + mode);
+                throw new IllegalArgumentException("not support mode: " + mode, e);
             }
             appConfig.setMode(transformType);
         }
@@ -216,10 +265,6 @@ public class JavaGuardMain {
         transformInfo.setResourceKeyInfo(new KeyInfo(Arrays.copyOfRange(hmac, 512 >> 4, hmac.length)));
 
         SignatureInfo signatureInfo = SignatureInfo.fromConfig(config);
-        if (signatureInfo == null) {
-            System.err.println("not found sign private key and public key");
-            System.exit(-1);
-        }
         transformInfo.setSignature(signatureInfo);
         return transformInfo;
     }

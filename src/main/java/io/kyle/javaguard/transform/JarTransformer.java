@@ -15,6 +15,7 @@ import org.apache.commons.compress.archivers.jar.JarArchiveEntry;
 import org.apache.commons.compress.archivers.jar.JarArchiveInputStream;
 import org.apache.commons.compress.archivers.jar.JarArchiveOutputStream;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.io.FileUtils;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -150,13 +151,13 @@ public class JarTransformer extends AbstractTransformer {
             zos.flush();
             zos.finish();
         } finally {
-//            if (tempFile != null) {
-//                try {
-//                    FileUtils.forceDelete(tempFile);
-//                } catch (Exception e) {
-//                    FileUtils.forceDeleteOnExit(tempFile);
-//                }
-//            }
+            if (tempFile != null) {
+                try {
+                    FileUtils.forceDelete(tempFile);
+                } catch (Exception e) {
+                    FileUtils.forceDeleteOnExit(tempFile);
+                }
+            }
         }
 
     }

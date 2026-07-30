@@ -1,18 +1,16 @@
 package io.kyle.javaguard.util;
 
 import io.kyle.javaguard.exception.TransformException;
-import net.lingala.zip4j.ZipFile;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.crypto.CryptoException;
 import org.bouncycastle.crypto.Signer;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 /**
  * @author kyle kyle_derrick@foxmail.com
@@ -21,99 +19,193 @@ import java.nio.charset.Charset;
 public class ZipSignUtils {
     private static final int COMMENT_MAX_LEN = (1 << Short.SIZE) - 1;
     private static final int SUFFIX_ENCODE_LEN = Short.BYTES << 1;
+    private static final int EOCD_MIN_LEN = 22;
+    private static final int EOCD_COMMENT_LENGTH_OFFSET = 20;
+    private static final int EOCD_SIGNATURE = 0x06054b50;
+    private static final int ED25519_SIGNATURE_LEN = 64;
+    private static final byte[] SIGNATURE_MAGIC = "JavaGuard-Signature-v1:".getBytes(StandardCharsets.US_ASCII);
     private static final int READ_BUFFER_SIZE = 4096;
+
     public static byte[] sign(File zip, Signer signer) throws TransformException {
-        try (ZipFile zipFile = new ZipFile(zip);
-             RandomAccessFile accessFile = new RandomAccessFile(zip, "rw");) {
-            String comment = zipFile.getComment();
-            Charset charset = zipFile.getCharset();
-            byte[] bytes = comment.getBytes(charset);
-            long zipLength = zip.length();
-            long commentStart = zipLength - bytes.length - Short.BYTES;
+        try (RandomAccessFile accessFile = new RandomAccessFile(zip, "rw")) {
+            ZipComment zipComment = readZipComment(accessFile);
+            byte[] originalComment = removeSignatureSuffix(zipComment.comment);
 
-            byte[] buf = new byte[READ_BUFFER_SIZE];
-            while (accessFile.getFilePointer() < commentStart) {
-                int read;
-                if (accessFile.getFilePointer() + READ_BUFFER_SIZE > commentStart) {
-                    read = accessFile.read(buf, 0, (int) (commentStart - accessFile.getFilePointer()));
-                } else {
-                    read = accessFile.read(buf);
-                }
-                if (read == -1) {
-//                    throw new TransformException("signer zip data content failed");
-                    throw new TransformException("signer zip data content failed, current read len: " +
-                            accessFile.getFilePointer() + "; but comment index: " + commentStart + '/' + zipLength);
-                }
-                signer.update(buf, 0, read);
+            updateSigner(accessFile, zipComment.signingBoundary, signer);
+            byte[] signature = signer.generateSignature();
+            byte[] encodedSignature = Base64.encodeBase64URLSafe(signature);
+            int newCommentLength = originalComment.length + SIGNATURE_MAGIC.length
+                    + encodedSignature.length + SUFFIX_ENCODE_LEN;
+            if (newCommentLength > COMMENT_MAX_LEN) {
+                throw new TransformException("zip comment is too long to append signature");
             }
 
-            byte[] commentLenBs = new byte[2];
-            int read = accessFile.read(commentLenBs);
-            if (read <= 0) {
-                throw new TransformException("comment length does not found");
-            }
-            int commentLen = Short.toUnsignedInt(BytesUtils.bytesLeToShort(commentLenBs));
-            if (commentLen != bytes.length) {
-                throw new TransformException("comment length does not match");
-            }
-            byte[] sign = signer.generateSignature();
-            byte[] hashBase64 = Base64.encodeBase64URLSafe(sign);
-            int suffixLen = hashBase64.length + SUFFIX_ENCODE_LEN;
-            if (COMMENT_MAX_LEN < suffixLen + commentLen) {
-                commentLen = COMMENT_MAX_LEN - suffixLen;
-            }
-            accessFile.seek(commentStart);
-            accessFile.write(BytesUtils.shortToLeBytes((short) (commentLen + suffixLen)));
-            if (commentLen > 0) {
-                accessFile.write(bytes, 0, commentLen);
-            }
-            accessFile.write(hashBase64);
-            accessFile.write(Hex.encodeHexString(BytesUtils.shortToLeBytes((short) hashBase64.length)).getBytes(charset));
-            return sign;
+            accessFile.seek(zipComment.signingBoundary);
+            accessFile.write(BytesUtils.shortToLeBytes((short) newCommentLength));
+            accessFile.write(originalComment);
+            accessFile.write(SIGNATURE_MAGIC);
+            accessFile.write(encodedSignature);
+            accessFile.write(Hex.encodeHexString(
+                    BytesUtils.shortToLeBytes((short) encodedSignature.length)).getBytes(StandardCharsets.US_ASCII));
+            accessFile.setLength(zipComment.signingBoundary + Short.BYTES + newCommentLength);
+            return signature;
+        } catch (CryptoException e) {
+            throw new TransformException("signer operation failed", e);
         } catch (IOException e) {
             throw new TransformException("read zip file failed", e);
-        } catch (CryptoException e) {
-            throw new TransformException("signer option failed", e);
         } catch (RuntimeException e) {
             throw new TransformException("signer zip failed", e);
         }
     }
 
     public static boolean verify(File zip, Signer signer) throws TransformException {
-        try (ZipFile zipFile = new ZipFile(zip);
-             FileInputStream inputStream = new FileInputStream(zip);) {
-            Charset charset = zipFile.getCharset();
-            String comment = zipFile.getComment();
-            byte[] commentBytes;
-            if (comment == null || (commentBytes = comment.getBytes(charset)).length <= SUFFIX_ENCODE_LEN) {
+        try (RandomAccessFile accessFile = new RandomAccessFile(zip, "r")) {
+            ZipComment zipComment = readZipComment(accessFile);
+            SignatureSuffix suffix = parseSignatureSuffix(zipComment.comment, true);
+            if (suffix == null) {
                 throw new TransformException("not found signer in zip file");
             }
-            String signLenHex = StringUtils.substring(comment, comment.length() - SUFFIX_ENCODE_LEN, comment.length());
-            byte[] sign;
-            try {
-                int signLen = Short.toUnsignedInt(BytesUtils.bytesLeToShort(Hex.decodeHex(signLenHex)));
-                byte[] signBase64 = BytesUtils.subBytes(commentBytes, commentBytes.length - SUFFIX_ENCODE_LEN - signLen, signLen);
-                sign = Base64.decodeBase64(signBase64);
-            } catch (Exception e) {
-                throw new TransformException("can not get zip signer", e);
-            }
-            long zipLength = zip.length();
-            long commentStart = zipLength - commentBytes.length - Short.BYTES;
-            byte[] buf = new byte[READ_BUFFER_SIZE];
-            int read;
-            for (int readLen = 0; readLen < commentStart; ) {
-                if ((read = inputStream.read(buf)) == -1) {
-                    throw new TransformException("verify zip data content failed, current read len: " +
-                            readLen + "; but comment index: " + commentStart + '/' + zipLength);
-                }
-                readLen += read;
-                signer.update(buf, 0, read);
-            }
-            return signer.verifySignature(sign);
+            updateSigner(accessFile, zipComment.signingBoundary, signer);
+            return signer.verifySignature(suffix.signature);
         } catch (IOException e) {
             throw new TransformException("read zip file failed", e);
         } catch (RuntimeException e) {
             throw new TransformException("verify zip failed", e);
+        }
+    }
+
+    private static void updateSigner(RandomAccessFile file, long boundary, Signer signer) throws IOException {
+        file.seek(0);
+        byte[] buffer = new byte[READ_BUFFER_SIZE];
+        long remaining = boundary;
+        while (remaining > 0) {
+            int read = file.read(buffer, 0, (int) Math.min(buffer.length, remaining));
+            if (read < 0) {
+                throw new IOException("zip ended before signing boundary");
+            }
+            signer.update(buffer, 0, read);
+            remaining -= read;
+        }
+    }
+
+    private static byte[] removeSignatureSuffix(byte[] comment) {
+        SignatureSuffix suffix = parseSignatureSuffix(comment, false);
+        return suffix == null ? comment : Arrays.copyOf(comment, suffix.start);
+    }
+
+    private static SignatureSuffix parseSignatureSuffix(byte[] comment, boolean allowLegacy) {
+        if (comment.length <= SUFFIX_ENCODE_LEN) {
+            return null;
+        }
+        try {
+            byte[] trailer = Arrays.copyOfRange(comment, comment.length - SUFFIX_ENCODE_LEN, comment.length);
+            for (byte value : trailer) {
+                if (!isLowerHex(value)) {
+                    return null;
+                }
+            }
+            int encodedLength = Short.toUnsignedInt(BytesUtils.bytesLeToShort(
+                    Hex.decodeHex(new String(trailer, StandardCharsets.US_ASCII))));
+            int encodedStart = comment.length - SUFFIX_ENCODE_LEN - encodedLength;
+            if (encodedLength <= 0 || encodedStart < 0) {
+                return null;
+            }
+            byte[] encoded = Arrays.copyOfRange(comment, encodedStart, comment.length - SUFFIX_ENCODE_LEN);
+            if (!isUrlSafeBase64(encoded)) {
+                return null;
+            }
+            byte[] signature = Base64.decodeBase64(encoded);
+            if (signature.length != ED25519_SIGNATURE_LEN
+                    || !Arrays.equals(encoded, Base64.encodeBase64URLSafe(signature))) {
+                return null;
+            }
+            int markedStart = encodedStart - SIGNATURE_MAGIC.length;
+            if (markedStart >= 0 && matchesAt(comment, SIGNATURE_MAGIC, markedStart)) {
+                return new SignatureSuffix(markedStart, signature);
+            }
+            return allowLegacy ? new SignatureSuffix(encodedStart, signature) : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static boolean matchesAt(byte[] value, byte[] expected, int offset) {
+        for (int i = 0; i < expected.length; i++) {
+            if (value[offset + i] != expected[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean isLowerHex(byte value) {
+        return value >= '0' && value <= '9' || value >= 'a' && value <= 'f';
+    }
+
+    private static boolean isUrlSafeBase64(byte[] encoded) {
+        for (byte value : encoded) {
+            if (!(value >= 'A' && value <= 'Z')
+                    && !(value >= 'a' && value <= 'z')
+                    && !(value >= '0' && value <= '9')
+                    && value != '-' && value != '_') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static ZipComment readZipComment(RandomAccessFile file) throws IOException, TransformException {
+        long fileLength = file.length();
+        if (fileLength < EOCD_MIN_LEN) {
+            throw new TransformException("invalid zip: end of central directory not found");
+        }
+        int searchLength = (int) Math.min(fileLength, EOCD_MIN_LEN + COMMENT_MAX_LEN);
+        byte[] tail = new byte[searchLength];
+        file.seek(fileLength - searchLength);
+        file.readFully(tail);
+        for (int i = tail.length - EOCD_MIN_LEN; i >= 0; i--) {
+            if (readIntLe(tail, i) != EOCD_SIGNATURE) {
+                continue;
+            }
+            int commentLength = readUnsignedShortLe(tail, i + EOCD_COMMENT_LENGTH_OFFSET);
+            if (i + EOCD_MIN_LEN + commentLength != tail.length) {
+                continue;
+            }
+            byte[] comment = Arrays.copyOfRange(tail, i + EOCD_MIN_LEN, tail.length);
+            long signingBoundary = fileLength - commentLength - Short.BYTES;
+            return new ZipComment(signingBoundary, comment);
+        }
+        throw new TransformException("invalid zip: end of central directory not found");
+    }
+
+    private static int readIntLe(byte[] bytes, int offset) {
+        return (bytes[offset] & 0xff)
+                | (bytes[offset + 1] & 0xff) << 8
+                | (bytes[offset + 2] & 0xff) << 16
+                | (bytes[offset + 3] & 0xff) << 24;
+    }
+
+    private static int readUnsignedShortLe(byte[] bytes, int offset) {
+        return (bytes[offset] & 0xff) | (bytes[offset + 1] & 0xff) << 8;
+    }
+
+    private static final class ZipComment {
+        private final long signingBoundary;
+        private final byte[] comment;
+
+        private ZipComment(long signingBoundary, byte[] comment) {
+            this.signingBoundary = signingBoundary;
+            this.comment = comment;
+        }
+    }
+
+    private static final class SignatureSuffix {
+        private final int start;
+        private final byte[] signature;
+
+        private SignatureSuffix(int start, byte[] signature) {
+            this.start = start;
+            this.signature = signature;
         }
     }
 }

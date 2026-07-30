@@ -3,7 +3,7 @@
 [![CI](https://github.com/kyle-derrick/java-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/kyle-derrick/java-guard/actions/workflows/ci.yml)
 [![Release](https://github.com/kyle-derrick/java-guard/actions/workflows/release.yml/badge.svg)](https://github.com/kyle-derrick/java-guard/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Java](https://img.shields.io/badge/Java-8--21-orange)](https://java.com)
+[![Java](https://img.shields.io/badge/bytecode-Java%208-orange)](https://java.com)
 [![Rust](https://img.shields.io/badge/Rust-stable-red)](https://rust-lang.org)
 
 ---
@@ -13,7 +13,7 @@
 
 > A Java bytecode protection solution that provides JAR encryption and runtime dynamic decryption, making decompilation and code theft more difficult.
 >
-> Compatible with Spring, Spring Boot, and other frameworks or scenarios that inspect or manipulate bytecode.
+> Can be used with Spring and Spring Boot applications, but compatibility depends on the framework version, packaging layout, and resource-loading path; a complete compatibility matrix is not yet guaranteed.
 >
 > Reduces the risk of exposing decryption logic inherent in conventional Java agent (`-javaagent`) and native agent (`-agentlib`) approaches.
 
@@ -26,20 +26,20 @@
 - **Signature Verification**: ED25519 signature validation ensures code integrity.
 - **Zero-Intrusion Integration**: No business-code changes are required.
 - **JVM Integration**: Launches the application directly through the JVM rather than a Java subprocess.
-- **JDK 8–21 Support**: Supports applications built and run with JDK 8 through JDK 21.
+- **Java 8 Bytecode Target**: The project targets Java 8 bytecode. CI builds on JDK 8 and only smoke-tests the generated CLI JAR with `--help` on JDK 8, 11, 17, and 21. The full launcher/application runtime matrix is not yet verified.
 - **Java Runtime Packaging**: Injects the generated launcher into a selected JDK/JRE and creates a platform archive.
 
 ## 📥 Download a Release
 
-Download the executable fat JAR and its SHA-256 checksum from [GitHub Releases](https://github.com/kyle-derrick/java-guard/releases). The release JAR already embeds the `jg-launcher` source, so Maven is not required to run Java Guard. Rust/Cargo and a native build toolchain are still required when generating a native launcher.
+Download the executable fat JAR, its SHA-256 checksum, and two clearly scoped CycloneDX JSON SBOMs from [GitHub Releases](https://github.com/kyle-derrick/java-guard/releases): `java-guard-maven-sbom.json` describes the Maven/Java component, while `jg-launcher-cargo-sbom.json` separately describes the Rust launcher from `jg-launcher/Cargo.toml` and `jg-launcher/Cargo.lock`. Neither SBOM alone covers both components. The release JAR already embeds the `jg-launcher` source, so Maven is not required to run Java Guard. Rust/Cargo and a native build toolchain are still required when generating a native launcher.
 
 ## 🚀 Quick Start
 
 When using a release JAR, skip the Maven requirement and go directly to [3. Encrypt a JAR and generate the launcher](#3-encrypt-a-jar-and-generate-the-launcher).
 
 ### Requirements
-- JDK 8–21
-- Maven 3.0+ (only when building Java Guard from source)
+- JDK 8 (source-build baseline); the generated CLI JAR receives basic smoke tests only on JDK 8, 11, 17, and 21
+- Maven 3.6.3+ (only when building Java Guard from source)
 - Current stable Rust/Cargo (only when compiling the native launcher with `-l`)
 - A native C build toolchain for the target platform
 
@@ -200,9 +200,9 @@ Important constraints:
 
 - Multiple protected dependencies in one application should use the same AES key and run through the application-specific launcher generated with that key.
 - Plain `java -jar`, direct IDE execution, or build-time execution sees only the stub methods' default behavior. The matching launcher is required to load the real implementation.
-- For Spring Boot, keep protected dependencies intact under `BOOT-INF/lib`. Shade relocation, minimization, instrumentation, or other bytecode rewriting may remove the encrypted payload or change class names and is not guaranteed to work.
+- For Spring Boot scenarios, keep protected dependencies intact under `BOOT-INF/lib`, but compatibility with every Spring Boot version or packaging layout is not currently claimed. Shade relocation, minimization, instrumentation, or other bytecode rewriting may remove the encrypted payload or change class names and is not guaranteed to work.
 - Applying `signature` to the outer JAR must be the final packaging step. Modifying its manifest, nested dependencies, or any other content afterward invalidates the signature.
-- Transparent access to encrypted resources depends on the URL/URLConnection implementation used by Spring Boot or a custom classloader and should be verified with the target framework version.
+- Transparent access to encrypted resources depends on the URL/URLConnection implementation used by Spring Boot or a custom classloader. Until an automated resource-test matrix is complete, verify the target framework version and packaging layout.
 - Do not distribute the AES key, ED25519 private key, supplier configuration, or the generated `jg-launcher-source` directory to developers.
 
 ### Security Boundary
@@ -233,6 +233,8 @@ G --> H
 | JDK/JRE packaging | Injects the application-specific launcher into a Java environment and creates a platform archive |
 
 ## 🚀 Roadmap
+- **Full cross-platform launcher/JDK matrix**: Cover launcher compilation, JDK/JRE packaging, and real application startup on Windows, Linux, macOS, and supported CPU architectures, then document the tested JDK range
+- **Spring Boot resource tests**: Cover representative Spring Boot versions, executable-JAR layouts, nested dependencies, and encrypted-resource loading paths
 - **JRE and classpath JAR signature verification**: Improve runtime integrity validation
 - **Anti-disassembly detection and protection**: Add detection and protection against disassembly attempts
 

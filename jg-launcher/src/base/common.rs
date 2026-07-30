@@ -30,6 +30,6 @@ pub const ENCRYPT_BLOCK: usize = 8 * 1024;
 include!(concat!(env!("OUT_DIR"), "/_common.rs"));
 
 #[cfg(not(feature = "dev"))]
-pub fn pub_key_pair() -> UnparsedPublicKey<[u8;32]> {
+pub(crate) fn pub_key_pair() -> UnparsedPublicKey<[u8;32]> {
     UnparsedPublicKey::new(&ED25519, pub_key())
 }

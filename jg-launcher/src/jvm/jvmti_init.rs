@@ -75,7 +75,7 @@ pub fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv) -> Result<(), MessageErr
         };
         let class_obj = jni_result_expect!(env, env.define_class(&name, &class_loader, class_data), "cannot load extend runtime class")?;
 
-        if name.as_str() == RESOURCE_DECRYPT_NATIVE_CLASS {
+        if &name == RESOURCE_DECRYPT_NATIVE_CLASS {
             let native_method = NativeMethod {
                 name: JNIString::from(RESOURCE_DECRYPT_NATIVE_METHOD),
                 sig: JNIString::from(RESOURCE_DECRYPT_NATIVE_DESC),
@@ -85,16 +85,6 @@ pub fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv) -> Result<(), MessageErr
         }
     }
     Ok(())
-}
-
-fn print_err(err: Box<dyn Any+Send>) {
-    if let Some(msg) = err.downcast_ref::<&str>() {
-        eprintln!("ERROR: native method: unknown err: {}", msg);
-    } else if let Some(msg) = err.downcast_ref::<String>() {
-        eprintln!("ERROR: native method: unknown err: {}", msg);
-    } else {
-        eprintln!("ERROR: native method: unknown err!!!");
-    }
 }
 
 #[allow(unused)]
@@ -129,8 +119,6 @@ fn _resource_decrypt_native(env: *mut sys::JNIEnv, _object: jobject, data: jbyte
     };
     let data_arr = unsafe { JByteArray::from_raw(data) };
 
-    let slice_len = len as usize;
-
     let raw_ptr = unsafe {
         match env.get_array_elements_critical(&data_arr, CopyBack) {
             Ok(v) => v,
@@ -143,6 +131,8 @@ fn _resource_decrypt_native(env: *mut sys::JNIEnv, _object: jobject, data: jbyte
     if raw_ptr.is_empty() {
         return len;
     }
+
+    let slice_len = len as usize;
 
     let data_rs: &mut [u8] = unsafe {
         std::slice::from_raw_parts_mut(raw_ptr.as_ptr().add(off as usize) as *mut u8, slice_len)
@@ -161,6 +151,16 @@ fn _resource_decrypt_native(env: *mut sys::JNIEnv, _object: jobject, data: jbyte
     result
 }
 
+fn print_err(err: Box<dyn Any+Send>) {
+    if let Some(msg) = err.downcast_ref::<&str>() {
+        eprintln!("ERROR: native method: unknown err: {}", msg);
+    } else if let Some(msg) = err.downcast_ref::<String>() {
+        eprintln!("ERROR: native method: unknown err: {}", msg);
+    } else {
+        eprintln!("ERROR: native method: unknown err!!!");
+    }
+}
+
 #[allow(unused)]
 extern "system" fn jg_class_file_load_hook(
     jvmti_env: *mut c_void,
@@ -175,9 +175,9 @@ extern "system" fn jg_class_file_load_hook(
     new_class_data: *mut *mut std::os::raw::c_uchar,
 ) {
     if let Err(err) = panic::catch_unwind(|| _jg_class_file_load_hook(jvmti_env, jni_env, class_being_redefined,
-                                                          loader, name, protection_domain,
-                                                          class_data_len, class_data, new_class_data_len,
-                                                          new_class_data)) {
+                                                                      loader, name, protection_domain,
+                                                                      class_data_len, class_data, new_class_data_len,
+                                                                      new_class_data)) {
         print_err(err);
     }
 }
@@ -208,11 +208,13 @@ fn _jg_class_file_load_hook(
         }
     };
 
+    let class_data_len = class_data_len as usize;
+
     let (has_sign, is_encrypt_class) = unsafe {
         if class_data_len <= 5 {
             return;
         }
-        let ptr = class_data.add(class_data_len as usize - 5) as *const u8;
+        let ptr = class_data.add(class_data_len - 5) as *const u8;
         (*ptr == BYTE_H_SIGN, (*ptr & BYTE_L_SIGN) == 0 && *ptr.add(1) == b'J' && *ptr.add(2) == b'G' && *ptr.add(3) == b'C' && *ptr.add(4) == 0)
     };
 
@@ -220,7 +222,6 @@ fn _jg_class_file_load_hook(
         return;
     }
 
-    let class_data_len = class_data_len as usize;
     let class_data_arr = unsafe {
         // JNIEnv::from_raw(jni_env).unwrap(),
         std::slice::from_raw_parts(class_data as *const u8, class_data_len)

@@ -39,32 +39,3 @@ impl NonceSequence for OnceNonceSequence {
         Ok(Nonce::assume_unique_for_key(self.0.take().ok_or(Unspecified)?))
     }
 }
-
-#[cfg(test)]
-mod test {
-    use crate::util::aes_util::OnceNonceSequence;
-    use ring::aead::{Aad, BoundKey, Nonce, OpeningKey, SealingKey, AES_256_GCM};
-    #[test]
-    fn test() {
-        let mut data = b"asdasdfasfasf";
-        println!("{:?}", &data);
-        let key = [0u8;32];
-        let digest = [0u8; 12];
-
-        let nonce_seq = OnceNonceSequence::new(digest);
-        let nonce = Nonce::assume_unique_for_key(digest);
-
-        let mut opening_key = SealingKey::new(ring::aead::UnboundKey::new(&AES_256_GCM, &key).unwrap(), nonce_seq);
-        let mut result = data.to_vec();
-        result.resize(result.len() + AES_256_GCM.tag_len(), 0);
-        opening_key.seal_in_place_append_tag(Aad::from(""), &mut result).unwrap();
-        println!("{:?}", &result);
-        //---------------------------
-        let nonce_seq = OnceNonceSequence::new(digest);
-        let nonce = Nonce::assume_unique_for_key(digest);
-
-        let mut opening_key = OpeningKey::new(ring::aead::UnboundKey::new(&AES_256_GCM, &key).unwrap(), nonce_seq);
-        let mut result = opening_key.open_in_place(Aad::from(""), &mut result).unwrap();
-        println!("{:?}", &result);
-    }
-}

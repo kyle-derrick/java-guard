@@ -42,7 +42,7 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
     match launcher_arg.classpath() {
         Some(classpath) => {
             let cp = match &target {
-                LaunchTarget::Class(_class) => {
+                LaunchTarget::Class(_) => {
                     env::join_paths(classpath)
                 }
                 Jar(jar) => {
@@ -54,7 +54,7 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
         }
         None => {
             match &target {
-                LaunchTarget::Class(_class) => {
+                LaunchTarget::Class(_) => {
                     if let Ok(cp) = env::var("CLASSPATH") {
                         let cp = env::join_paths(parse_classpath(&cp)).expect("failed to handle class path!");
                         java_class_path.push_str(cp.to_str().expect("failed to handle class path!"));
@@ -76,10 +76,10 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
 
     // let jvm = JavaVM::new(init_args).unwrap();
     // let jvm = JavaVM::with_libjvm(init_args,
-    //                               || StartJvmResult::Ok(PathBuf::from("D:\\software\\install\\Java\\jdk1.8.0_202\\jre\\bin\\server\\jvm.dll"))).unwrap();
+    //                               || StartJvmResult::Ok(PathBuf::from("D:\\software\\install\\Java\\jdk1.8.0_202\\jre\\bin\\jg-server\\jvm.dll"))).unwrap();
 
     let wrapper = JvmWrapper::load_jvm().expect("failed to load Java VM!");
-    // let wrapper = JvmWrapper::load_jvm_with("D:\\software\\install\\Java\\jdk1.8.0_202\\jre\\bin\\server\\jvm.dll").unwrap();
+    // let wrapper = JvmWrapper::load_jvm_with("D:\\software\\install\\Java\\jdk1.8.0_202\\jre\\bin\\jg-server\\jvm.dll").unwrap();
 
 
     let (jvm, mut env) = wrapper.create_java_vm(init_args).expect("failed to create Java VM!");

@@ -9,6 +9,7 @@ use std::{env, fs};
 
 const RUNTIME_CLASSES: &str = "runtime.classes";
 // const TRANSFORM_MOD: &str = "transform.mod";
+
 #[cfg(not(feature = "dev"))]
 const PUB_KEY_NAME: &str = "pub_key";
 const INNER_KEY_NAME: &str = "inner_key";
@@ -24,13 +25,19 @@ const DEFAULT_INCLUDES: &str = "jdk_include/linux";
 const DEFAULT_INCLUDES: &str = "jdk_include/darwin";
 
 fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=build_config.rs");
+    println!("cargo:rerun-if-env-changed=ORI_JAVA");
+    println!("cargo:rerun-if-env-changed=JAVA_HOME");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_DEV");
+
     let cargo_dir = match env::var("CARGO_MANIFEST_DIR") {
         Ok(path) => PathBuf::from(path),
         Err(_) => {
             let mut path = env::current_exe().ok().expect("cannot get project root path!");
             let mut path_result = None;
             while path.pop() {
-                if path.join("Cargo.toml").exists() {
+                if path.parent().expect("jg-launcher dir get failed").join("Cargo.toml").exists() {
                     path_result = Some(path);
                     break;
                 }
@@ -67,13 +74,10 @@ fn main() {
                                  resourceDecryptNativeClass = RESOURCE_DECRYPT_NATIVE_CLASS,
                                  resourceDecryptNativeDesc = RESOURCE_DECRYPT_NATIVE_DESC,
                                  resourceDecryptNativeMethod = RESOURCE_DECRYPT_NATIVE_METHOD,);
-    let mut file = File::create(dest_path.as_path()).expect("cannot generate common.rs");
+    let mut file = File::create(&dest_path).expect("cannot generate jg-common.rs");
     let f = &mut file;
     write_file(f, &common_content);
 
-    // write_file(f, &generate_func_field(PUB_KEY_NAME));
-    // write_file(f, &generate_func_field(INNER_KEY_NAME));
-    // write_file(f, &generate_func_field(RESOURCE_KEY_NAME));
     write_file(f, &bytes_get_generator::get_common_func_code());
     #[cfg(not(feature = "dev"))]
     for item in &bytes_get_generator::generate_func_code(PUB_KEY, PUB_KEY_NAME) {
@@ -94,10 +98,11 @@ fn main() {
         vec![PathBuf::from(DEFAULT_INCLUDES)]
     };
     println!(">>> jdk includes: {:?}", includes);
+    let ext_path = cargo_dir.join("c_src");
     builder
         .includes(&includes)
-        .include("c_src/")
-        .file("c_src/lib.c")
+        .include(&ext_path)
+        .file(&ext_path.join("lib.c"))
         .compile("jg-jvmti-lib");
 }
 

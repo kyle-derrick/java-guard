@@ -1,16 +1,18 @@
 use crate::base::error::MessageError;
 use crate::with_message;
+use glob::{glob, Pattern};
 use jni::errors::{jni_error_code_to_result, Error, StartJvmError, StartJvmResult};
 use jni::objects::{JClass, JString, JValue, JValueOwned};
 use jni::{sys, InitArgs, JNIEnv, JNIVersion};
 use jni_sys::{jint, jsize, JavaVM, JavaVMInitArgs, JavaVMOption};
 use libloading::Library;
 use std::borrow::Cow;
-use std::env;
 use std::ffi::{c_void, CStr, OsStr};
+use std::io::Write;
 use std::mem::transmute;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::{env, io};
 
 #[allow(unused)]
 pub struct JvmWrapper {
@@ -36,12 +38,55 @@ struct __InitArgs<'a> {
     _opt_strings: Vec<Cow<'a, CStr>>,
 }
 
+fn search_file(dir_path: &Path) -> Result<Option<String>, MessageError> {
+    #[cfg(target_os = "windows")]
+    const LIB_NAME: &str = "jvm.dll";
+    #[cfg(not(target_os = "windows"))]
+    const LIB_NAME: &str = "libjvm.*";
+
+    let query = match dir_path.to_str() {
+        Some(dir_path) => {
+            format!("{}/**/{}", Pattern::escape(dir_path), LIB_NAME)
+        }
+        None => {
+            return Ok(None);
+        }
+    };
+
+    let path = with_message!(glob(&query), &format!("could not find java env in {}", query))?
+        .filter_map(|x| x.ok()).next();
+
+    let path = match path {
+        Some(path) => path,
+        None => return Ok(None),
+    };
+
+    let parent_path = path.parent().unwrap();
+    Ok(match parent_path.to_str() {
+        Some(p) => Some(p.to_owned()),
+        None => None,
+    })
+}
+
 impl JvmWrapper {
     pub fn load_jvm() -> StartJvmResult<JvmWrapper> {
+        let current_exe = env::current_exe().expect("find java env failed");
+        let curr_app_parent_path = current_exe.parent().expect("find java env failed");
+        let jvm_path = match search_file(curr_app_parent_path).expect("error when search java env") {
+            Some(path) => {
+                path
+            }
+            None => {
+                curr_app_parent_path.parent()
+                    .and_then(|p| search_file(p).expect("error when search java env failed"))
+                    .unwrap_or_else(|| {
+                        java_locator::locate_jvm_dyn_library()
+                            .map_err(StartJvmError::NotFound).expect("error when search java env with java_locator")
+                })
+            }
+        };
         let path = [
-            java_locator::locate_jvm_dyn_library()
-                .map_err(StartJvmError::NotFound)?
-                .as_str(),
+            jvm_path.as_str(),
             java_locator::get_jvm_dyn_lib_file_name(),
         ]
             .iter()
@@ -187,7 +232,7 @@ pub fn destroy_vm(jvm: &jni::JavaVM, env: &JNIEnv) {
     }
 }
 
-pub fn print_version() {
+pub fn print_version(full: bool) {
     let init_args = jni::InitArgsBuilder::new()
         .version(JNIVersion::V8)
         .build()
@@ -196,40 +241,72 @@ pub fn print_version() {
     let wrapper = JvmWrapper::load_jvm().expect("failed to load Java VM!");
     let (jvm, mut env) = wrapper.create_java_vm(init_args).expect("failed to create Java VM!");
 
-    if let Err(err) = print_version_info(&mut env) {
+    if let Err(err) = print_version_info(full, &mut env) {
         eprintln!("{}", err);
     }
 
     destroy_vm(&jvm, &env);
 }
 
-pub fn print_version_info(env: &mut JNIEnv) -> Result<(), MessageError> {
+macro_rules! _write {
+    ($writer:expr $(,)?) => {
+        with_message!(core::write!($writer), "print version failed!")
+    };
+    ($writer:expr, $($arg:tt)*) => {
+        with_message!(core::write!($writer, $($arg)*), "print version failed!")
+    };
+}
+
+macro_rules! _writeln {
+    ($writer:expr $(,)?) => {
+        with_message!(core::writeln!($writer), "print version failed!")
+    };
+    ($writer:expr, $($arg:tt)*) => {
+        with_message!(core::writeln!($writer, $($arg)*), "print version failed!")
+    };
+}
+
+pub fn print_version_info(full: bool, env: &mut JNIEnv) -> Result<(), MessageError> {
     let sys_cls = jni_result_expect!(env, env.find_class("java/lang/System"))?;
     let version = get_sys_property(env, &sys_cls, "java.version")?;
     let runtime_version = get_sys_property(env, &sys_cls, "java.runtime.version")?;
-    let vm_name = get_sys_property(env, &sys_cls, "java.vm.name")?;
-    let vm_version = get_sys_property(env, &sys_cls, "java.vm.version")?;
-    let vm_info = get_sys_property(env, &sys_cls, "java.vm.info")?;
 
-    let version_date = get_sys_property(env, &sys_cls, "java.version.date")?;
-    let vm_specification_version = get_sys_property(env, &sys_cls, "java.vm.specification.version")?;
+    // java 的输出就是使用的err输出，请注意
+    let mut stderr = io::stderr().lock();
+    if full {
+        let v = if let Some(runtime_version) = runtime_version {
+            runtime_version
+        } else {
+            version.ok_or_else(|| MessageError::new("version is null"))?
+        };
+        _writeln!(stderr, "java full version \"{}\"", v)?;
+    } else {
+        let vm_name = get_sys_property(env, &sys_cls, "java.vm.name")?;
+        let vm_version = get_sys_property(env, &sys_cls, "java.vm.version")?;
+        let vm_info = get_sys_property(env, &sys_cls, "java.vm.info")?;
 
-    eprint!("java version: {}", version.ok_or_else(|| MessageError::new("version is null"))?);
-    if let Some(version_date) = version_date {
-        eprint!(" {}", version_date);
-        if let Some(vm_specification_version) = vm_specification_version {
-            eprint!(" {}", vm_specification_version);
+        let version_date = get_sys_property(env, &sys_cls, "java.version.date")?;
+        let vm_specification_version = get_sys_property(env, &sys_cls, "java.vm.specification.version")?;
+
+        _write!(stderr, "java version \"{}\"", version.ok_or_else(|| MessageError::new("version is null"))?)?;
+        if let Some(version_date) = version_date {
+            _write!(stderr, " {}", version_date)?;
+            if let Some(vm_specification_version) = vm_specification_version {
+                _write!(stderr, " {}", vm_specification_version)?;
+            }
+        }
+
+        _writeln!(stderr)?;
+        if let Some(runtime_version) = runtime_version {
+            _writeln!(stderr, "{} (build {})", get_sys_property(env, &sys_cls, "java.runtime.name")?.ok_or_else(|| MessageError::new("runtime name is null"))?, runtime_version)?;
+            _write!(stderr, "{} (build {}", vm_name.ok_or_else(|| MessageError::new("vm name is null"))?, vm_version.ok_or_else(|| MessageError::new("vm version is null"))?)?;
+            if let Some(vm_info) = vm_info {
+                _write!(stderr, ", {}", vm_info)?;
+            }
+            _writeln!(stderr, ")")?;
         }
     }
-    eprintln!();
 
-    if let Some(runtime_version) = runtime_version {
-        eprintln!("{} (build {})", get_sys_property(env, &sys_cls, "java.runtime.name")?.ok_or_else(|| MessageError::new("runtime name is null"))?, runtime_version);
-        eprint!("{} (build {}", vm_name.ok_or_else(|| MessageError::new("vm name is null"))?, vm_version.ok_or_else(|| MessageError::new("vm version is null"))?);
-        if let Some(vm_info) = vm_info {
-            eprint!(", {}", vm_info);
-        }
-        eprintln!(")");
-    }
+    with_message!(stderr.flush(), "print version failed!")?;
     Ok(())
 }

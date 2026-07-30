@@ -77,7 +77,7 @@ pub fn url_extended_processing(class_data: &[u8]) -> Option<Vec<u8>> {
 fn check_name(const_pool: &ConstantPool, name_index: u16, name: &str) -> bool {
     let const_item = const_pool.get_constant_item(name_index);
     if let ConstantValue::ConstantUtf8(method_name) = const_item {
-        if method_name.as_str() == name {
+        if method_name == name {
             return true;
         }
     }

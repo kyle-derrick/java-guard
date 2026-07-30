@@ -22,6 +22,7 @@ impl MessageError {
         }
     }
 
+    #[allow(unused)]
     pub fn new_with(msg: String) -> MessageError {
         MessageError {
             msg

@@ -1,12 +1,12 @@
-use crate::base::common::{MAIN_CLASS_PREFIX, MANIFEST_FILE};
 #[cfg(not(feature = "dev"))]
 use {
-    crate::util::byte_utils,
-    base64::prelude::BASE64_URL_SAFE_NO_PAD,
-    base64::Engine,
     crate::base::common::{pub_key_pair, SIGN_LEN_HEX_LEN},
     std::fs,
+    base64::prelude::BASE64_URL_SAFE_NO_PAD,
+    crate::util::byte_utils,
+    base64::Engine,
 };
+use crate::base::common::{MAIN_CLASS_PREFIX, MANIFEST_FILE};
 use std::fs::File;
 // use file_lock::{FileLock, FileOptions};
 use std::{io, str};
@@ -17,6 +17,7 @@ use zip::ZipArchive;
 pub struct JarInfo {
     path: String,
     // file: FileLock,
+    #[cfg(not(feature = "dev"))]
     signature: Vec<u8>,
     jar_data_end_index: usize,
     main_class: String
@@ -66,14 +67,13 @@ impl JarInfo {
             panic!("not found Main Class in jar")
         }
         let comment = archive.comment();
-        #[cfg(feature = "dev")]
-        let sign = vec![0_u8; 0];
         #[cfg(not(feature = "dev"))]
         let sign = extract_sign_from_comment(comment);
         if let Some(main_class) = main_class {
             JarInfo {
                 path: path.to_string(),
                 // file: file_lock,
+                #[cfg(not(feature = "dev"))]
                 signature: sign,
                 jar_data_end_index: jar_file_len as usize - comment.len() - 2,
                 main_class
@@ -96,6 +96,7 @@ impl JarInfo {
     // pub fn file(&self) -> &FileLock {
     //     &self.file
     // }
+    #[cfg(not(feature = "dev"))]
     #[allow(unused)]
     pub fn signature(&self) -> &Vec<u8> {
         &self.signature

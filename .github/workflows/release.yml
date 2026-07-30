@@ -87,7 +87,7 @@ jobs:
         run: sha256sum "${{ steps.version.outputs.jar }}" > "${{ steps.version.outputs.jar }}.sha256"
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: java-guard-${{ steps.version.outputs.version }}
           path: |

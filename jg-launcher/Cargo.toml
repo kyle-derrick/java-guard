@@ -30,7 +30,7 @@ features = ["commctrl", "libloaderapi"]
 mimalloc = "0.1.48"
 
 [target.'cfg(unix)'.dependencies]
-tikv-jemallocator = "0.5.4"
+tikv-jemallocator = "0.7.0"
 
 
 [build-dependencies]

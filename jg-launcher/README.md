@@ -1,5 +1,5 @@
 # jg-launcher 🔐
-[![Rust](https://img.shields.io/badge/Rust-1.41+-red)](https://rust-lang.org)
+[![Rust](https://img.shields.io/badge/Rust-stable%20%7C%202021%20edition-red)](https://rust-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Java Guard](https://img.shields.io/badge/Integration-Java_Guard-orange)](https://github.com/kyle-derrick/java-guard)
 
@@ -7,7 +7,7 @@
 > 
 > 注意：需配合 [Java Guard 加密工具](https://github.com/kyle-derrick/java-guard) 使用
 > 
-> 编译时需要 JAVA_HOME 环境变量指定 JDK 路径
+> 编译需要 stable Rust（项目使用 Rust 2021 edition）和 JDK；请通过 `JAVA_HOME` 指定 JDK 路径。
 > 
 
 ### 1. **工作流程图**

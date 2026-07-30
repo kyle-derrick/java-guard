@@ -149,16 +149,25 @@ pub(crate) fn parser(path: &str) -> Result<Vec<String>, MessageError> {
     Ok(items)
 }
 
-
 #[cfg(test)]
 mod test {
     use crate::util::cfg_parser::parser;
 
     #[test]
     pub fn test_parser() {
-        let r = parser("D:\\data\\code\\git\\own\\java-guard\\jg-launcher\\test\\test.cfg").unwrap();
-        for x in r {
-            println!("{:?}", x);
-        }
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/vm-options.cfg"
+        );
+
+        assert_eq!(
+            parser(path).unwrap(),
+            [
+                "-Xms256m",
+                "-Xmx1g",
+                "-Dmessage=hello world",
+                "-Dpath=some path",
+            ]
+        );
     }
 }

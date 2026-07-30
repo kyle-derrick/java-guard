@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test-build-sbom:
+    name: Test, build, and SBOM
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Create minimal runtime classes fixture
+        shell: bash
+        run: |
+          mkdir -p build/ext
+          # runtime.classes is a sequence of length-prefixed class records.
+          # An empty stream is the deterministic minimal valid fixture.
+          : > build/ext/runtime.classes
+
+      - name: Run tests
+        run: cargo test --locked
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: Install CycloneDX generator
+        run: cargo install cargo-cyclonedx --version 0.5.9 --locked
+
+      - name: Generate CycloneDX SBOM
+        run: cargo cyclonedx --format json --spec-version 1.5 --override-filename jg-launcher-sbom
+
+      - name: Upload CycloneDX SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: jg-launcher-sbom
+          path: jg-launcher-sbom.json
+          if-no-files-found: error

@@ -73,11 +73,12 @@ jobs:
 
       - name: Generate launcher Cargo SBOM
         run: |
+          cd jg-launcher
           cargo cyclonedx \
-            --manifest-path jg-launcher/Cargo.toml \
             --format json \
             --target all \
-            --override-filename ../target/jg-launcher-cargo-sbom
+            --override-filename jg-launcher-cargo-sbom
+          mv jg-launcher-cargo-sbom.json ../target/jg-launcher-cargo-sbom.json
 
       - name: Smoke-test executable JAR
         run: java -jar "${{ steps.version.outputs.jar }}" --help

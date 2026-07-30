@@ -26,7 +26,7 @@
 - **签名校验**：集成 ED25519 签名验证确保代码完整性。
 - **零侵入集成**：无需修改业务代码，透明化保护流程。
 - **JVM 集成**：直接调用 JVM 启动应用，而非通过子进程调用 Java。
-- **Java 8 字节码目标**：项目以 Java 8 为编译目标；CI 使用 JDK 8 构建，并仅对生成的 CLI JAR 在 JDK 8、11、17、21 上执行 `--help` 冒烟测试。完整 launcher/应用运行矩阵尚未验证。
+- **Java 8 字节码目标**：项目以 Java 8 为编译目标；自动化 CI 在 Ubuntu 上使用 JDK 8 执行 `mvn clean verify`，并仅对该次构建生成的 CLI JAR 在 JDK 8、11、17、21 上执行 `--help` 冒烟测试。
 - **Java 环境打包**：生成启动器时，可将其写入指定 JDK/JRE 并生成平台压缩包。
 
 ## 📥 获取发行包
@@ -38,8 +38,8 @@
 若使用已发布的 JAR，可忽略 Maven 要求并直接跳至 [3. 加密 JAR 并生成 launcher](#3-加密-jar-并生成-launcher)。
 
 ### 环境要求
-- JDK 8（源码构建基线）；生成的 CLI JAR 仅在 JDK 8、11、17、21 上进行基础冒烟测试
-- Maven 3.6.3+（仅源码构建 Java Guard 时需要）
+- JDK 8（源码构建基线）；自动化 CI 生成的 CLI JAR 仅在 JDK 8、11、17、21 上进行 `--help` 冒烟测试
+- Maven 3.1+（仅源码构建 Java Guard 时需要）
 - 当前 stable Rust/Cargo（仅使用 `-l` 编译 Native 启动器时需要）
 - 对应平台的本机 C 编译工具链
 
@@ -68,7 +68,7 @@ cargo vendor ./vendor
 ```shell
 mkdir .cargo
 
-# Linux/macOS 示例；Windows 用户可执行同等操作
+# Linux/macOS shell 命令示例（不表示已在 macOS 验证）；Windows 用户可执行同等操作
 cat > .cargo/config.toml <<'EOF'
 [source.crates-io]
 replace-with = 'vendored-sources'
@@ -114,7 +114,7 @@ java -jar target/java-guard-*.jar \
   -l \
   your-application.jar
 
-# 启动加密应用（Linux/macOS）
+# Linux/macOS shell 启动命令（当前仅在 Linux 验证）
 ./out/bin/jg-launcher -jar out/your-application.jar
 
 # Windows
@@ -203,7 +203,7 @@ java -jar java-guard-0.4.0.jar \
 - Shade 重定位、最小化、插桩、AOT 或其他字节码重写可能丢失加密载荷或改变类名，不保证可用；WAR、thin JAR、exploded deployment 和 Native Image 也不属于当前默认支持范围。
 - 外层 JAR 的 `signature` 必须是最后一个打包步骤；签名后修改 manifest、嵌套依赖或其他内容都会导致校验失败。
 - 加密 class 通过 JVM 级 JVMTI hook 解密，通常不受 Boot nested-JAR ClassLoader 实现影响。加密资源目前仅在访问经过 `URL.openConnection()`、返回 `jar:` `JarURLConnection` 并通过 `getInputStream()` 读取时透明解密；直接使用 `JarFile`/`ZipFile`、自定义协议或其他 URLConnection 的路径需要单独验证。
-- 默认 Spring Boot 可执行 JAR 的实际使用已验证，但仓库尚未建立 Spring Boot 多版本自动化矩阵；建议针对目标 Spring Boot/JDK 版本进行发布前启动测试。
+- 默认 Spring Boot 可执行 JAR 已手工验证 Spring Boot 2.1.9、3.3.13，以及 3.4 系列中一个未记录确切补丁号的版本；这不表示全部 3.4.x 版本均已验证。仓库尚未建立 Spring Boot 多版本自动化矩阵，建议针对目标 Spring Boot/JDK 版本进行发布前启动测试。
 - 不应向开发者分发 AES 密钥、ED25519 私钥、供应方配置文件或生成目录中的 `jg-launcher-source`。
 
 ### 安全边界
@@ -233,9 +233,15 @@ G --> H
 | URL 类无感扩展 | 动态扩展字节码，解决加密资源访问问题 |
 | JDK/JRE 打包 | 把应用专用 launcher 写入 Java 环境并生成平台压缩包 |
 
+## ✅ 验证范围
+- **自动化 CI**：仅在 Ubuntu 上使用 JDK 8 执行 `mvn clean verify`，并对同一次构建生成的 CLI JAR 在 JDK 8、11、17、21 上运行 `--help`；不包含 Native launcher 编译、加密应用启动或 JDK/JRE 打包验证。
+- **手工端到端验证**：已在 Windows 和 Linux 完成 Native launcher 编译、加密应用实际启动以及 JDK/JRE 打包的完整流程验证。
+- **Spring Boot 手工验证**：默认可执行 JAR 已验证 Spring Boot 2.1.9、3.3.13，以及 3.4 系列中一个未记录确切补丁号的版本；不得据此推断全部 3.4.x 版本均已验证。
+- **尚未验证**：macOS 以及除上述 Windows/Linux 手工测试所用 CPU 架构之外的其他 CPU 架构尚未测试。
+
 ## 🚀 后续计划
-- **完整跨平台 launcher/JDK 矩阵**：在 Windows、Linux、macOS 及支持的 CPU 架构上，覆盖 launcher 编译、JDK/JRE 打包和实际应用启动，并据测试结果明确支持的 JDK 范围
-- **Spring Boot 资源测试**：覆盖代表性的 Spring Boot 版本、可执行 JAR 布局、嵌套依赖及加密资源读取路径
+- **自动化现有验证**：将现有 Windows/Linux Native launcher 编译、加密应用实际启动、JDK/JRE 打包和 Spring Boot 手工验证纳入自动化测试。
+- **扩展平台与路径覆盖**：扩展到 macOS、更多 CPU 架构，以及代表性的 Spring Boot 可执行 JAR 布局、嵌套依赖和加密资源读取路径。
 - **JRE 环境及 classpath 下 JAR 文件签名校验**：增强运行时安全校验机制
 - **反汇编检测与防护机制**：增加对代码反汇编行为的检测和防护能力
 

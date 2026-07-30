@@ -3,6 +3,12 @@ matches:
   - "com/yourcompany/**"     # Encryption path pattern
   - "META-INF/resources/*"
 
-key: your_encryption_key     # AES key (optional, default to automatic generation)
-privateKey: key/id_ed25519 # ED25519 private key path
-publicKey: key/id_ed25519.pub # ED25519 public key path
+key: your_encryption_key       # AES key (optional, generated automatically during encryption)
+privateKey: key/id_ed25519     # ED25519 private key path
+publicKey: key/id_ed25519.pub  # ED25519 public key path
+
+output: ./out                  # Default output directory
+oriJava: /path/to/jdk-or-jre   # Optional JDK/JRE directory or .zip/.tar.gz/.tgz archive
+zipLevel: 6                    # Optional output JAR compression level
+bufferSize: 1048576            # Optional resource-processing buffer size
+printEncryptEntry: true        # Optional encrypted-entry logging

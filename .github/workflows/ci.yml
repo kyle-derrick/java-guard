@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+      - run: mvn --batch-mode --no-transfer-progress clean verify
+      - uses: actions/upload-artifact@v4
+        with:
+          name: java-guard-jdk8
+          path: target/java-guard-*.jar
+          if-no-files-found: error
+
+  runtime:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['8', '11', '17', '21']
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: java-guard-jdk8
+          path: dist
+      - name: Test release JAR on JDK ${{ matrix.java }}
+        shell: bash
+        run: |
+          JAR="$(find dist -maxdepth 1 -name 'java-guard-*.jar' -print -quit)"
+          test -n "$JAR"
+          java -jar "$JAR" --help | grep -q 'usage: java-guard'

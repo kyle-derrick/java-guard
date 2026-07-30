@@ -22,7 +22,7 @@ jobs:
           java-version: '8'
           cache: maven
       - run: mvn --batch-mode --no-transfer-progress clean verify
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: java-guard-jdk8
           path: target/java-guard-*.jar

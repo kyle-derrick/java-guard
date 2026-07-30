@@ -88,7 +88,7 @@ mvn clean package
 The output is:
 
 ```text
-target/java-guard-0.4.0.jar
+target/java-guard-0.4.1.jar
 ```
 
 ### 3. Encrypt a JAR and generate the launcher
@@ -175,7 +175,7 @@ Closed-source dependency JAR
 
 ```shell
 # 1. The supplier encrypts the closed-source dependency
-java -jar java-guard-0.4.0.jar \
+java -jar java-guard-0.4.1.jar \
   -m encrypt \
   -c ./supplier-config.yml \
   -o ./protected-deps \
@@ -185,7 +185,7 @@ java -jar java-guard-0.4.0.jar \
 
 # 3. After all packaging is complete, the supplier signs the final JAR
 #    and generates its matching launcher
-java -jar java-guard-0.4.0.jar \
+java -jar java-guard-0.4.1.jar \
   -m signature \
   -c ./supplier-config.yml \
   -o ./release \

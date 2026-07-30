@@ -16,6 +16,10 @@ public class AppConfig {
     private String output = "./out";
     private long bufferSize = 1024 * 1024;
     private boolean printEncryptEntry = true;
+    private boolean genLauncher = false;
+//    private boolean genDevLauncher = false;
+    private boolean skipDeps = false;
+    private String oriJava;
 
     public String[] getMatches() {
         return matches;
@@ -87,5 +91,37 @@ public class AppConfig {
 
     public void setPrintEncryptEntry(boolean printEncryptEntry) {
         this.printEncryptEntry = printEncryptEntry;
+    }
+
+//    public boolean isGenDevLauncher() {
+//        return genDevLauncher;
+//    }
+//
+//    public void setGenDevLauncher(boolean genDevLauncher) {
+//        this.genDevLauncher = genDevLauncher;
+//    }
+
+    public String getOriJava() {
+        return oriJava;
+    }
+
+    public void setOriJava(String oriJava) {
+        this.oriJava = oriJava;
+    }
+
+    public boolean isSkipDeps() {
+        return skipDeps;
+    }
+
+    public void setSkipDeps(boolean skipDeps) {
+        this.skipDeps = skipDeps;
+    }
+
+    public boolean isGenLauncher() {
+        return genLauncher;
+    }
+
+    public void setGenLauncher(boolean genLauncher) {
+        this.genLauncher = genLauncher;
     }
 }

@@ -41,6 +41,10 @@ public class JavaGuardMain {
             new Option("o", "output", true, "output dir");
     private static final Option GENERATE_LAUNCHER_OPTION =
             new Option("l", "launcher", false, "generate jg launcher");
+//    private static final Option DEV_LAUNCHER_OPTION =
+//            new Option("ld", "l-dev", false, "generate jg launcher with dev feature");
+    private static final Option SKIP_DEPS_OPTION =
+            new Option(null, "skip-deps", false, "skip deps release");
     private static final Option HELP_OPTION =
             new Option("h", "help", false, "print usage");
     private static final Options OPTIONS = new Options()
@@ -48,6 +52,8 @@ public class JavaGuardMain {
             .addOption(MODE_OPTION)
             .addOption(OUTPUT_OPTION)
             .addOption(GENERATE_LAUNCHER_OPTION)
+//            .addOption(DEV_LAUNCHER_OPTION)
+            .addOption(SKIP_DEPS_OPTION)
             .addOption(HELP_OPTION);
 
     static {
@@ -55,8 +61,10 @@ public class JavaGuardMain {
     }
 
     public static void main(String[] args) {
+        int argsLen = args.length;
         CommandLine parse = parseArgs(args);
-        if (parse == null) {
+        if (parse == null || argsLen == 0) {
+            printUsage();
             return;
         }
         AppConfig appConfig = appArgs(parse);
@@ -101,8 +109,7 @@ public class JavaGuardMain {
             }
         }
 
-        boolean generateLauncher = parse.hasOption(GENERATE_LAUNCHER_OPTION);
-        if (generateLauncher) {
+        if (appConfig.isGenLauncher() /*|| appConfig.isGenDevLauncher()*/) {
             try {
                 LauncherCodeGenerator.generate(output, transformInfo);
             } catch (TransformException e) {
@@ -148,6 +155,7 @@ public class JavaGuardMain {
         String configPath = parse.getOptionValue(CONFIG_OPTION.getOpt(), "./config.yml");
         String output = parse.getOptionValue(OUTPUT_OPTION);
         String mode = parse.getOptionValue(MODE_OPTION);
+//        boolean devFeature = parse.hasOption(DEV_LAUNCHER_OPTION);
         AppConfig appConfig;
         try (FileInputStream inputStream = new FileInputStream(configPath)) {
             Yaml yaml = new Yaml();
@@ -167,6 +175,9 @@ public class JavaGuardMain {
         if (output != null) {
             appConfig.setOutput(output);
         }
+//        appConfig.setGenDevLauncher(devFeature);
+        appConfig.setSkipDeps(parse.hasOption(SKIP_DEPS_OPTION));
+        appConfig.setGenLauncher(parse.hasOption(GENERATE_LAUNCHER_OPTION));
         return appConfig;
     }
 

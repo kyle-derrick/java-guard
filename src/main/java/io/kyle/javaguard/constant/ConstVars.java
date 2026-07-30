@@ -1,11 +1,14 @@
 package io.kyle.javaguard.constant;
 
+import org.apache.commons.lang3.StringUtils;
+
 /**
  * @author kyle kyle_derrick@foxmail.com
  * 2024/9/30 13:41
  */
 public interface ConstVars {
     String SALT = "kyle java guard salt";
+    String SALT_2 = StringUtils.reverse("kyle java guard salt2: RAu|`A'ps:w+lwS;r");
     String META_INF_MANIFEST = "META-INF/MANIFEST.MF";
     String DEFAULT_PRIVATE_KEY = "~/java_guard/key";
     String DEFAULT_PUBLIC_KEY = "~/java_guard/key.pub";

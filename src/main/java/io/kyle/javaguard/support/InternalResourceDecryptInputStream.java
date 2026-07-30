@@ -12,6 +12,7 @@ import java.io.InputStream;
 public final class InternalResourceDecryptInputStream extends FilterInputStream {
     private static final int NONCE_LEN = 12;
     private static final int TAG_LEN = 16;
+    private static final int EXT_LEN = NONCE_LEN + TAG_LEN;
     private static final int CHUNK_DATA_LEN = 8192;
     private static final int CHUNK_SIZE = CHUNK_DATA_LEN + NONCE_LEN + TAG_LEN;
     private final byte[] buffer;
@@ -113,7 +114,14 @@ public final class InternalResourceDecryptInputStream extends FilterInputStream 
         if (end == -1) {
             return 0;
         }
-        return end - curr + super.available();
+        int available = super.available();
+        int chunks = available / CHUNK_SIZE;
+        int suffix = available % CHUNK_SIZE;
+        available = chunks * CHUNK_DATA_LEN;
+        if (suffix > EXT_LEN) {
+            available += suffix - EXT_LEN;
+        }
+        return end - curr + available;
     }
 
     @Override

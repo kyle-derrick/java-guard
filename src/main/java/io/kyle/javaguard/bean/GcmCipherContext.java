@@ -62,7 +62,9 @@ public class GcmCipherContext {
         }
         try {
             int len = cipher.processBytes(data, off, end - off, output, outOff);
-            return cipher.doFinal(output, outOff + len) + len;
+            int outEnd = outOff + len;
+            outEnd += cipher.doFinal(output, outOff + len);
+            return outEnd;
         } catch (InvalidCipherTextException e) {
             throw new TransformException("encrypt/decrypt failed", e);
         }

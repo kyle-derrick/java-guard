@@ -48,9 +48,9 @@ public class KeyInfo {
         GcmCipherContext context = this.getCipher(true);
         byte[] nonce = context.getNonce();
         byte[] output = new byte[context.getOutputSize(end - off) + GcmCipherContext.IV_SIZE];
-        int enLen = context.transform(plainText, off, end, output, 0);
-        System.arraycopy(nonce, off, output, enLen, GcmCipherContext.IV_SIZE);
-        assert enLen + GcmCipherContext.IV_SIZE == output.length;
+        int transformOff = context.transform(plainText, off, end, output, 0);
+        System.arraycopy(nonce, off, output, transformOff, GcmCipherContext.IV_SIZE);
+        assert transformOff + GcmCipherContext.IV_SIZE == output.length;
         return output;
     }
 

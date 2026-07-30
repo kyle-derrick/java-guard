@@ -13,7 +13,7 @@
 
 > Java 字节码保护解决方案，提供 JAR 包加密与运行时动态解密能力，有效增加反编译和代码窃取的难度。
 >
-> 可用于 Spring/Spring Boot 应用，但兼容性取决于具体框架版本、打包方式和资源加载路径；当前尚无完整版本矩阵保证。
+> **支持 Spring 以及 Spring Boot 默认可执行 JAR 的常见启动和类加载流程**：应用类位于 `BOOT-INF/classes`、依赖原样位于 `BOOT-INF/lib` 时，class 会在 JVM 定义前通过 `ClassFileLoadHook` 解密，不依赖 Spring Boot 的应用 ClassLoader 实现。
 >
 > 降低传统 Java 代理（`-javaagent`）和本机代理（`-agentlib`）方案中解密方法暴露的风险。
 
@@ -199,9 +199,11 @@ java -jar java-guard-0.4.0.jar \
 
 - 一个最终应用中的多个加密依赖应使用同一 AES 密钥，并由使用该密钥生成的应用专用 launcher 运行。
 - 普通 `java -jar`、IDE 直接运行或构建期间执行加密依赖，只会得到 stub 方法的默认行为；真实实现必须通过匹配的 launcher 加载。
-- Spring Boot 场景建议将加密依赖原样保留在 `BOOT-INF/lib`，但当前并未宣称对所有 Spring Boot 版本或打包布局兼容。Shade 重定位、最小化、插桩或其他字节码重写可能丢失加密载荷或改变类名，不保证可用。
+- Spring Boot 默认可执行 JAR 场景已按常见流程支持：建议先加密依赖，再由 Boot 插件将其原样放入 `BOOT-INF/lib`，最后签名外层可执行 JAR。若直接加密最终 Boot JAR，匹配规则还必须覆盖对应的 `BOOT-INF/lib/*.jar` entry，Java Guard 才会递归处理嵌套依赖。
+- Shade 重定位、最小化、插桩、AOT 或其他字节码重写可能丢失加密载荷或改变类名，不保证可用；WAR、thin JAR、exploded deployment 和 Native Image 也不属于当前默认支持范围。
 - 外层 JAR 的 `signature` 必须是最后一个打包步骤；签名后修改 manifest、嵌套依赖或其他内容都会导致校验失败。
-- 加密资源能否被 Spring Boot 或自定义 ClassLoader 透明读取，取决于具体的 URL/URLConnection 实现；在自动化资源测试矩阵完成前，应针对目标框架版本和打包布局验证。
+- 加密 class 通过 JVM 级 JVMTI hook 解密，通常不受 Boot nested-JAR ClassLoader 实现影响。加密资源目前仅在访问经过 `URL.openConnection()`、返回 `jar:` `JarURLConnection` 并通过 `getInputStream()` 读取时透明解密；直接使用 `JarFile`/`ZipFile`、自定义协议或其他 URLConnection 的路径需要单独验证。
+- 默认 Spring Boot 可执行 JAR 的实际使用已验证，但仓库尚未建立 Spring Boot 多版本自动化矩阵；建议针对目标 Spring Boot/JDK 版本进行发布前启动测试。
 - 不应向开发者分发 AES 密钥、ED25519 私钥、供应方配置文件或生成目录中的 `jg-launcher-source`。
 
 ### 安全边界

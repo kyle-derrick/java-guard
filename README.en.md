@@ -13,7 +13,7 @@
 
 > A Java bytecode protection solution that provides JAR encryption and runtime dynamic decryption, making decompilation and code theft more difficult.
 >
-> Can be used with Spring and Spring Boot applications, but compatibility depends on the framework version, packaging layout, and resource-loading path; a complete compatibility matrix is not yet guaranteed.
+> **Supports Spring and the common startup and class-loading flow of default Spring Boot executable JARs.** With application classes under `BOOT-INF/classes` and intact dependencies under `BOOT-INF/lib`, classes are decrypted through `ClassFileLoadHook` before JVM definition without depending on the Spring Boot application ClassLoader implementation.
 >
 > Reduces the risk of exposing decryption logic inherent in conventional Java agent (`-javaagent`) and native agent (`-agentlib`) approaches.
 
@@ -200,9 +200,11 @@ Important constraints:
 
 - Multiple protected dependencies in one application should use the same AES key and run through the application-specific launcher generated with that key.
 - Plain `java -jar`, direct IDE execution, or build-time execution sees only the stub methods' default behavior. The matching launcher is required to load the real implementation.
-- For Spring Boot scenarios, keep protected dependencies intact under `BOOT-INF/lib`, but compatibility with every Spring Boot version or packaging layout is not currently claimed. Shade relocation, minimization, instrumentation, or other bytecode rewriting may remove the encrypted payload or change class names and is not guaranteed to work.
+- The common default Spring Boot executable-JAR flow is supported: encrypt the dependency first, let the Boot plugin place it intact under `BOOT-INF/lib`, and sign the final outer executable JAR afterward. When encrypting a completed Boot JAR directly, match rules must also include the relevant `BOOT-INF/lib/*.jar` entry before Java Guard can recurse into that nested dependency.
+- Shade relocation, minimization, instrumentation, AOT, or other bytecode rewriting may remove the encrypted payload or change class names and is not guaranteed to work. WAR, thin-JAR, exploded-deployment, and Native Image layouts are outside the current default support scope.
 - Applying `signature` to the outer JAR must be the final packaging step. Modifying its manifest, nested dependencies, or any other content afterward invalidates the signature.
-- Transparent access to encrypted resources depends on the URL/URLConnection implementation used by Spring Boot or a custom classloader. Until an automated resource-test matrix is complete, verify the target framework version and packaging layout.
+- Encrypted classes are decrypted through a JVM-wide JVMTI hook and normally do not depend on the Boot nested-JAR ClassLoader implementation. Encrypted resources are transparently decrypted only when access passes through `URL.openConnection()`, returns a `jar:` `JarURLConnection`, and consumes `getInputStream()`. Direct `JarFile`/`ZipFile` access, custom protocols, and other URLConnection implementations require separate validation.
+- The default Spring Boot executable-JAR flow has been validated in actual use, but the repository does not yet have an automated multi-version Spring Boot matrix. Run a startup test with the target Spring Boot/JDK version before release.
 - Do not distribute the AES key, ED25519 private key, supplier configuration, or the generated `jg-launcher-source` directory to developers.
 
 ### Security Boundary

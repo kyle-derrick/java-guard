@@ -436,7 +436,7 @@ checksum = "82c41e5f8c000874bd82dc86c4d61db547e415ea5f7ce0a423dc413ba2eb7810"
 
 [[package]]
 name = "jg-launcher"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "base64",
  "cc",

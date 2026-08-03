@@ -88,7 +88,7 @@ mvn clean package
 输出文件为：
 
 ```text
-target/java-guard-0.4.1.jar
+target/java-guard-0.4.2.jar
 ```
 
 ### 3. 加密 JAR 并生成 launcher
@@ -175,7 +175,7 @@ Java Guard 可用于向开发者提供经过保护的闭源 Java 依赖，例如
 
 ```shell
 # 1. 供应方加密闭源依赖
-java -jar java-guard-0.4.1.jar \
+java -jar java-guard-0.4.2.jar \
   -m encrypt \
   -c ./supplier-config.yml \
   -o ./protected-deps \
@@ -184,7 +184,7 @@ java -jar java-guard-0.4.1.jar \
 # 2. 开发者使用 protected-deps 中的 JAR 编译并生成 final-app.jar
 
 # 3. 供应方在所有打包步骤完成后，对最终 JAR 签名并生成匹配的 launcher
-java -jar java-guard-0.4.1.jar \
+java -jar java-guard-0.4.2.jar \
   -m signature \
   -c ./supplier-config.yml \
   -o ./release \

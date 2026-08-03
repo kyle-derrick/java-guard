@@ -59,7 +59,11 @@ int init_vm_and_set_callback(JavaVM *vm, jvmtiEventClassFileLoadHook class_file_
     jclass classes[] = {url_class};
     error = (*jvmti)->RetransformClasses(jvmti, 1, classes);
     if (error != JVMTI_ERROR_NONE) {
-        fprintf(stderr, "get extend url class failed!");
+        fprintf(
+            stderr,
+            "ERROR: RetransformClasses(java/net/URL) failed, JVMTI error=%d\n",
+            error
+        );
         return error;
     }
     return 0;

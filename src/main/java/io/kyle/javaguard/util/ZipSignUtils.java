@@ -23,7 +23,7 @@ public class ZipSignUtils {
     private static final int EOCD_COMMENT_LENGTH_OFFSET = 20;
     private static final int EOCD_SIGNATURE = 0x06054b50;
     private static final int ED25519_SIGNATURE_LEN = 64;
-    private static final byte[] SIGNATURE_MAGIC = "JavaGuard-Signature-v1:".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] SIGNATURE_MAGIC = "jgs-v1:".getBytes(StandardCharsets.US_ASCII);
     private static final int READ_BUFFER_SIZE = 4096;
 
     public static byte[] sign(File zip, Signer signer) throws TransformException {

@@ -36,11 +36,11 @@ public class DefaultTransformer extends AbstractTransformer {
             for (byte b : ConstVars.ENCRYPT_RESOURCE_HEADER) {
                 if (in.read() != b) {
                     encrypted = false;
+                    break;
                 }
             }
             in.reset();
             if (encrypted) {
-                out.write(ConstVars.ENCRYPT_RESOURCE_HEADER);
                 copyStream(in, out);
                 return true;
             }
@@ -61,7 +61,7 @@ public class DefaultTransformer extends AbstractTransformer {
         try {
             int read = in.read(header);
             if (read < header.length) {
-                out.write(header, 0, header.length);
+                out.write(header, 0, read);
                 return true;
             }
             if (!Objects.deepEquals(header, ConstVars.ENCRYPT_RESOURCE_HEADER)) {

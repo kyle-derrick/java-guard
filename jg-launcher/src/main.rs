@@ -11,7 +11,7 @@ mod jvm;
 #[global_allocator]
 static GLOBAL_ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-// Linux/Unix平台使用jemalloc
+// Linux/Unix 平台使用 jemalloc。 / Use jemalloc on Linux/Unix.
 #[cfg(unix)]
 #[global_allocator]
 static GLOBAL_ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;

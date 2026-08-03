@@ -31,7 +31,7 @@ pub(crate) fn parser(path: &str) -> Result<Vec<String>, MessageError> {
 
     let chars = content.chars();
     for c in chars {
-        // ' ' \t \n \r  空白字符
+        // 空格、制表符和换行符均作为空白字符。 / Spaces, tabs, and line breaks are whitespace.
 
         if is_comment {
             if c == LF_CHAR {

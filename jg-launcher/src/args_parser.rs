@@ -170,7 +170,7 @@ usage: jg-launcher [options] -jar <jar file> [args...]
     -D<name>=<value>
                   system property
     -verbose:[class|module|gc|jni]
-                  enable detail output
+                  enable detailed output
     -version
     --version     version info
     -? -h -help
@@ -186,13 +186,13 @@ usage: jg-launcher [options] -jar <jar file> [args...]
                   system property
     -X            additional options
 
-    @argument 文件
-                  一个或多个包含选项的参数文件（Java9+）
+    @argument file
+                  one or more argument files containing options (Java 9+)
     --disable-@files
-                  阻止进一步扩展参数文件（Java9+）
+                  prevent further expansion of argument files (Java 9+)
 
     -verbose:[class|module|gc|jni]
-                  enable detail output
+                  enable detailed output
     -version    java version info
     -jgv        jg version info
     -? -h -help
@@ -200,54 +200,54 @@ usage: jg-launcher [options] -jar <jar file> [args...]
     "#);
     #[cfg(not(feature = "dev"))]
     println!(r#"
-note: Class not currently supported run class!!!!!!"#);
+note: launching a class directly is not currently supported."#);
     #[cfg(feature = "dev")]
     println!(r#"
-    -p <模块路径>
-    --module-path <模块路径>...
-                  ; 分隔的元素列表，每个元素都是
-                  模块或包含模块的目录的文件路径。每个模块都是
-                  模块化 JAR 或展开的模块目录。（Java9+）
-    --upgrade-module-path <模块路径>...
-                  ; 分隔的元素列表，每个元素都是
-                  模块或包含模块（用于替换运行时映像中的
-                  可升级模块）的目录的文件路径。每个模块都是
-                  模块化 JAR 或展开的模块目录。（Java9+）
-    --add-modules <模块名称>[,<模块名称>...]
-                  除了初始模块之外要解析的根模块。（Java9+）
-                  <模块名称> 还可以为 ALL-DEFAULT, ALL-SYSTEM,
-                  ALL-MODULE-PATH.
+    -p <module path>
+    --module-path <module path>...
+                  a path-separated list of elements, each containing
+                  a module or a directory of modules. Each module is
+                  a modular JAR or an exploded module directory. (Java 9+)
+    --upgrade-module-path <module path>...
+                  a path-separated list of elements, each containing
+                  a module or a directory of modules that replace
+                  upgradeable modules in the runtime image. Each module is
+                  a modular JAR or an exploded module directory. (Java 9+)
+    --add-modules <module name>[,<module name>...]
+                  root modules to resolve in addition to the initial module. (Java 9+)
+                  <module name> may also be ALL-DEFAULT, ALL-SYSTEM,
+                  or ALL-MODULE-PATH.
     --enable-native-access <module name>[,<module name>...]
-                  允许执行受限本机操作的模块。（Java21+）
-                  <module name> 还可以为 ALL-UNNAMED。
+                  modules permitted to perform restricted native operations. (Java 21+)
+                  <module name> may also be ALL-UNNAMED.
     --list-modules
-                  列出可观察模块并退出（Java9+）
+                  list observable modules and exit (Java 9+)
     -d <module name>
-    --describe-module <模块名称>
-                  描述模块并退出（Java9+）
+    --describe-module <module name>
+                  describe a module and exit (Java 9+)
     --validate-modules
-                  验证所有模块并退出（Java9+）
-                  --validate-modules 选项对于查找
-                  模块路径中模块的冲突及其他错误可能非常有用。
+                  validate all modules and exit (Java 9+)
+                  this option can help find conflicts and other errors
+                  among modules on the module path.
     --show-module-resolution
-                  在启动过程中显示模块解析输出（Java9+）
-    -agentlib:<库名>[=<选项>]
-                  加载本机代理库 <库名>, 例如 -agentlib:jdwp
-                  另请参阅 -agentlib:jdwp=help
-    -agentpath:<路径名>[=<选项>]
-                  按完整路径名加载本机代理库
-    -javaagent:<jar 路径>[=<选项>]
-                  加载 Java 编程语言代理, 请参阅 java.lang.instrument
-    -ea[:<程序包名称>...|:<类名>]
-    -enableassertions[:<程序包名称>...|:<类名>]
-                  按指定的粒度启用断言
-    -da[:<程序包名称>...|:<类名>]
-    -disableassertions[:<程序包名称>...|:<类名>]
-                  按指定的粒度禁用断言
+                  show module resolution output during startup (Java 9+)
+    -agentlib:<library name>[=<options>]
+                  load the native agent library <library name>, for example -agentlib:jdwp
+                  see also -agentlib:jdwp=help
+    -agentpath:<path name>[=<options>]
+                  load the native agent library specified by its full path name
+    -javaagent:<jar path>[=<options>]
+                  load a Java programming language agent; see java.lang.instrument
+    -ea[:<package name>...|:<class name>]
+    -enableassertions[:<package name>...|:<class name>]
+                  enable assertions with the specified granularity
+    -da[:<package name>...|:<class name>]
+    -disableassertions[:<package name>...|:<class name>]
+                  disable assertions with the specified granularity
     -esa | -enablesystemassertions
-                  启用系统断言
+                  enable system assertions
     -dsa | -disablesystemassertions
-                  禁用系统断言"#);
+                  disable system assertions"#);
     exit(0);
 }
 
@@ -372,6 +372,7 @@ fn __parse_args_item<I>(arg: String, arg_iter: &mut I, context: &mut ParseArgsCo
                         return;
                     } else if arg.starts_with(SYSTEM_PROPERTY_ARG_PREFIX) {
                         #[cfg(not(feature = "dev"))]
+                        // 非开发构建自行建立受保护的类路径，忽略外部覆盖。 / Non-dev builds construct the protected classpath, so external overrides are ignored.
                         if arg.starts_with("-Djava.class.path") {
                             return;
                         }
@@ -379,6 +380,7 @@ fn __parse_args_item<I>(arg: String, arg_iter: &mut I, context: &mut ParseArgsCo
                         arg.eq_ignore_ascii_case(DEBUG_ARG) ||
                         arg.starts_with(RUNJDWP_ARG_PREFIX) {
                         #[cfg(not(feature = "dev"))]
+                        // 非开发构建过滤重新附加和调试选项，避免绕过启动器限制。 / Non-dev builds filter re-attach and debug options to prevent bypassing launcher restrictions.
                         return;
                     } else if arg.eq(NOVERIFY_ARG_PREFIX) {
                         #[cfg(feature = "dev")]
@@ -388,13 +390,14 @@ fn __parse_args_item<I>(arg: String, arg_iter: &mut I, context: &mut ParseArgsCo
                         arg.starts_with(AGENTPATH_ARG_PREFIX) ||
                         arg.starts_with(JAVAAGENT_ARG_PREFIX) {
                         #[cfg(not(feature = "dev"))]
-                        panic!("not allow the agent arg!!!");
+                        // 非开发构建拒绝代理注入，避免修改受保护类。 / Non-dev builds reject agent injection to prevent protected classes from being modified.
+                        panic!("agent options are not allowed");
                     } else if arg.starts_with('-') {
                         if !arg.starts_with(VM_ARG_PREFIX) {
                             panic!("not support vm arg: {arg}");
                         }
                     } else if context.target.is_none() {
-                        // todo 待定
+                        // TODO: 确定类目标的最终支持策略。 / Decide the final support policy for class targets.
                         context.target = Some(LaunchTarget::Class(arg));
                         return;;
                         // panic!("Not currently supported run class")
@@ -411,18 +414,18 @@ fn __parse_args_item<I>(arg: String, arg_iter: &mut I, context: &mut ParseArgsCo
 fn init_launcher(target: &LaunchTarget, vm_args: &mut Vec<String>, app_args: &Vec<String>) {
     #[cfg(windows)]
     {
-        // 初始化 INITCOMMONCONTROLSEX 结构体
+        // 初始化通用控件配置。 / Initialize the common-controls configuration.
         let mut init_ctrls = winapi::um::commctrl::INITCOMMONCONTROLSEX {
-            dwSize: std::mem::size_of::<winapi::um::commctrl::INITCOMMONCONTROLSEX>() as u32, // 结构体大小，必须设置
-            dwICC: winapi::um::commctrl::ICC_WIN95_CLASSES, // 指定需要初始化的控件类别
+            dwSize: std::mem::size_of::<winapi::um::commctrl::INITCOMMONCONTROLSEX>() as u32, // 必须设置结构体大小。 / The structure size is required.
+            dwICC: winapi::um::commctrl::ICC_WIN95_CLASSES, // 指定要初始化的控件类别。 / Select the control classes to initialize.
         };
 
-        // 调用 InitCommonControlsEx
+        // 初始化 Windows 通用控件。 / Initialize Windows common controls.
         let result = unsafe { winapi::um::commctrl::InitCommonControlsEx(&mut init_ctrls) };
 
         if result == 0 {
-            eprintln!("InitCommonControlsEx failed!");
-            // 处理初始化失败的情况，例如获取错误码等
+            eprintln!("ERROR: InitCommonControlsEx failed!");
+            // 初始化失败时仅报告错误；启动行为保持不变。 / Report initialization failure only; launcher behavior remains unchanged.
         }
     }
 

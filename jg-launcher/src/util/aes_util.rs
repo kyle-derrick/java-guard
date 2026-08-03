@@ -5,22 +5,22 @@ use ring::aead::{Aad, BoundKey, Nonce, NonceSequence, OpeningKey, UnboundKey, AE
 use ring::error::Unspecified;
 
 pub fn decrypt(data: &mut [u8]) -> Result<&[u8]> {
-    let unbound_key = with_message!(UnboundKey::new(&AES_256_GCM, &inner_key()), "密钥初始化失败！")?;
+    let unbound_key = with_message!(UnboundKey::new(&AES_256_GCM, &inner_key()), "failed to initialize key")?;
     let len = data.len();
     let data_end = len-NONCE_LEN;
-    let nonce = with_message!((&data[data_end..len]).try_into(), "解密信息失败")?;
+    let nonce = with_message!((&data[data_end..len]).try_into(), "failed to read decryption nonce")?;
     let mut open_key = OpeningKey::new(unbound_key,
                                        OnceNonceSequence::new(nonce));
-    with_message!(open_key.open_in_place(Aad::empty(), &mut data[..data_end]), "解密失败")
+    with_message!(open_key.open_in_place(Aad::empty(), &mut data[..data_end]), "decryption failed")
 }
 pub fn decrypt_resource(data: &mut [u8]) -> Result<&[u8]> {
-    let unbound_key = with_message!(UnboundKey::new(&AES_256_GCM, &resource_key()), "资源密钥初始化失败！")?;
+    let unbound_key = with_message!(UnboundKey::new(&AES_256_GCM, &resource_key()), "failed to initialize resource key")?;
     let len = data.len();
     let data_end = len-NONCE_LEN;
-    let nonce = with_message!((&data[data_end..len]).try_into(), "解密资源数据失败")?;
+    let nonce = with_message!((&data[data_end..len]).try_into(), "failed to read resource decryption nonce")?;
     let mut open_key = OpeningKey::new(unbound_key,
                                        OnceNonceSequence::new(nonce));
-    with_message!(open_key.open_in_place(Aad::empty(), &mut data[..data_end]), "资源解密失败")
+    with_message!(open_key.open_in_place(Aad::empty(), &mut data[..data_end]), "resource decryption failed")
 }
 
 

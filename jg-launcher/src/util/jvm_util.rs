@@ -165,7 +165,7 @@ pub fn jni_error_handle(env: &JNIEnv,err: &jni::errors::Error, msg_prefix: &str)
             }
         }
         Error::JniCall(inner_err) => {
-            eprintln!("JniCall Error: {}", inner_err.to_string());
+            eprintln!("ERROR: JNI call failed: {}", inner_err.to_string());
         }
         _ => {}
     }
@@ -271,7 +271,7 @@ pub fn print_version_info(full: bool, env: &mut JNIEnv) -> Result<(), MessageErr
     let version = get_sys_property(env, &sys_cls, "java.version")?;
     let runtime_version = get_sys_property(env, &sys_cls, "java.runtime.version")?;
 
-    // java 的输出就是使用的err输出，请注意
+    // `java -version` 按约定写入标准错误。 / By convention, `java -version` writes to stderr.
     let mut stderr = io::stderr().lock();
     if full {
         let v = if let Some(runtime_version) = runtime_version {

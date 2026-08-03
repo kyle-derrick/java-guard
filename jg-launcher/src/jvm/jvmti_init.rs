@@ -89,6 +89,7 @@ pub fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv) -> Result<(), MessageErr
 
 #[allow(unused)]
 extern "system" fn resource_decrypt_native(env: *mut sys::JNIEnv, object: jobject, data: jbyteArray, off: jint, len: jint) -> jint {
+    // 防止 Rust 展开越过 JNI FFI 边界；失败时返回原长度。 / Prevent Rust unwinding across the JNI FFI boundary; return the original length on failure.
     match panic::catch_unwind(|| _resource_decrypt_native(env, object, data, off, len)) {
         Ok(r) => r,
         Err(err) => {
@@ -174,6 +175,7 @@ extern "system" fn jg_class_file_load_hook(
     new_class_data_len: *mut jint,
     new_class_data: *mut *mut std::os::raw::c_uchar,
 ) {
+    // 防止 Rust 展开越过 JVMTI FFI 回调边界。 / Prevent Rust unwinding across the JVMTI FFI callback boundary.
     if let Err(err) = panic::catch_unwind(|| _jg_class_file_load_hook(jvmti_env, jni_env, class_being_redefined,
                                                                       loader, name, protection_domain,
                                                                       class_data_len, class_data, new_class_data_len,

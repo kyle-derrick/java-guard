@@ -43,7 +43,7 @@ pub fn url_extended_processing(class_data: &[u8]) -> Option<Vec<u8>> {
                     code_attr.codes[end_code_index] = opcodes::INVOKESTATIC;
                     let method_index_bytes = url_method_index.to_be_bytes();
                     code_attr.codes.extend_from_slice(&[method_index_bytes[0], method_index_bytes[1], end_code]);
-                    // 无需更改栈深
+                    // 包装后的返回序列不增加操作数栈峰值，因此保留 max_stack。 / The wrapped return sequence does not raise the operand-stack peak, so max_stack is retained.
 
                     match code_attr.to_bytes() {
                         Ok(bytes) => {

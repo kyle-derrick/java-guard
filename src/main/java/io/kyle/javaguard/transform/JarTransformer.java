@@ -114,6 +114,7 @@ public class JarTransformer extends AbstractTransformer {
                             if (uncompressedSize < 0 || uncompressedSize > config.getBufferSize()) {
                                 if (tempFile == null) {
                                     tempFile = Files.createTempFile(ConstVars.TEMP_PATH_PREFIX, ".temp").toFile();
+                                    FileUtils.forceDeleteOnExit(tempFile);
                                 }
                                 dataTemp = new FileDataTemp(tempFile);
                             } else {
@@ -151,13 +152,13 @@ public class JarTransformer extends AbstractTransformer {
             zos.flush();
             zos.finish();
         } finally {
-            if (tempFile != null) {
-                try {
-                    FileUtils.forceDelete(tempFile);
-                } catch (Exception e) {
-                    FileUtils.forceDeleteOnExit(tempFile);
-                }
-            }
+//            if (tempFile != null) {
+//                try {
+//                    FileUtils.forceDelete(tempFile);
+//                } catch (Exception e) {
+//                    FileUtils.forceDeleteOnExit(tempFile);
+//                }
+//            }
         }
 
     }

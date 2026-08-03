@@ -61,17 +61,8 @@ public class StandardResourceInputStream extends FilterInputStream {
             if (read == -1) {
                 break;
             }
-            if (read == 0) {
-                int value = in.read();
-                if (value == -1) {
-                    break;
-                }
-                buffer[totalRead++] = (byte) value;
-                needRead--;
-            } else {
-                totalRead += read;
-                needRead -= read;
-            }
+            totalRead += read;
+            needRead -= read;
         } while (needRead > 0);
 
         if (totalRead > 0) {

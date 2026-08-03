@@ -48,6 +48,16 @@ public class ResourceStreamTest {
     }
 
     @Test
+    public void decryptPreservesPlainResourceWithShortReads() throws Exception {
+        byte[] plain = data(ConstVars.ENCRYPT_RESOURCE_HEADER.length + 37);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        newTransformer().decrypt(new OneByteAtATimeInputStream(plain), output);
+
+        Assert.assertArrayEquals(plain, output.toByteArray());
+    }
+
+    @Test
     public void resourceRoundTripHandlesShortReadsAndChunkBoundaries() throws Exception {
         int[] lengths = {0, 1, 4, ConstVars.TRUNK_SIZE, ConstVars.TRUNK_SIZE + 1,
                 ConstVars.TRUNK_SIZE * 2 + 37};

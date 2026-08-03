@@ -3,9 +3,8 @@ package io.kyle.javaguard.test;
 import io.kyle.javaguard.bean.AppConfig;
 import io.kyle.javaguard.bean.SignatureInfo;
 import org.apache.commons.codec.binary.Base64;
-import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.apache.commons.codec.binary.Hex;
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters;
-import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters;
 import org.bouncycastle.crypto.util.OpenSSHPrivateKeyUtil;
 import org.bouncycastle.crypto.util.OpenSSHPublicKeyUtil;
 import org.bouncycastle.util.io.pem.PemObject;
@@ -16,14 +15,18 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
-import java.io.ByteArrayOutputStream;
 import java.io.FileWriter;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.security.SecureRandom;
 
 public class SignatureInfoTest {
+    private static final String FIXTURE_ROOT = "/io/kyle/javaguard/test/fixtures/openssh-ed25519/";
+    private static final byte[] MATCHING_PUBLIC_KEY = decodeHex(
+            "430c96393033fcf523590a21d9a663c30fc139fe1d8596b0098620cc6ed8fcfe");
+
     @Rule
     public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -77,35 +80,33 @@ public class SignatureInfoTest {
 
     @Test
     public void parsesSshKeygenOpenSshPrivateAndPublicKeys() throws Exception {
-        GeneratedKeyPair keyPair = generateOpenSshKeyPair("matching");
+        File privateKeyFile = copyFixture("matching");
+        File publicKeyFile = copyFixture("matching.pub");
         AppConfig config = new AppConfig();
-        config.setPrivateKey(keyPair.privateKeyFile.getAbsolutePath());
-        config.setPublicKey(keyPair.publicKeyFile.getAbsolutePath());
+        config.setPrivateKey(privateKeyFile.getAbsolutePath());
+        config.setPublicKey(publicKeyFile.getAbsolutePath());
 
         SignatureInfo info = SignatureInfo.fromConfig(config);
 
-        Assert.assertArrayEquals(keyPair.publicKey.getEncoded(), info.getPublicKey().getEncoded());
-        Assert.assertArrayEquals(keyPair.publicKey.getEncoded(), info.getPrivateKey().generatePublicKey().getEncoded());
+        Assert.assertArrayEquals(MATCHING_PUBLIC_KEY, info.getPublicKey().getEncoded());
+        Assert.assertArrayEquals(MATCHING_PUBLIC_KEY, info.getPrivateKey().generatePublicKey().getEncoded());
     }
 
     @Test
     public void derivesSshKeygenPublicKeyFromOpenSshPrivateKey() throws Exception {
-        GeneratedKeyPair keyPair = generateOpenSshKeyPair("derived");
         AppConfig config = new AppConfig();
-        config.setPrivateKey(keyPair.privateKeyFile.getAbsolutePath());
+        config.setPrivateKey(copyFixture("matching").getAbsolutePath());
 
         SignatureInfo info = SignatureInfo.fromConfig(config);
 
-        Assert.assertArrayEquals(keyPair.publicKey.getEncoded(), info.getPublicKey().getEncoded());
+        Assert.assertArrayEquals(MATCHING_PUBLIC_KEY, info.getPublicKey().getEncoded());
     }
 
     @Test
     public void rejectsMismatchedSshKeygenPublicKey() throws Exception {
-        GeneratedKeyPair privateKeyPair = generateOpenSshKeyPair("private");
-        GeneratedKeyPair otherKeyPair = generateOpenSshKeyPair("other");
         AppConfig config = new AppConfig();
-        config.setPrivateKey(privateKeyPair.privateKeyFile.getAbsolutePath());
-        config.setPublicKey(otherKeyPair.publicKeyFile.getAbsolutePath());
+        config.setPrivateKey(copyFixture("matching").getAbsolutePath());
+        config.setPublicKey(copyFixture("other.pub").getAbsolutePath());
 
         try {
             SignatureInfo.fromConfig(config);
@@ -115,53 +116,20 @@ public class SignatureInfoTest {
         }
     }
 
-    private GeneratedKeyPair generateOpenSshKeyPair(String name) throws Exception {
-        File privateKeyFile = new File(temporaryFolder.getRoot(), "id_ed25519_" + name);
-        Process process = new ProcessBuilder(
-                "ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "SignatureInfoTest", "-f",
-                privateKeyFile.getAbsolutePath())
-                .redirectErrorStream(true)
-                .start();
-        byte[] output = readProcessOutput(process);
-        int exitCode = process.waitFor();
-        Assert.assertEquals("ssh-keygen failed: " + new String(output, StandardCharsets.UTF_8), 0, exitCode);
-
-        File publicKeyFile = new File(privateKeyFile.getAbsolutePath() + ".pub");
-        Assert.assertTrue("ssh-keygen did not create a private key", privateKeyFile.isFile());
-        Assert.assertTrue("ssh-keygen did not create a public key", publicKeyFile.isFile());
-        return new GeneratedKeyPair(privateKeyFile, publicKeyFile, parseOpenSshPublicKey(publicKeyFile));
-    }
-
-    private static byte[] readProcessOutput(Process process) throws Exception {
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-        byte[] buffer = new byte[1024];
-        int read;
-        try (InputStream input = process.getInputStream()) {
-            while ((read = input.read(buffer)) != -1) {
-                output.write(buffer, 0, read);
-            }
+    private File copyFixture(String name) throws Exception {
+        File target = new File(temporaryFolder.getRoot(), name);
+        try (InputStream input = SignatureInfoTest.class.getResourceAsStream(FIXTURE_ROOT + name)) {
+            Assert.assertNotNull("missing OpenSSH fixture: " + name, input);
+            Files.copy(input, target.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
-        return output.toByteArray();
+        return target;
     }
 
-    private static Ed25519PublicKeyParameters parseOpenSshPublicKey(File publicKeyFile) throws Exception {
-        String content = new String(Files.readAllBytes(publicKeyFile.toPath()), StandardCharsets.US_ASCII).trim();
-        String[] fields = content.split("\\s+");
-        Assert.assertEquals("ssh-ed25519", fields[0]);
-        AsymmetricKeyParameter key = OpenSSHPublicKeyUtil.parsePublicKey(Base64.decodeBase64(fields[1]));
-        Assert.assertTrue(key instanceof Ed25519PublicKeyParameters);
-        return (Ed25519PublicKeyParameters) key;
-    }
-
-    private static final class GeneratedKeyPair {
-        private final File privateKeyFile;
-        private final File publicKeyFile;
-        private final Ed25519PublicKeyParameters publicKey;
-
-        private GeneratedKeyPair(File privateKeyFile, File publicKeyFile, Ed25519PublicKeyParameters publicKey) {
-            this.privateKeyFile = privateKeyFile;
-            this.publicKeyFile = publicKeyFile;
-            this.publicKey = publicKey;
+    private static byte[] decodeHex(String value) {
+        try {
+            return Hex.decodeHex(value.toCharArray());
+        } catch (Exception e) {
+            throw new IllegalArgumentException("invalid test public key", e);
         }
     }
 

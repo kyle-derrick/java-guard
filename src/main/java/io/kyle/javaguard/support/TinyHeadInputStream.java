@@ -26,9 +26,31 @@ public class TinyHeadInputStream extends FilterInputStream {
      */
     TinyHeadInputStream(InputStream in) throws IOException {
         super(in);
-        int len = in.read(header);
+        int len = readHeader(in, header);
         this.end = len;
         this.jgResource = len == ENCRYPT_RESOURCE_HEADER.length && Arrays.equals(ENCRYPT_RESOURCE_HEADER, header);
+    }
+
+    // 中文：InputStream 允许短读，因此必须读满资源头或确认到达 EOF。
+    // English: InputStream permits short reads, so fill the resource header or confirm EOF.
+    private static int readHeader(InputStream in, byte[] header) throws IOException {
+        int totalRead = 0;
+        while (totalRead < header.length) {
+            int read = in.read(header, totalRead, header.length - totalRead);
+            if (read == -1) {
+                break;
+            }
+            if (read == 0) {
+                int value = in.read();
+                if (value == -1) {
+                    break;
+                }
+                header[totalRead++] = (byte) value;
+            } else {
+                totalRead += read;
+            }
+        }
+        return totalRead;
     }
 
     private boolean headerOver() {

@@ -6,6 +6,7 @@ import io.kyle.javaguard.exception.TransformException;
 import io.kyle.javaguard.support.StandardResourceInputStream;
 
 import java.io.BufferedInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Objects;
@@ -59,7 +60,7 @@ public class DefaultTransformer extends AbstractTransformer {
     public boolean decrypt(InputStream in, OutputStream out) throws TransformException {
         byte[] header = new byte[ConstVars.ENCRYPT_RESOURCE_HEADER.length];
         try {
-            int read = in.read(header);
+            int read = readHeader(in, header);
             if (read < header.length) {
                 out.write(header, 0, read);
                 return true;
@@ -77,5 +78,27 @@ public class DefaultTransformer extends AbstractTransformer {
             throw new TransformException("decrypt resource failed", e);
         }
         return true;
+    }
+
+    // 中文：InputStream 允许短读，因此必须读满资源头或确认到达 EOF。
+    // English: InputStream permits short reads, so fill the resource header or confirm EOF.
+    private static int readHeader(InputStream in, byte[] header) throws IOException {
+        int totalRead = 0;
+        while (totalRead < header.length) {
+            int read = in.read(header, totalRead, header.length - totalRead);
+            if (read == -1) {
+                break;
+            }
+            if (read == 0) {
+                int value = in.read();
+                if (value == -1) {
+                    break;
+                }
+                header[totalRead++] = (byte) value;
+            } else {
+                totalRead += read;
+            }
+        }
+        return totalRead;
     }
 }

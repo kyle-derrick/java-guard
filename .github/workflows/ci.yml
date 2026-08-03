@@ -28,6 +28,19 @@ jobs:
           path: target/java-guard-*.jar
           if-no-files-found: error
 
+  windows-verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+      - run: mvn --batch-mode --no-transfer-progress clean verify
+
   runtime:
     needs: build
     runs-on: ubuntu-latest

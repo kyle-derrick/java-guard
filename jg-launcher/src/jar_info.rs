@@ -27,7 +27,7 @@ pub struct JarInfo {
 // const SIGNATURE_PREFIX: &str = "JG-Signature:";
 
 #[cfg(not(feature = "dev"))]
-const SIGNATURE_MAGIC: &[u8] = b"JavaGuard-Signature-v1:";
+const SIGNATURE_MAGIC: &[u8] = b"jgs-v1:";
 
 #[cfg(not(feature = "dev"))]
 fn extract_sign_from_comment(comment: &[u8]) -> Result<Vec<u8>, &'static str> {

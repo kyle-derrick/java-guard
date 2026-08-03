@@ -143,7 +143,8 @@ java -jar target/java-guard-*.jar \
 ```yaml
 # ./config.yml
 matches:
-  - "com/yourcompany/**"       # 加密路径匹配规则
+  - "com/yourcompany/*"       # 加密路径匹配规则
+  - "BOOT-INF/classes/com/yourcompany/*"
   - "META-INF/resources/*"
 
 key: your_encryption_key       # AES 密钥；加密时可省略并自动生成

@@ -144,6 +144,7 @@ Without `-l`, Java Guard only processes the input JAR. It does not compile the l
 # ./config.yml
 matches:
   - "com/yourcompany/**"       # Encryption path pattern
+  - "BOOT-INF/classes/com/yourcompany/*"
   - "META-INF/resources/*"
 
 key: your_encryption_key       # AES key; may be omitted and generated during encryption

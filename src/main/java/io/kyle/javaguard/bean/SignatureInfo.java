@@ -42,7 +42,7 @@ public class SignatureInfo {
     public static SignatureInfo fromConfig(AppConfig config) {
         SignatureInfo signatureInfo = new SignatureInfo();
         String privateKeyPath = config.getPrivateKey();
-        // todo 只有私钥或者没有指定时，生成
+        // 中文：未配置时优先使用默认密钥文件。 English: Prefer the default key file when no path is configured.
         if (StringUtils.isBlank(privateKeyPath)) {
             if (Files.exists(Paths.get(ConstVars.DEFAULT_PRIVATE_KEY))) {
                 privateKeyPath = ConstVars.DEFAULT_PRIVATE_KEY;
@@ -54,15 +54,15 @@ public class SignatureInfo {
             try (PemReader privateKeyReader = new PemReader(new FileReader(privateKeyPath))) {
                 AsymmetricKeyParameter keyParameter = OpenSSHPrivateKeyUtil.parsePrivateKeyBlob(privateKeyReader.readPemObject().getContent());
                 if (!(keyParameter instanceof Ed25519PrivateKeyParameters)) {
-                    throw new Error("the private key is not Ed25519 private key!");
+                    throw new Error("The private key is not an Ed25519 private key");
                 }
                 signatureInfo.setPrivateKey((Ed25519PrivateKeyParameters) keyParameter);
             } catch (Exception e) {
-                System.err.println("Failed to read private key: [" + privateKeyPath + "]: " + e.getMessage());
+                System.err.println("ERROR: Failed to read private key: [" + privateKeyPath + "]: " + e.getMessage());
             }
         }
         String publicKeyPath = config.getPublicKey();
-        // todo 只有私钥或者没有指定时，生成
+        // 中文：未配置时优先使用默认密钥文件。 English: Prefer the default key file when no path is configured.
         if (StringUtils.isBlank(publicKeyPath)) {
             if (Files.exists(Paths.get(ConstVars.DEFAULT_PUBLIC_KEY))) {
                 publicKeyPath = ConstVars.DEFAULT_PUBLIC_KEY;
@@ -77,17 +77,17 @@ public class SignatureInfo {
                 if (split.length > 2) {
                     AsymmetricKeyParameter keyParameter = OpenSSHPublicKeyUtil.parsePublicKey(Base64.decodeBase64(split[1]));
                     if (!(keyParameter instanceof Ed25519PublicKeyParameters)) {
-                        throw new Error("the public key is not Ed25519 public key!");
+                        throw new Error("The public key is not an Ed25519 public key");
                     }
 
 //                    X509EncodedKeySpec keySpec = new X509EncodedKeySpec(Base64.decodeBase64(split[1]));
 //                    PublicKey publicKey = KeyFactory.getInstance(ConstVars.SIGN_ALGORITHM).generatePublic(keySpec);
                     signatureInfo.setPublicKey((Ed25519PublicKeyParameters) keyParameter);
                 } else {
-                    System.out.println("WARN: public key parse failed: " + content);
+                    System.err.println("WARN: Failed to parse public key file: " + publicKeyPath);
                 }
             } catch (Exception e) {
-                System.err.println("Failed to read public key: [" + publicKeyPath + "]: " + e.getMessage());
+                System.err.println("ERROR: Failed to read public key: [" + publicKeyPath + "]: " + e.getMessage());
             }
         }
 
@@ -100,7 +100,7 @@ public class SignatureInfo {
 //                        .generatePublic(new PKCS8EncodedKeySpec(signatureInfo.privateKey.getEncoded()));
                 signatureInfo.setPublicKey(signatureInfo.privateKey.generatePublicKey());
             } catch (Exception e) {
-                throw new Error("cannot generate public key from private key!", e);
+                throw new Error("Cannot generate a public key from the private key", e);
             }
         }
         return signatureInfo;

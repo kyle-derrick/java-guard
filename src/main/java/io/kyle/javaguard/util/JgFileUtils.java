@@ -45,23 +45,23 @@ public class JgFileUtils {
 
     public static void copyFile(File from, File to) throws TransformException {
         if (!from.exists()) {
-            throw new TransformException("拷贝文件失败，源文件不存在: " + from.getPath());
+            throw new TransformException("Failed to copy file; source does not exist: " + from.getPath());
         }
         try {
             FileUtils.copyFile(from, to);
         } catch (IOException e) {
-            throw new TransformException("拷贝文件失败: " + from.getPath() + " -> " + to.getPath(), e);
+            throw new TransformException("Failed to copy file: " + from.getPath() + " -> " + to.getPath(), e);
         }
     }
 
     public static void copyFileToDirectory(File from, File to) throws TransformException {
         if (!from.exists()) {
-            throw new TransformException("拷贝文件失败，源文件不存在: " + from.getPath());
+            throw new TransformException("Failed to copy file; source does not exist: " + from.getPath());
         }
         try {
             FileUtils.copyFileToDirectory(from, to);
         } catch (IOException e) {
-            throw new TransformException("拷贝文件失败: " + from.getPath() + " -> " + to.getPath(), e);
+            throw new TransformException("Failed to copy file: " + from.getPath() + " -> " + to.getPath(), e);
         }
     }
 
@@ -125,13 +125,13 @@ public class JgFileUtils {
                     if (zipEntry.isDirectory()) {
                         zipOut.putArchiveEntry(zipEntry);
                         zipOut.closeArchiveEntry();
-                        printUtils.printInline("zip directory %s", zipEntry.getName());
+                        printUtils.printInline("INFO: ZIP directory %s", zipEntry.getName());
                     } else {
                         zipEntry = zipJavaBinHandle(zipEntry, zipOut, binFile, extension, replacementTracker);
                         zipOut.putArchiveEntry(zipEntry);
                         IOUtils.copy(zipIn, zipOut);
                         zipOut.closeArchiveEntry();
-                        printUtils.printInline("zip file %s", zipEntry.getName());
+                        printUtils.printInline("INFO: ZIP file %s", zipEntry.getName());
                     }
                 }
                 zipOut.flush();
@@ -140,7 +140,7 @@ public class JgFileUtils {
             safeReplace(temporary, target.toPath());
             replaced = true;
             printUtils.over();
-            System.out.println("java zip file [" + target.getPath() + "] finished!");
+            System.out.println("INFO: Java ZIP archive created: " + target.getPath());
         } finally {
             if (!replaced) {
                 Files.deleteIfExists(temporary);
@@ -189,12 +189,12 @@ public class JgFileUtils {
                     if (tarEntry.isDirectory()) {
                         tarOut.putArchiveEntry(tarEntry);
                         tarOut.closeArchiveEntry();
-                        printUtils.printInline("tar directory %s", tarEntry.getName());
+                        printUtils.printInline("INFO: TAR directory %s", tarEntry.getName());
                     } else {
                         tarOut.putArchiveEntry(tarGzJavaBinHandle(tarEntry, tarOut, binFile, extension, replacementTracker));
                         IOUtils.copy(tarIn, tarOut);
                         tarOut.closeArchiveEntry();
-                        printUtils.printInline("tar file %s", tarEntry.getName());
+                        printUtils.printInline("INFO: TAR file %s", tarEntry.getName());
                     }
                 }
             }
@@ -202,7 +202,7 @@ public class JgFileUtils {
             safeReplace(temporary, target.toPath());
             replaced = true;
             printUtils.over();
-            System.out.println("java tar file [" + target.getPath() + "] finished!");
+            System.out.println("INFO: Java TAR.GZ archive created: " + target.getPath());
         } finally {
             if (!replaced) {
                 Files.deleteIfExists(temporary);
@@ -271,7 +271,7 @@ public class JgFileUtils {
                     ZipArchiveEntry entry = new ZipArchiveEntry(filePath, entryName);
                     zipOut.putArchiveEntry(entry);
                     zipOut.closeArchiveEntry();
-                    printUtils.printInline("zip directory %s", filePath.toString());
+                    printUtils.printInline("INFO: ZIP directory %s", filePath.toString());
                 } else if (Files.isRegularFile(filePath)) {
                     ZipArchiveEntry entry = new ZipArchiveEntry(filePath, entryName);
 
@@ -283,15 +283,15 @@ public class JgFileUtils {
 
                     FileUtils.copyFile(filePath.toFile(), zipOut);
                     zipOut.closeArchiveEntry();
-                    printUtils.printInline("zip file %s", filePath.toString());
+                    printUtils.printInline("INFO: ZIP file %s", filePath.toString());
                 } else {
-                    System.err.println("\nSkipping " + filePath + " because it is not a directory or a file");
+                    System.err.println("\nWARN: Skipping " + filePath + " because it is not a directory or a file");
                 }
             }
             zipOut.flush();
         }
         printUtils.over();
-        System.out.println("zip file [" + target.getPath() + "] finished!");
+        System.out.println("INFO: ZIP archive created: " + target.getPath());
     }
 
     public static void tarGz(File source, File target) throws IOException {
@@ -354,12 +354,12 @@ public class JgFileUtils {
                     linkEntry.setMode(0777);
                     tarOut.putArchiveEntry(linkEntry);
                     tarOut.closeArchiveEntry();
-                    printUtils.printInline("create link: %s", filePath.toString());
+                    printUtils.printInline("INFO: Creating link: %s", filePath.toString());
                 } else if (Files.isDirectory(filePath)) {
                     TarArchiveEntry entry = new TarArchiveEntry(filePath, entryName);
                     tarOut.putArchiveEntry(entry);
                     tarOut.closeArchiveEntry();
-                    printUtils.printInline("tar dir add: %s", filePath.toString());
+                    printUtils.printInline("INFO: Adding TAR directory: %s", filePath.toString());
                 } else if (Files.isRegularFile(filePath)) {
                     TarArchiveEntry entry = new TarArchiveEntry(filePath, entryName);
                     int mode;
@@ -375,14 +375,14 @@ public class JgFileUtils {
                     tarOut.putArchiveEntry(entry);
                     FileUtils.copyFile(filePath.toFile(), tarOut);
                     tarOut.closeArchiveEntry();
-                    printUtils.printInline("tar add: %s", filePath.toString());
+                    printUtils.printInline("INFO: Adding TAR entry: %s", filePath.toString());
                 } else {
-                    System.err.println("\nSkipping " + filePath + " because it is not a directory or a file");
+                    System.err.println("\nWARN: Skipping " + filePath + " because it is not a directory or a file");
                 }
             }
 
             printUtils.over();
-            System.out.println("tar file [" + target.getPath() + "] finished!");
+            System.out.println("INFO: TAR.GZ archive created: " + target.getPath());
         }
     }
 
@@ -420,7 +420,7 @@ public class JgFileUtils {
             mover.move(source, destination, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             return;
         } catch (AtomicMoveNotSupportedException ignored) {
-            // Fall through to a rollback-capable non-atomic replacement.
+            // 中文：原子移动不可用时，使用可回滚的非原子替换。 English: Fall back to rollback-capable non-atomic replacement.
         }
 
         Path backup = null;

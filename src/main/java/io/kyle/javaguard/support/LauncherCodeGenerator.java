@@ -40,7 +40,7 @@ public class LauncherCodeGenerator {
 
     public static void generate(String output, TransformInfo info) throws TransformException {
         AppConfig config = info.getConfig();
-        File outputDir = requireDirectory(new File(output), "输出目录");
+        File outputDir = requireDirectory(new File(output), "output directory");
         File launcherDir = new File(outputDir, LAUNCHER_CODE_DIR);
         File buildTargetDir = new File(launcherDir, "target"+File.separatorChar+"release");
         boolean isWindows = System.getProperty("os.name").toLowerCase().contains("windows");
@@ -50,45 +50,45 @@ public class LauncherCodeGenerator {
             try {
                 FileUtils.forceDelete(launcherDir);
             } catch (IOException e) {
-                throw new TransformException("清理启动器源码目录失败: " + launcherDir.getAbsolutePath(), e);
+                throw new TransformException("Failed to clean launcher source directory: " + launcherDir.getAbsolutePath(), e);
             }
         }
-        requireDirectory(launcherDir, "启动器源码目录");
-        System.out.println("释放启动器源码中...");
+        requireDirectory(launcherDir, "launcher source directory");
+        System.out.println("INFO: Extracting launcher source...");
         zipResourceExt("/jg-launcher.zip", launcherDir, false);
 
         if (!config.isSkipDeps()) {
-            System.out.println("释放启动器构建依赖中...");
+            System.out.println("INFO: Extracting launcher dependencies...");
             zipResourceExt("/jg-launcher-deps.zip", launcherDir, true);
         }
 
         generateClass(launcherDir, info);
 
-        // todo copy to launcher dir
+        // 中文：构建配置在资源释放后注入运行时密钥与类信息。 English: Inject runtime keys and class metadata after extracting launcher resources.
         Map<String, String> valueMap = postBuild(launcherDir, info);
         StringSubstitutor substitutor = new StringSubstitutor(valueMap);
         configGenerate(LAUNCHER_CODE_BUILD_CONFIG_FILE, new File(launcherDir, LAUNCHER_CODE_BUILD_CONFIG_PATH), substitutor);
 
-        File binDir = requireDirectory(new File(outputDir, "bin"), "启动器输出目录");
+        File binDir = requireDirectory(new File(outputDir, "bin"), "launcher output directory");
         File binFile = new File(buildTargetDir, "jg-launcher" + execSuffix);
         File jgJavaPkgFile = null;
         if (config.isGenLauncher()) {
-            System.out.println("开始编译启动器...");
+            System.out.println("INFO: Building launcher...");
             executeCommand(launcherDir, BUILD_COMMAND);
-            requireRegularFile(binFile, "编译后的启动器");
+            requireRegularFile(binFile, "launcher executable");
             JgFileUtils.copyFileToDirectory(binFile, binDir);
-            System.out.println("开始打包Java环境...");
+            System.out.println("INFO: Packaging Java runtime...");
             jgJavaPkgFile = packageJava(config, isWindows, outputDir, binFile, false);
         }
 
         System.out.println("\n--------------------------------");
         if (jgJavaPkgFile != null && jgJavaPkgFile.exists()) {
-            System.out.println(">> Java 环境包路径：" + jgJavaPkgFile.getAbsolutePath());
+            System.out.println("INFO: Java package path: " + jgJavaPkgFile.getAbsolutePath());
         }
     }
 
     private static File packageJava(AppConfig config, boolean isWindows, File outputDir, File launcherBinFile, boolean isDev) throws TransformException {
-        requireRegularFile(launcherBinFile, "用于打包Java环境的启动器");
+        requireRegularFile(launcherBinFile, "launcher executable");
         String oriJava = config.getOriJava();
         File oriJavaFile;
         try {
@@ -99,7 +99,7 @@ public class LauncherCodeGenerator {
                     if (StringUtils.isBlank(oriJava) || !(oriJavaFile = new File(oriJava)).exists()) {
                         oriJava = System.getProperty("java.home");
                         if (StringUtils.isBlank(oriJava) || !(oriJavaFile = new File(oriJava)).exists()) {
-                            System.err.println("Java包文件不存在：" + oriJava);
+                            System.err.println("ERROR: Java runtime path does not exist: " + oriJava);
                             FileUtils.copyFile(launcherBinFile, new File(outputDir, launcherBinFile.getName()));
                             return null;
                         }
@@ -122,16 +122,16 @@ public class LauncherCodeGenerator {
                 } else if (oriJava.endsWith(".tar.gz") || oriJava.endsWith(".tgz")) {
                     JgFileUtils.tarGzJava(oriJavaFile, jgJavaPkg, launcherBinFile);
                 } else {
-                    System.err.println("WARN: 未知的Java环境包类型，请指定 .zip 或 .tar.gz/.tgz，现在是：" + oriJavaFile.getPath());
+                    System.err.println("WARN: Unsupported Java runtime archive type; expected .zip, .tar.gz, or .tgz: " + oriJavaFile.getPath());
                     return null;
                 }
             } else {
-                System.err.println("WARN: 无法读取的Java环境路径：" + oriJavaFile.getPath());
+                System.err.println("WARN: Java runtime path is not readable: " + oriJavaFile.getPath());
                 return null;
             }
             return jgJavaPkg;
         } catch (IOException e) {
-            throw new TransformException("打包Java环境出错: " + oriJava, e);
+            throw new TransformException("Failed to package Java runtime: " + oriJava, e);
         }
     }
 
@@ -142,7 +142,7 @@ public class LauncherCodeGenerator {
             if (isDeps) {
                 return;
             }
-            throw new TransformException("未找到启动器内嵌资源: " + resourceName);
+            throw new TransformException("Embedded launcher resource not found: " + resourceName);
         }
         try (InputStream resourceStream = LauncherCodeGenerator.class.getResourceAsStream(resourceName);
                 ZipInputStream zip = new ZipInputStream(resourceStream)) {
@@ -152,15 +152,15 @@ public class LauncherCodeGenerator {
                 String fileName = entry.getFileName();
                 File file = resolveZipEntry(dir, fileName);
                 if (entry.isDirectory()) {
-                    requireDirectory(file, "内嵌资源目录 " + fileName);
+                    requireDirectory(file, "embedded resource directory " + fileName);
                 } else {
-                    requireDirectory(file.getParentFile(), "内嵌资源父目录 " + fileName);
-                    printUtils.printInline("释放[%s]...", fileName);
+                    requireDirectory(file.getParentFile(), "embedded resource parent directory " + fileName);
+                    printUtils.printInline("INFO: Extracting [%s]...", fileName);
                     FileUtils.copyToFile(zip, file);
                     if (isDeps && StringUtils.contains(fileName, "tikv-jemalloc-sys") &&
                             (StringUtils.endsWithAny(fileName, ".sh", "/configure", "/config.guess", "/config.sub", "/install-sh"))) {
                         if (!file.setExecutable(true)) {
-                            System.err.println("WARN: 释放脚本添加可执行权限失败: " + fileName);
+                            System.err.println("WARN: Failed to make extracted script executable: " + fileName);
                         }
                     }
                 }
@@ -168,17 +168,17 @@ public class LauncherCodeGenerator {
         } catch (TransformException e) {
             throw e;
         } catch (Exception e) {
-            throw new TransformException("释放内嵌资源失败: " + resourceName, e);
+            throw new TransformException("Failed to extract embedded resource: " + resourceName, e);
         }
         printUtils.over();
-        System.out.println("release resource [" + resourceName + "] finished!");
+        System.out.println("INFO: Resource [" + resourceName + "] extracted successfully!");
     }
 
     static void executeCommand(File launcherDir, String[] cmd) throws TransformException {
         if (cmd == null || cmd.length == 0) {
-            throw new TransformException("无法执行空命令");
+            throw new TransformException("Cannot execute an empty command");
         }
-        requireExistingDirectory(launcherDir, "命令工作目录");
+        requireExistingDirectory(launcherDir, "command working directory");
         String command = String.join(" ", cmd);
         try {
             int exitCode = new ProcessBuilder(cmd)
@@ -187,19 +187,19 @@ public class LauncherCodeGenerator {
                     .start()
                     .waitFor();
             if (exitCode != 0) {
-                throw new TransformException("命令执行失败（退出码 " + exitCode + "）: " + command);
+                throw new TransformException("Command failed with exit code " + exitCode + ": " + command);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new TransformException("等待命令执行时被中断: " + command, e);
+            throw new TransformException("Interrupted while waiting for command: " + command, e);
         } catch (IOException e) {
-            throw new TransformException("无法启动命令: " + command, e);
+            throw new TransformException("Failed to start command: " + command, e);
         }
     }
 
     static File resolveZipEntry(File destinationDir, String entryName) throws TransformException {
         if (entryName == null || entryName.trim().isEmpty()) {
-            throw new TransformException("内嵌ZIP包含空路径条目");
+            throw new TransformException("Embedded ZIP contains an empty entry path");
         }
         try {
             File root = destinationDir.getCanonicalFile();
@@ -208,17 +208,17 @@ public class LauncherCodeGenerator {
                     || (entryName.length() >= 3 && Character.isLetter(entryName.charAt(0))
                     && entryName.charAt(1) == ':'
                     && (entryName.charAt(2) == '/' || entryName.charAt(2) == '\\'))) {
-                throw new TransformException("内嵌ZIP包含绝对路径条目: " + entryName);
+                throw new TransformException("Embedded ZIP contains an absolute entry path: " + entryName);
             }
             File target = new File(root, entryName).getCanonicalFile();
             String rootPath = root.getPath();
             if (!target.getPath().equals(rootPath)
                     && !target.getPath().startsWith(rootPath + File.separator)) {
-                throw new TransformException("内嵌ZIP条目逃逸目标目录: " + entryName);
+                throw new TransformException("Embedded ZIP entry escapes the destination directory: " + entryName);
             }
             return target;
         } catch (IOException e) {
-            throw new TransformException("无法校验内嵌ZIP条目路径: " + entryName, e);
+            throw new TransformException("Failed to validate embedded ZIP entry path: " + entryName, e);
         }
     }
 
@@ -230,20 +230,20 @@ public class LauncherCodeGenerator {
             FileUtils.forceMkdir(dir);
             return requireExistingDirectory(dir, description);
         } catch (IOException e) {
-            throw new TransformException("创建" + description + "失败: " + dir.getAbsolutePath(), e);
+            throw new TransformException("Failed to create " + description + ": " + dir.getAbsolutePath(), e);
         }
     }
 
     private static File requireExistingDirectory(File dir, String description) throws TransformException {
         if (!dir.isDirectory()) {
-            throw new TransformException(description + "不存在或不是目录: " + dir.getAbsolutePath());
+            throw new TransformException(description + " does not exist or is not a directory: " + dir.getAbsolutePath());
         }
         return dir;
     }
 
     private static File requireRegularFile(File file, String description) throws TransformException {
         if (!Files.isRegularFile(file.toPath())) {
-            throw new TransformException(description + "不存在或不是普通文件: " + file.getAbsolutePath());
+            throw new TransformException(description + " does not exist or is not a regular file: " + file.getAbsolutePath());
         }
         return file;
     }
@@ -272,27 +272,27 @@ public class LauncherCodeGenerator {
     private static void configGenerate(String resourceName, File configFile, StringSubstitutor substitutor) throws TransformException {
         try (InputStream configRs = LauncherCodeGenerator.class.getClassLoader().getResourceAsStream(resourceName)) {
             if (configRs == null) {
-                throw new TransformException("未找到启动器构建配置资源: " + resourceName);
+                throw new TransformException("Launcher build configuration resource not found: " + resourceName);
             }
             FileUtils.write(configFile,
                     substitutor.replace(IOUtils.toString(configRs, StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
         } catch (TransformException e) {
             throw e;
         } catch (IOException e) {
-            throw new TransformException("读写启动器构建配置失败: " + resourceName
+            throw new TransformException("Failed to read or write launcher build configuration: " + resourceName
                     + " -> " + configFile.getAbsolutePath(), e);
         }
     }
 
     private static void generateClass(File launcherDir, TransformInfo info) throws TransformException {
-        File launcherClassDir = requireDirectory(new File(launcherDir, LAUNCHER_CLASS_DIR_PATH), "启动器类输出目录");
+        File launcherClassDir = requireDirectory(new File(launcherDir, LAUNCHER_CLASS_DIR_PATH), "launcher class output directory");
 
-        // runtime classes
+        // 中文：运行时类按名称长度、名称、字节码长度、字节码依次序列化。 English: Serialize runtime classes as name length, name, bytecode length, and bytecode.
         File out = new File(launcherClassDir, LAUNCHER_RUNTIME_CLASS_FILE);
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
                 OutputStream fileOutput = Files.newOutputStream(out.toPath())) {
             for (Class<?> clazz : WRITE_RUNTIME_CLASS) {
-                // todo 改为运行时编译
+                // 中文：保留预编译类以匹配当前启动器格式；后续可改为运行时编译。 English: Keep precompiled classes for the current launcher format; runtime compilation remains future work.
                 try (InputStream stream = clazz.getResourceAsStream(clazz.getSimpleName() + ".class")) {
                     byte[] name = clazz.getName().replace(".", "/").getBytes(StandardCharsets.UTF_8);
                     assert stream != null;
@@ -307,7 +307,7 @@ public class LauncherCodeGenerator {
             ByteArrayInputStream stream = new ByteArrayInputStream(outputStream.toByteArray());
             IOUtils.copy(stream, fileOutput);
         } catch (Exception e) {
-            throw new TransformException("write runtime class failed", e);
+            throw new TransformException("Failed to write runtime classes", e);
         }
 
     }

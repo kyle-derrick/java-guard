@@ -22,7 +22,7 @@ public class LauncherCodeGeneratorTest {
                     new String[]{javaExecutable.getAbsolutePath(), "-option-that-does-not-exist"});
             Assert.fail("Expected command failure");
         } catch (TransformException e) {
-            Assert.assertTrue(e.getMessage(), e.getMessage().contains("退出码"));
+            Assert.assertTrue(e.getMessage(), e.getMessage().contains("exit code"));
             Assert.assertTrue(e.getMessage(), e.getMessage().contains(javaExecutable.getAbsolutePath()));
         }
     }

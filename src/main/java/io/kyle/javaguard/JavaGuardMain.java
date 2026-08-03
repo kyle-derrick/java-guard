@@ -79,7 +79,7 @@ public class JavaGuardMain {
         try {
             parse = parseArgs(args);
         } catch (ParseException e) {
-            System.err.println("invalid arguments: " + e.getMessage());
+            System.err.println("ERROR: Invalid arguments: " + e.getMessage());
             printUsage();
             return 1;
         }
@@ -91,7 +91,7 @@ public class JavaGuardMain {
         try {
             appConfig = appArgs(parse);
         } catch (Exception e) {
-            System.err.println("configuration failed: " + message(e));
+            System.err.println("ERROR: Configuration failed: " + message(e));
             return 1;
         }
         String output = appConfig.getOutput();
@@ -100,7 +100,7 @@ public class JavaGuardMain {
         try {
             transformInfo = transformInfo(appConfig);
         } catch (RuntimeException e) {
-            System.err.println("configuration failed: " + message(e));
+            System.err.println("ERROR: Configuration failed: " + message(e));
             return 1;
         }
         if (transformInfo == null) {
@@ -108,11 +108,11 @@ public class JavaGuardMain {
         }
         File outputFile = new File(output);
         if (outputFile.exists() && outputFile.isFile()) {
-            System.err.println("output dir is exists file: " + output);
+            System.err.println("ERROR: Output directory is a file: " + output);
             return 1;
         }
         if (!outputFile.exists() && !outputFile.mkdirs()) {
-            System.err.println("cannot create output dir: " + output);
+            System.err.println("ERROR: Cannot create output directory: " + output);
             return 1;
         }
         SignatureInfo signatureInfo = transformInfo.getSignature();
@@ -139,7 +139,7 @@ public class JavaGuardMain {
                         JgFileUtils.safeReplace(tempFile, outFile.toPath());
                         tempFile = null;
                     } catch (Exception e) {
-                        System.err.println("transform failed: [" + arg + "]: " + e.getMessage());
+                        System.err.println("ERROR: Transformation failed: [" + arg + "]: " + e.getMessage());
                         return 1;
                     } finally {
                         if (tempFile != null) {
@@ -243,19 +243,19 @@ public class JavaGuardMain {
         boolean isDecrypt = config.getMode() == TransformType.decrypt;
         if (keyString == null) {
             if (isDecrypt) {
-                System.err.println("key required with decrypt mode");
+                System.err.println("ERROR: A key is required in decrypt mode");
                 return null;
             } else {
                 KeyGenerator generator = null;
                 try {
                     generator = KeyGenerator.getInstance(ConstVars.ALGORITHM);
                 } catch (NoSuchAlgorithmException e) {
-                    System.err.println("generate key failed: " + e.getMessage());
+                    System.err.println("ERROR: Failed to generate key: " + e.getMessage());
                     return null;
                 }
                 SecretKey secretKey = generator.generateKey();
                 keyString = Base64.encodeBase64URLSafeString(secretKey.getEncoded());
-                System.out.println(">>> generate key: " + keyString);
+                System.out.println("INFO: Generated key: " + keyString);
             }
         }
         byte[] hmac = new HmacUtils(HmacAlgorithms.HMAC_SHA_512, ConstVars.SALT).hmac(keyString.getBytes(StandardCharsets.UTF_8));

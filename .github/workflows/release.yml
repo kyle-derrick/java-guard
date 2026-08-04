@@ -61,6 +61,7 @@ jobs:
           echo "jar=target/release-assets/java-guard-$POM_VERSION.jar" >> "$GITHUB_OUTPUT"
           echo "maven_sbom=target/release-assets/java-guard-maven-sbom.json" >> "$GITHUB_OUTPUT"
           echo "launcher_sbom=target/release-assets/jg-launcher-cargo-sbom.json" >> "$GITHUB_OUTPUT"
+          echo "license=target/release-assets/LICENSE" >> "$GITHUB_OUTPUT"
 
       - name: Build release package with JDK 8
         run: mvn --batch-mode --no-transfer-progress clean verify
@@ -71,6 +72,7 @@ jobs:
           mkdir -p target/release-assets
           cp "target/java-guard-${{ steps.version.outputs.version }}.jar" "${{ steps.version.outputs.jar }}"
           cp target/java-guard-sbom.json "${{ steps.version.outputs.maven_sbom }}"
+          cp LICENSE "${{ steps.version.outputs.license }}"
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -136,6 +138,14 @@ jobs:
               component = document.get("metadata", {}).get("component", {})
               if component.get("name") != name or component.get("version") != version:
                   raise SystemExit(f"{path} component mismatch: {component!r}")
+              licenses = component.get("licenses", [])
+              expressions = {item.get("expression") for item in licenses if isinstance(item, dict)}
+              identifiers = {
+                  item.get("license", {}).get("id")
+                  for item in licenses if isinstance(item, dict) and isinstance(item.get("license"), dict)
+              }
+              if "Apache-2.0" not in expressions | identifiers:
+                  raise SystemExit(f"{path} does not declare Apache-2.0: {licenses!r}")
           PY
 
       - name: Smoke-test executable JAR
@@ -157,6 +167,7 @@ jobs:
             ${{ steps.version.outputs.jar }}.sha256
             ${{ steps.version.outputs.maven_sbom }}
             ${{ steps.version.outputs.launcher_sbom }}
+            ${{ steps.version.outputs.license }}
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -168,6 +179,7 @@ jobs:
             "${{ steps.version.outputs.jar }}.sha256" \
             "${{ steps.version.outputs.maven_sbom }}" \
             "${{ steps.version.outputs.launcher_sbom }}" \
+            "${{ steps.version.outputs.license }}" \
             --verify-tag \
             --generate-notes \
             --title "$GITHUB_REF_NAME"

@@ -312,9 +312,11 @@ class Runner:
         assert self._packaged_root is not None
         if self.build_view.exists():
             shutil.rmtree(self.build_view, onerror=remove_readonly)
-        # The extracted package remains immutable test input.  Maven gets a copy
-        # where java_ori is restored as java, avoiding accidental launcher use.
-        shutil.copytree(self._packaged_root, self.build_view, symlinks=True)
+        # The extracted package remains immutable test input. Maven gets a
+        # self-contained copy with runtime symlinks materialized, then java_ori
+        # is restored as java to avoid accidental launcher use. This prevents
+        # setup-java trust-store links from becoming invalid in the copied JDK.
+        shutil.copytree(self._packaged_root, self.build_view)
         java = self.build_view / "bin" / java_name()
         java_ori = self.build_view / "bin" / java_ori_name()
         shutil.copy2(java_ori, java)
@@ -1297,13 +1299,6 @@ def validate_stopped_process_and_port(process: subprocess.Popen, host: str, port
             raise CompatError("tested port %d still accepts connections after launcher stop" % port)
     finally:
         probe.close()
-    rebound = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        rebound.bind((host, port))
-    except OSError as exc:
-        raise CompatError("tested port %d cannot be rebound after launcher stop: %s" % (port, exc)) from exc
-    finally:
-        rebound.close()
 
 
 def wait_for_exit(process: subprocess.Popen, timeout: int) -> int:

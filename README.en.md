@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/kyle-derrick/java-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/kyle-derrick/java-guard/actions/workflows/ci.yml)
 [![Release](https://github.com/kyle-derrick/java-guard/actions/workflows/release.yml/badge.svg)](https://github.com/kyle-derrick/java-guard/actions/workflows/release.yml)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Java](https://img.shields.io/badge/bytecode-Java%208-orange)](https://java.com)
 [![Rust](https://img.shields.io/badge/Rust-stable-red)](https://rust-lang.org)
 
@@ -32,7 +32,7 @@
 
 ## 📥 Download a Release
 
-Download the executable fat JAR, its SHA-256 checksum, and two clearly scoped CycloneDX JSON SBOMs from [GitHub Releases](https://github.com/kyle-derrick/java-guard/releases): `java-guard-maven-sbom.json` describes the Maven/Java component, while `jg-launcher-cargo-sbom.json` separately describes the Rust launcher from `jg-launcher/Cargo.toml` and `jg-launcher/Cargo.lock`. Neither SBOM alone covers both components. The release JAR already embeds the `jg-launcher` source, so Maven is not required to run Java Guard. Rust/Cargo and a native build toolchain are still required when generating a native launcher.
+Download the executable fat JAR, the Apache-2.0 `LICENSE`, its SHA-256 checksum, and two clearly scoped CycloneDX JSON SBOMs from [GitHub Releases](https://github.com/kyle-derrick/java-guard/releases): `java-guard-maven-sbom.json` describes the Maven/Java component, while `jg-launcher-cargo-sbom.json` separately describes the Rust launcher from `jg-launcher/Cargo.toml` and `jg-launcher/Cargo.lock`. Neither SBOM alone covers both components. The release JAR already embeds the `jg-launcher` source, so Maven is not required to run Java Guard. Rust/Cargo and a native build toolchain are still required when generating a native launcher.
 
 ## 🚀 Quick Start
 
@@ -263,7 +263,7 @@ Contributions are welcome through:
 3. Documentation improvements and test cases
 
 ## 📜 License
-Distributed under the [MIT License](LICENSE).
+Distributed under the [Apache License 2.0](LICENSE).
 
 ## ❓ Get Help
 - [Issue Tracker](https://github.com/kyle-derrick/java-guard/issues)

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/kyle-derrick/java-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/kyle-derrick/java-guard/actions/workflows/ci.yml)
 [![Release](https://github.com/kyle-derrick/java-guard/actions/workflows/release.yml/badge.svg)](https://github.com/kyle-derrick/java-guard/actions/workflows/release.yml)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Java](https://img.shields.io/badge/bytecode-Java%208-orange)](https://java.com)
 [![Rust](https://img.shields.io/badge/Rust-stable-red)](https://rust-lang.org)
 
@@ -32,7 +32,7 @@
 
 ## 📥 获取发行包
 
-可从 [GitHub Releases](https://github.com/kyle-derrick/java-guard/releases) 下载已打包的可执行 fat JAR、SHA-256 校验文件及两个范围明确的 CycloneDX JSON SBOM：`java-guard-maven-sbom.json` 描述 Maven/Java 组件，`jg-launcher-cargo-sbom.json` 则根据 `jg-launcher/Cargo.toml` 和 `jg-launcher/Cargo.lock` 单独描述 Rust launcher；任一 SBOM 都不能单独代表两个组件。发行包已经内嵌 `jg-launcher` 源码，无需 Maven 即可执行 Java Guard；生成 Native 启动器时仍需要 Rust/Cargo 和本机编译工具链。
+可从 [GitHub Releases](https://github.com/kyle-derrick/java-guard/releases) 下载已打包的可执行 fat JAR、Apache-2.0 `LICENSE`、SHA-256 校验文件及两个范围明确的 CycloneDX JSON SBOM：`java-guard-maven-sbom.json` 描述 Maven/Java 组件，`jg-launcher-cargo-sbom.json` 则根据 `jg-launcher/Cargo.toml` 和 `jg-launcher/Cargo.lock` 单独描述 Rust launcher；任一 SBOM 都不能单独代表两个组件。发行包已经内嵌 `jg-launcher` 源码，无需 Maven 即可执行 Java Guard；生成 Native 启动器时仍需要 Rust/Cargo 和本机编译工具链。
 
 ## 🚀 快速开始
 
@@ -263,7 +263,7 @@ CI 在多个 JDK 版本和 Windows、Linux 环境中验证 Native 启动器与 J
 3. 完善文档或添加测试用例
 
 ## 📜 许可证
-本项目采用 [MIT License](LICENSE)。
+本项目采用 [Apache License 2.0](LICENSE)。
 
 ## ❓ 获取帮助
 - [问题追踪](https://github.com/kyle-derrick/java-guard/issues)

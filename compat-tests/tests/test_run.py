@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 import sys
+import tarfile
 import tempfile
 import threading
 import time
@@ -61,6 +62,73 @@ class RunnerHelpersTest(unittest.TestCase):
                                   "--skip-package", "--package-archive", "runtime.zip",
                                   "--protected-jar", "protected.jar"])
         self.assertTrue(args.launcher_only)
+
+    @unittest.skipIf(runner.IS_WINDOWS, "symbolic-link runtime layout is Unix-specific")
+    def test_build_view_materializes_runtime_symlinks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            packaged = root / "packaged"
+            build_view = root / "build-view"
+            bin_dir = packaged / "bin"
+            security = packaged / "lib" / "security"
+            bin_dir.mkdir(parents=True)
+            security.mkdir(parents=True)
+            launcher = bin_dir / runner.java_name()
+            java_ori = bin_dir / runner.java_ori_name()
+            launcher.write_bytes(b"launcher")
+            java_ori.write_bytes(b"java-original")
+            real_cacerts = security / "real-cacerts"
+            real_cacerts.write_bytes(b"unit trust store")
+            (security / "cacerts").symlink_to("real-cacerts")
+
+            fake = object.__new__(runner.Runner)
+            fake._packaged_root = packaged
+            fake._packaged_launcher = launcher
+            fake._packaged_launcher_hash = runner.sha256(launcher)
+            fake.build_view = build_view
+            fake.work = root
+            fake.command = lambda *_args, **_kwargs: None
+
+            fake._create_build_view()
+
+            copied_cacerts = build_view / "lib" / "security" / "cacerts"
+            self.assertFalse(copied_cacerts.is_symlink())
+            self.assertEqual(b"unit trust store", copied_cacerts.read_bytes())
+            self.assertTrue((security / "cacerts").is_symlink())
+            self.assertEqual(b"java-original", (build_view / "bin" / runner.java_name()).read_bytes())
+            self.assertEqual(runner.sha256(launcher), fake._packaged_launcher_hash)
+
+    @unittest.skipIf(runner.IS_WINDOWS, "TAR symbolic links are Unix-specific")
+    def test_safe_extract_preserves_contained_symlink(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            archive = root / "runtime.tar.gz"
+            payload = b"unit trust store"
+            with tarfile.open(archive, "w:gz") as target:
+                data = tarfile.TarInfo("runtime/lib/security/real-cacerts")
+                data.size = len(payload)
+                target.addfile(data, io.BytesIO(payload))
+                link = tarfile.TarInfo("runtime/lib/security/cacerts")
+                link.type = tarfile.SYMTYPE
+                link.linkname = "real-cacerts"
+                target.addfile(link)
+            extracted = root / "extracted"
+            runner.safe_extract(archive, extracted)
+            cacerts = extracted / "runtime" / "lib" / "security" / "cacerts"
+            self.assertTrue(cacerts.is_symlink())
+            self.assertEqual(payload, cacerts.read_bytes())
+
+    def test_safe_extract_rejects_escaping_symlink(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            archive = root / "runtime.tar.gz"
+            with tarfile.open(archive, "w:gz") as target:
+                link = tarfile.TarInfo("runtime/lib/security/cacerts")
+                link.type = tarfile.SYMTYPE
+                link.linkname = "../../../../outside"
+                target.addfile(link)
+            with self.assertRaisesRegex(runner.CompatError, "archive link escapes destination"):
+                runner.safe_extract(archive, root / "extracted")
 
     def test_output_pump_redacts_log_and_console(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -236,7 +304,7 @@ class RunnerHelpersTest(unittest.TestCase):
         with self.assertRaisesRegex(runner.CompatError, "failed"):
             runner.validate_nonzero_exit(0, "failed")
 
-    def test_stopped_process_port_validator_accepts_rebind(self):
+    def test_stopped_process_port_validator_requires_dead_pid_and_closed_listener(self):
         port = runner.reserve_port("127.0.0.1")
         process = type("Process", (), {"pid": 1234, "poll": lambda self: 0})()
         runner.validate_stopped_process_and_port(process, "127.0.0.1", port)
@@ -247,6 +315,9 @@ class RunnerHelpersTest(unittest.TestCase):
                     process, "127.0.0.1", occupied.getsockname()[1])
         finally:
             occupied.close()
+        alive = type("Process", (), {"pid": 1234, "poll": lambda self: None})()
+        with self.assertRaisesRegex(runner.CompatError, "remained alive"):
+            runner.validate_stopped_process_and_port(alive, "127.0.0.1", port)
 
     def test_validate_protected_entries_checks_every_resource_and_nested_jar(self):
         with tempfile.TemporaryDirectory() as directory:

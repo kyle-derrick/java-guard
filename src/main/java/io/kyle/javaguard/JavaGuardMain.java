@@ -71,6 +71,10 @@ public class JavaGuardMain {
     }
 
     static int run(String[] args) {
+        return run(args, LauncherCodeGenerator::generate);
+    }
+
+    static int run(String[] args, LauncherGenerator launcherGenerator) {
         if (args.length == 0) {
             printUsage();
             return 1;
@@ -117,6 +121,13 @@ public class JavaGuardMain {
         }
         SignatureInfo signatureInfo = transformInfo.getSignature();
         String[] jars = parse.getArgs();
+        if (ArrayUtils.isEmpty(jars)) {
+            if (!appConfig.isGenLauncher()) {
+                System.err.println("ERROR: At least one input JAR is required unless --launcher is specified");
+                return 1;
+            }
+            return generateLauncher(launcherGenerator, output, transformInfo);
+        }
         if (ArrayUtils.isNotEmpty(jars)) {
             for (String arg : jars) {
                 if (arg.endsWith(".jar")) {
@@ -155,15 +166,26 @@ public class JavaGuardMain {
         }
 
         if (appConfig.isGenLauncher() /*|| appConfig.isGenDevLauncher()*/) {
-            try {
-                LauncherCodeGenerator.generate(output, transformInfo);
-            } catch (TransformException e) {
-                System.err.println("ERROR: jg launcher generate failed: " + e.getMessage());
-                e.printStackTrace();
-                return 1;
-            }
+            return generateLauncher(launcherGenerator, output, transformInfo);
         }
         return 0;
+    }
+
+    private static int generateLauncher(LauncherGenerator launcherGenerator,
+                                        String output, TransformInfo transformInfo) {
+        try {
+            launcherGenerator.generate(output, transformInfo);
+            return 0;
+        } catch (TransformException e) {
+            System.err.println("ERROR: jg launcher generate failed: " + e.getMessage());
+            e.printStackTrace();
+            return 1;
+        }
+    }
+
+    @FunctionalInterface
+    interface LauncherGenerator {
+        void generate(String output, TransformInfo transformInfo) throws TransformException;
     }
 
 //    private static byte[] signFile(Path path, SignatureInfo signatureInfo) {

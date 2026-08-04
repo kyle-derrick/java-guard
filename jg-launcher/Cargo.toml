@@ -23,6 +23,7 @@ lazy_static="1.5.0"
 jclass = "0.1"
 glob = "0.3"
 lz4 = "1.28.1"
+rand="0.8.7"
 
 [target.'cfg(windows)'.dependencies.winapi]
 version = "0.3"
@@ -36,7 +37,7 @@ tikv-jemallocator = "0.7.0"
 
 
 [build-dependencies]
-rand="0.8.5"
+rand="0.8.7"
 cc = "1.0"
 java-locator="0.1"
 #sha2 = "0.10"

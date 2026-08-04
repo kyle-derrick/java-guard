@@ -6,7 +6,7 @@
 
     <groupId>io.kyle.javaguard</groupId>
     <artifactId>java-guard</artifactId>
-    <version>0.4.2</version>
+    <version>0.4.3</version>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>

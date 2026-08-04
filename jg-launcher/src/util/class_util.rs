@@ -1,9 +1,11 @@
 use crate::base::common::{INTERNAL_URL_CONNECTION_CLASS, INTERNAL_URL_CONNECTION_DESC, INTERNAL_URL_CONNECTION_METHOD};
 use crate::base::opcode::opcodes;
+use crate::util::byte_utils;
 use jclass::attribute_info::CodeAttribute;
 use jclass::common::constants::CODE_TAG;
 use jclass::constant_pool::{ConstantPool, ConstantValue};
 use jclass::jclass_info::JClassInfo;
+use std::cmp::min;
 use std::io::{BufWriter, Cursor};
 use std::string::ToString;
 
@@ -45,6 +47,21 @@ pub fn url_extended_processing(class_data: &[u8]) -> Option<Vec<u8>> {
                     code_attr.codes.extend_from_slice(&[method_index_bytes[0], method_index_bytes[1], end_code]);
                     // 包装后的返回序列不增加操作数栈峰值，因此保留 max_stack。 / The wrapped return sequence does not raise the operand-stack peak, so max_stack is retained.
 
+                    for code_attr in &mut code_attr.attributes {
+                        if check_name(&info.constant_pool, code_attr.name, "LocalVariableTable") {
+                            let (length, table) = parse_local_variable_table(&code_attr.data);
+                            if length == -1 || table.is_empty() {
+                                break;
+                            }
+
+                            let length = length as u16;
+                            for item in &table {
+                                if (item.start_pc + item.length) == length {
+                                    code_attr.data[item.length_index..item.length_index+2].copy_from_slice(&(item.length + 3).to_be_bytes());
+                                }
+                            }
+                        }
+                    }
                     match code_attr.to_bytes() {
                         Ok(bytes) => {
                             attr.data.resize(bytes.len(), 0);
@@ -82,4 +99,49 @@ fn check_name(const_pool: &ConstantPool, name_index: u16, name: &str) -> bool {
         }
     }
     false
+}
+
+#[derive(Debug)]
+pub struct LocalVariableEntry {
+    pub start_pc: u16,
+    pub length: u16,          // 作用域长度（字节码偏移）
+    pub length_index: usize,           // 数据偏移
+}
+
+fn parse_local_variable_table(data: &[u8]) -> (i32,Vec<LocalVariableEntry>) {
+    if data.len() < 2 {
+        eprintln!("WARN: URL class has invalid method");
+        return (-1, Vec::with_capacity(0));
+    }
+
+    let size = byte_utils::byte_be_to_u16_fast(data, 0) as usize;
+    let size_from_data_len = (data.len() - 2) / 10;
+    if size_from_data_len < size {
+        eprintln!("WARN: local table size invalid {size} / {size_from_data_len} ")
+    }
+    let size = min(size, size_from_data_len);
+    let mut entries = Vec::with_capacity(size);
+    let mut data_index = 2;
+    let mut this_length = -1;
+    for _ in 0..size {
+        let start_pc = byte_utils::byte_be_to_u16_fast(data, data_index);
+        data_index += 2;
+        let length_index = data_index;
+        let length = byte_utils::byte_be_to_u16_fast(data, data_index);
+        data_index += 6;
+        let index = byte_utils::byte_be_to_u16_fast(data, data_index);
+        data_index += 2;
+
+        if index == 0 {
+            this_length = length as i32;
+        }
+
+        entries.push(LocalVariableEntry{
+            start_pc,
+            length,
+            length_index,
+        });
+    }
+
+    (this_length, entries)
 }

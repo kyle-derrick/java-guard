@@ -94,9 +94,9 @@ pub fn jvm_launch(launcher_arg: &LauncherArg) {
 
 fn run(launcher_arg: &LauncherArg, jvm: &jni::JavaVM, env_ref: &mut JNIEnv) -> Result<(), MessageError> {
     let vers = with_message!(env_ref.get_version(), "get jvm version failed!")?;
-    set_callbacks(&jvm, vers.into());
 
     load_ext_runtime(&jvm, env_ref)?;
+    set_callbacks(&jvm, vers.into());
 
     let app_args = launcher_arg.app_args();
 

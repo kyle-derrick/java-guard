@@ -34,10 +34,15 @@ fn main() {
     let cargo_dir = match env::var("CARGO_MANIFEST_DIR") {
         Ok(path) => PathBuf::from(path),
         Err(_) => {
-            let mut path = env::current_exe().ok().expect("cannot get project root path!");
+            let mut path = env::current_exe().expect("cannot get project root path!");
             let mut path_result = None;
             while path.pop() {
-                if path.parent().expect("jg-launcher dir get failed").join("Cargo.toml").exists() {
+                if path
+                    .parent()
+                    .expect("jg-launcher dir get failed")
+                    .join("Cargo.toml")
+                    .exists()
+                {
                     path_result = Some(path);
                     break;
                 }
@@ -65,15 +70,17 @@ fn main() {
     fs::copy(runtime_classes_path, out_path.join(RUNTIME_CLASSES)).unwrap();
     // fs::copy(transform_mod_path, out_path.join(TRANSFORM_MOD)).unwrap();
     #[warn(named_arguments_used_positionally)]
-    let common_content = format!(include_str!("_common.rs"),
-                                 version = app_version,
-                                 key_version = SIGN_KEY_VERSION,
-                                 internalUrlConnectionClass = INTERNAL_URL_CONNECTION_CLASS,
-                                 internalUrlConnectionMethod = INTERNAL_URL_CONNECTION_METHOD,
-                                 internalUrlConnectionDesc = INTERNAL_URL_CONNECTION_DESC,
-                                 resourceDecryptNativeClass = RESOURCE_DECRYPT_NATIVE_CLASS,
-                                 resourceDecryptNativeDesc = RESOURCE_DECRYPT_NATIVE_DESC,
-                                 resourceDecryptNativeMethod = RESOURCE_DECRYPT_NATIVE_METHOD,);
+    let common_content = format!(
+        include_str!("_common.rs"),
+        version = app_version,
+        key_version = SIGN_KEY_VERSION,
+        internalUrlConnectionClass = INTERNAL_URL_CONNECTION_CLASS,
+        internalUrlConnectionMethod = INTERNAL_URL_CONNECTION_METHOD,
+        internalUrlConnectionDesc = INTERNAL_URL_CONNECTION_DESC,
+        resourceDecryptNativeClass = RESOURCE_DECRYPT_NATIVE_CLASS,
+        resourceDecryptNativeDesc = RESOURCE_DECRYPT_NATIVE_DESC,
+        resourceDecryptNativeMethod = RESOURCE_DECRYPT_NATIVE_METHOD,
+    );
     let mut file = File::create(&dest_path).expect("cannot generate jg-common.rs");
     let f = &mut file;
     write_file(f, &common_content);
@@ -102,13 +109,14 @@ fn main() {
     builder
         .includes(&includes)
         .include(&ext_path)
-        .file(&ext_path.join("lib.c"))
+        .file(ext_path.join("lib.c"))
         .compile("jg-jvmti-lib");
 }
 
 fn write_file(file: &mut File, content: &str) {
-    file.write(content.as_bytes()).expect("generate common.rs failed!");
-    file.write(&[b'\n']).expect("generate common.rs failed!");
+    file.write_all(content.as_bytes())
+        .expect("generate common.rs failed!");
+    file.write_all(b"\n").expect("generate common.rs failed!");
 }
 
 fn jdk_includes() -> Option<Vec<PathBuf>> {

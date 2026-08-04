@@ -24,5 +24,5 @@ On Unix, use `:` instead of `;` between the first three classpath components.
 Expected SHA-256:
 
 ```text
-e7c1f477ff9c8d1e2cc0b9513101becab9b8e1a69edc9761b3b1cf9662e0a5ca
+f484337538b8615939654b61646d7038fd52a4d4282f8a866e9f5e362e547dff
 ```

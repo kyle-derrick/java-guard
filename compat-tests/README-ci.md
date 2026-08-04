@@ -34,7 +34,7 @@ Every E2E launch is strict and multi-class: the `'*'` configuration recursively 
 
 Current evidence is local Windows evidence only. The full Maven Java test suite and Python runner unit suite passed with Maven 3.9.16/Python 3, while Rust default features report **13 tests passed** and Rust all-features report **2 tests passed**. The complete Windows native E2E suite passed on JDK 8, 11, 17, 21, and 25, covering Spring Boot 2.1.9.RELEASE, 2.7.18, 3.3.13, 3.4.13, and 4.1.0 respectively; the strict occupied-port check now receives the required nonzero launcher exit after the propagation fix. The Maven 3.9.16 JDK 25 E2E run passed and no longer emitted the prior Maven 3.9.4 Jansi/Guava warnings.
 
-Strict `cargo clippy` still exposes many broader legacy and generated-code lints after the initial build-script fixes; passing tests are not a clean full-repository lint result. Whole-repository `cargo fmt` still has a legacy formatting diff and is deferred. No remote GitHub CI workflow was run, so do not claim warning-free GitHub-hosted Linux output until that lane runs. Docker was unavailable locally, so the Docker lane was not run locally; macOS was not tested.
+Whole-repository Rust formatting and strict Clippy pass locally for default and all-feature targets, and the launcher CI now enforces those gates. No remote GitHub CI workflow was run, so do not claim warning-free GitHub-hosted Linux output until that lane runs. Docker was unavailable locally, so the Docker lane was not run locally; macOS was not tested.
 
 ## Docker lane
 

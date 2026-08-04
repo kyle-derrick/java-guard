@@ -80,5 +80,5 @@ Authenticated `GET /compat/check?fail=true` runs the same checks and determinist
 - Rust default features: **13 tests passed**; Rust all-features: **2 tests passed**.
 - Maven 3.9.16 on JDK 25: the E2E run **passed** and no longer emitted the prior Maven 3.9.4 Jansi/Guava warnings.
 - Complete Windows native E2E: **passed** on JDK 8, 11, 17, 21, and 25. This covers Spring Boot 2.1.9.RELEASE, 2.7.18, 3.3.13, 3.4.13, and 4.1.0 respectively, including strict token-authenticated HTTP and occupied-port startup failure with a required nonzero launcher exit after the propagation fix.
-- Strict `cargo clippy` still exposes many broader legacy and generated-code lints after the initial build-script fixes; passing tests are not a clean full-repository lint result. Whole-repository `cargo fmt` still has a legacy formatting diff and is deferred.
+- Whole-repository `cargo fmt --all -- --check` and strict Clippy pass for both default and all-feature targets; the launcher CI enforces all three gates.
 - No remote GitHub CI workflow was run. In particular, do not claim warning-free GitHub-hosted Linux output until that lane runs. Docker was unavailable locally, so no local Docker lane was run; macOS was not tested.

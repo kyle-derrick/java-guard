@@ -1,6 +1,6 @@
 # jg-launcher 🔐
 [![Rust](https://img.shields.io/badge/Rust-stable%20%7C%202021%20edition-red)](https://rust-lang.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Java Guard](https://img.shields.io/badge/Integration-Java_Guard-orange)](https://github.com/kyle-derrick/java-guard)
 
 > 专为 Java Guard 设计的轻量级 Native 启动器，通过拦截 `ClassFileLoadHook` 实现运行时动态解密，保护加密 JAR 免受反编译和代码窃取。

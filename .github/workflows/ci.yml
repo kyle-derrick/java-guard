@@ -22,6 +22,14 @@ jobs:
           java-version: '8'
           cache: maven
       - run: mvn --batch-mode --no-transfer-progress clean verify
+      - name: Run compatibility runner unit tests
+        run: python -m unittest discover -s compat-tests/tests
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: unit-test-reports-ubuntu-jdk8
+          path: target/surefire-reports/
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v7
         with:
           name: java-guard-jdk8
@@ -40,6 +48,12 @@ jobs:
           java-version: '8'
           cache: maven
       - run: mvn --batch-mode --no-transfer-progress clean verify
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: unit-test-reports-windows-jdk8
+          path: target/surefire-reports/
+          if-no-files-found: warn
 
   runtime:
     needs: build

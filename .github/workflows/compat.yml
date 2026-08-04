@@ -1,0 +1,225 @@
+name: Compatibility
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: Run the full JDK matrix
+        required: false
+        default: false
+        type: boolean
+      docker:
+        description: Run the optional Linux Docker lane
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: '23 3 * * 0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compatibility-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+      - name: Build Java Guard once
+        run: |
+          mvn --batch-mode --no-transfer-progress clean package -DskipTests
+          mkdir -p dist
+          cp target/java-guard-*.jar dist/java-guard.jar
+      - uses: actions/upload-artifact@v7
+        with:
+          name: java-guard-compat
+          path: dist/java-guard.jar
+          if-no-files-found: error
+          retention-days: 1
+
+  native-pr:
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && !inputs.full_matrix)
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            java: '8'
+            class_major: 52
+          - os: ubuntu-latest
+            java: '21'
+            class_major: 65
+          - os: windows-latest
+            java: '17'
+            class_major: 61
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('jg-launcher/Cargo.lock') }}
+          restore-keys: |
+            cargo-deps-${{ runner.os }}-
+      - uses: actions/download-artifact@v8
+        with:
+          name: java-guard-compat
+          path: dist
+      - name: Run native compatibility suite
+        shell: bash
+        run: |
+          mvn --version
+          python compat-tests/run.py \
+            --java-guard-jar "dist/java-guard.jar" \
+            --jdk-home "$JAVA_HOME" \
+            --fixture "jdk${{ matrix.java }}" \
+            --expected-class-major "${{ matrix.class_major }}" \
+            --work-dir "compat-tests/work/${{ runner.os }}-jdk${{ matrix.java }}" \
+            --report-dir "compat-tests/reports/${{ runner.os }}-jdk${{ matrix.java }}"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: compat-${{ runner.os }}-jdk${{ matrix.java }}
+          path: compat-tests/reports/${{ runner.os }}-jdk${{ matrix.java }}/
+          if-no-files-found: warn
+          retention-days: 1
+
+  native-full:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.full_matrix)
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            java: '8'
+            class_major: 52
+          - os: ubuntu-latest
+            java: '11'
+            class_major: 55
+          - os: ubuntu-latest
+            java: '17'
+            class_major: 61
+          - os: ubuntu-latest
+            java: '21'
+            class_major: 65
+          - os: ubuntu-latest
+            java: '25'
+            class_major: 69
+          - os: windows-latest
+            java: '8'
+            class_major: 52
+          - os: windows-latest
+            java: '11'
+            class_major: 55
+          - os: windows-latest
+            java: '17'
+            class_major: 61
+          - os: windows-latest
+            java: '21'
+            class_major: 65
+          - os: windows-latest
+            java: '25'
+            class_major: 69
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('jg-launcher/Cargo.lock') }}
+          restore-keys: |
+            cargo-deps-${{ runner.os }}-
+      - uses: actions/download-artifact@v8
+        with:
+          name: java-guard-compat
+          path: dist
+      - name: Run native compatibility suite
+        shell: bash
+        run: |
+          mvn --version
+          python compat-tests/run.py \
+            --java-guard-jar "dist/java-guard.jar" \
+            --jdk-home "$JAVA_HOME" \
+            --fixture "jdk${{ matrix.java }}" \
+            --expected-class-major "${{ matrix.class_major }}" \
+            --work-dir "compat-tests/work/${{ runner.os }}-jdk${{ matrix.java }}" \
+            --report-dir "compat-tests/reports/${{ runner.os }}-jdk${{ matrix.java }}"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: compat-${{ runner.os }}-jdk${{ matrix.java }}
+          path: compat-tests/reports/${{ runner.os }}-jdk${{ matrix.java }}/
+          if-no-files-found: warn
+          retention-days: 1
+
+  docker:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.docker)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v8
+        with:
+          name: java-guard-compat
+          path: dist
+      - name: Run Docker compatibility suite
+        env:
+          COMPAT_FIXTURE: jdk21
+          COMPAT_EXTRA_ARGS: >-
+            --java-guard-jar /workspace/dist/java-guard.jar
+            --expected-class-major 65
+            --work-dir /workspace/compat-tests/work/docker-jdk21
+            --report-dir /workspace/compat-tests/reports/docker-jdk21
+        run: docker compose -f compat-tests/docker/compose.yml run --rm compat
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: compat-docker
+          path: compat-tests/reports/docker-jdk21/
+          if-no-files-found: warn
+          retention-days: 1

@@ -42,7 +42,7 @@ import java.util.function.Consumer;
  * }</pre>
  *
  * <h3>兼容性</h3>
- * 依赖 ASM 9.x，支持 JDK 8 ~ JDK 21 产生的 class 文件格式。
+ * 依赖 ASM 9.x，支持 JDK 8 ~ JDK 25 产生的 class 文件格式。
  */
 public class ClassStubGenerator {
 
@@ -353,12 +353,12 @@ public class ClassStubGenerator {
      * 处理内容：
      * <ul>
      *   <li>{@code tryCatchBlocks}：清空，原有 try-catch 对新方法体无意义</li>
-     *   <li>{@code localVariables}：清空后重建，仅保留参数条目（兼容依赖
-     *       {@code LocalVariableTable} 读取参数名的框架，如旧版 Spring）；
-     *       参数名优先取自 {@code MethodNode.parameters}，否则退化为 {@code arg0/arg1/...}</li>
+     *   <li>{@code localVariables}：原方法体的 Label 已失效，因此使用新 Label 重建；
+     *       仅保留原 LocalVariableTable 中的 {@code this} 和参数条目。若原表没有某个参数，
+     *       才使用非空的 {@code MethodParameters} 名称补充；两处都没有名称时不伪造名称。</li>
      * </ul>
-     * 注：{@code MethodNode.parameters}（对应 {@code MethodParameters} attribute）不受影响，
-     * Spring Boot 6+ 等新版框架直接使用该字段，无需 {@code LocalVariableTable}。
+     * 注：{@code MethodNode.parameters}（对应 {@code MethodParameters} attribute）始终保持原样，
+     * 包括 class 文件规范允许的未命名参数（name 为 null）。
      *
      * @param method          目标方法节点
      * @param newInstructions 替换用的新指令序列
@@ -369,6 +369,26 @@ public class ClassStubGenerator {
         // 用首尾两个 LabelNode 包裹指令，作为 LocalVariableTable 范围边界
         LabelNode startLabel = new LabelNode();
         LabelNode endLabel = new LabelNode();
+
+        boolean isStatic = (method.access & Opcodes.ACC_STATIC) != 0;
+        Type[] argTypes = Type.getArgumentTypes(method.desc);
+
+        // 原方法体删除后，原 LocalVariableTable 的 Label 范围会失效，不能直接复用节点。
+        // 在清空表之前，按 JVM slot 和 descriptor 保存 this/参数的真实元数据，稍后用新 Label 重建。
+        LocalVariableNode originalThis = null;
+        LocalVariableNode[] originalParameters = new LocalVariableNode[argTypes.length];
+        if (method.localVariables != null) {
+            if (!isStatic && className != null) {
+                originalThis = findOriginalLocal(method, 0,
+                        "L" + className + ";");
+            }
+            int parameterSlot = isStatic ? 0 : 1;
+            for (int i = 0; i < argTypes.length; i++) {
+                originalParameters[i] = findOriginalLocal(method,
+                        parameterSlot, argTypes[i].getDescriptor());
+                parameterSlot += argTypes[i].getSize();
+            }
+        }
 
         method.instructions.clear();
         method.instructions.add(startLabel);
@@ -382,35 +402,73 @@ public class ClassStubGenerator {
         method.visibleLocalVariableAnnotations = null;
         method.invisibleLocalVariableAnnotations = null;
 
-        // 重建只含参数的 LocalVariableTable
-        if (method.localVariables == null) {
-            method.localVariables = new ArrayList<>();
-        } else {
-            method.localVariables.clear();
-        }
-
-        boolean isStatic = (method.access & Opcodes.ACC_STATIC) != 0;
-        Type[] argTypes = Type.getArgumentTypes(method.desc);
+        // 原方法体的 Label 已失效，只复制原参数元数据并使用新范围重建。
+        method.localVariables = new ArrayList<>();
         int slot = 0;
-
         if (!isStatic && className != null) {
-            // slot 0: this，descriptor 使用类自身的对象类型
+            String thisName = originalThis == null || StringUtils.isEmpty(originalThis.name)
+                    ? "this" : originalThis.name;
+            String thisDescriptor = originalThis == null || StringUtils.isEmpty(originalThis.desc)
+                    ? "L" + className + ";" : originalThis.desc;
+            String thisSignature = originalThis == null ? null : originalThis.signature;
             method.localVariables.add(new LocalVariableNode(
-                    "this", "L" + className + ";", null, startLabel, endLabel, slot));
+                    thisName, thisDescriptor, thisSignature, startLabel, endLabel, slot));
             slot++;
         }
 
         for (int i = 0; i < argTypes.length; i++) {
-            String paramName;
-            if (method.parameters != null && i < method.parameters.size()) {
+            LocalVariableNode original = originalParameters[i];
+            String paramName = original == null ? null : original.name;
+            String descriptor = original == null ? argTypes[i].getDescriptor() : original.desc;
+            String signature = original == null ? null : original.signature;
+            // LVT 是正在重建的属性，因此优先保留它原有的名称、descriptor 和泛型 signature。
+            // 只有原 LVT 没有参数条目时，才使用 MethodParameters 中已有的非空名称补充。
+            if (StringUtils.isEmpty(paramName)
+                    && method.parameters != null && i < method.parameters.size()
+                    && method.parameters.get(i) != null) {
                 paramName = method.parameters.get(i).name;
-            } else {
-                paramName = "arg" + i;
             }
-            method.localVariables.add(new LocalVariableNode(
-                    paramName, argTypes[i].getDescriptor(), null, startLabel, endLabel, slot));
+            // MethodParameters 允许 name_index 为 0（ASM 中 name 为 null），LVT 则要求有效名称。
+            // 两处都没有名称时不创建 LVT 条目，避免写入 null 或伪造 arg0/arg1。
+            if (StringUtils.isNotEmpty(paramName)) {
+                method.localVariables.add(new LocalVariableNode(
+                        paramName, descriptor, signature, startLabel, endLabel, slot));
+            }
             // long 和 double 占两个 slot
             slot += argTypes[i].getSize();
         }
+    }
+
+    /**
+     * 从原 LocalVariableTable 中查找指定参数的元数据。
+     * JVM 参数位置由 slot 决定；同时匹配 descriptor，并要求变量范围在首条实际指令前开始，
+     * 避免把方法后半段复用同一 slot 的普通局部变量错当成参数。空名称不能写入新的
+     * LocalVariableTable，因此不作为可保留条目。
+     */
+    private static LocalVariableNode findOriginalLocal(MethodNode method, int slot, String descriptor) {
+        int firstInstructionIndex = method.instructions.size();
+        for (int i = 0; i < method.instructions.size(); i++) {
+            AbstractInsnNode instruction = method.instructions.get(i);
+            if (!(instruction instanceof LabelNode)
+                    && !(instruction instanceof LineNumberNode)
+                    && !(instruction instanceof FrameNode)) {
+                firstInstructionIndex = i;
+                break;
+            }
+        }
+        if (method.localVariables == null) {
+            return null;
+        }
+        for (LocalVariableNode localVariable : method.localVariables) {
+            if (localVariable != null
+                    && localVariable.index == slot
+                    && descriptor.equals(localVariable.desc)
+                    && method.instructions.indexOf(localVariable.start) >= 0
+                    && method.instructions.indexOf(localVariable.start) < firstInstructionIndex
+                    && StringUtils.isNotEmpty(localVariable.name)) {
+                return localVariable;
+            }
+        }
+        return null;
     }
 }

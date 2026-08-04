@@ -2,95 +2,198 @@ package io.kyle.javaguard.test;
 
 import io.kyle.javaguard.util.ClassStubGenerator;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.Label;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
 
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
+import java.lang.reflect.Modifier;
 
-@Ignore
 public class ClassStubGeneratorTest {
+    private static final String CLASS_NAME = "io.kyle.javaguard.test.GeneratedStubSubject";
 
-    /**
-     * 验证对 TestClass 执行空壳化后：
-     * 1. 生成的字节码不为空；
-     * 2. 可以被 ClassLoader 正常加载（字节码合法）；
-     * 3. stub class 文件比原始 class 文件更小（方法体被清空）。
-     */
     @Test
-    public void testGenerateStubClass() throws Exception {
-        String resourcePath = "/" + TestClass.class.getName().replace('.', '/') + ".class";
-        byte[] originalBytes = readResource(resourcePath);
-        Assert.assertNotNull("Test resource not found: " + resourcePath, originalBytes);
+    public void generatedStubLoadsAndReturnsDefaultValues() throws Exception {
+        byte[] original = subjectClass();
+        byte[] stub = ClassStubGenerator.generateStubClass(original, null);
 
-        byte[] stubBytes = ClassStubGenerator.generateStubClass(originalBytes, null);
+        Assert.assertNotNull(stub);
+        Assert.assertTrue(stub.length > 0);
+        Assert.assertFalse("stub must differ from the implementation class",
+                java.util.Arrays.equals(original, stub));
 
-        Assert.assertNotNull("generateStubClass returned null", stubBytes);
-        Assert.assertTrue("Stub bytes should not be empty", stubBytes.length > 0);
-
-        // 加载验证：stub 字节码必须合法可加载
-        Class<?> stubClass = new IsolatedClassLoader().defineClass(TestClass.class.getName(), stubBytes);
-        Assert.assertEquals(TestClass.class.getName(), stubClass.getName());
-
-        System.out.println("Original size : " + originalBytes.length + " bytes");
-        System.out.println("Stub size     : " + stubBytes.length + " bytes");
-
-        Assert.assertTrue("Stub should be smaller than original (method bodies cleared)",
-                stubBytes.length < originalBytes.length);
+        Class<?> type = new IsolatedClassLoader().define(CLASS_NAME, stub);
+        Object instance = type.getConstructor().newInstance();
+        Assert.assertEquals(0, type.getMethod("number").invoke(instance));
+        Assert.assertEquals(false, type.getMethod("flag").invoke(instance));
+        Assert.assertNull(type.getMethod("text").invoke(instance));
     }
 
-    /**
-     * 验证对多个不同类型的类执行空壳化不会抛异常（烟测试）。
-     */
     @Test
-    public void testGenerateStubForVariousClasses() throws Exception {
-        Class<?>[] targets = {
-                TestClass.class,
-                TestClass.TestEnum.class,
-        };
-        for (Class<?> target : targets) {
-            String resourcePath = "/" + target.getName().replace('.', '/') + ".class";
-            byte[] originalBytes = readResource(resourcePath);
-            if (originalBytes == null) {
-                System.out.println("SKIP: " + resourcePath + " not accessible as resource");
-                continue;
-            }
-            byte[] stubBytes = ClassStubGenerator.generateStubClass(originalBytes, null);
-            Assert.assertNotNull("generateStubClass returned null for " + target.getName(), stubBytes);
-            Assert.assertTrue("Stub bytes empty for " + target.getName(), stubBytes.length > 0);
-            System.out.println("OK: " + target.getName()
-                    + " original=" + originalBytes.length + " stub=" + stubBytes.length);
-        }
+    public void generationIsDeterministicAndPreservesNativeMethods() throws Exception {
+        byte[] original = subjectClass();
+        byte[] first = ClassStubGenerator.generateStubClass(original, null);
+        byte[] second = ClassStubGenerator.generateStubClass(original, null);
+
+        Assert.assertArrayEquals(first, second);
+        Class<?> type = new IsolatedClassLoader().define(CLASS_NAME, first);
+        Assert.assertTrue(Modifier.isNative(type.getDeclaredMethod("nativeCall").getModifiers()));
     }
 
-    // -------------------------------------------------------------------------
+    @Test
+    public void unnamedMethodParameterRemainsUnnamed() {
+        ClassWriter writer = new ClassWriter(0);
+        writer.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, "test/UnnamedParameter", null,
+                "java/lang/Object", null);
+        MethodVisitor method = writer.visitMethod(Opcodes.ACC_PUBLIC | Opcodes.ACC_SYNTHETIC,
+                "bridge", "(Ljava/lang/Object;)V", null, null);
+        method.visitParameter(null, Opcodes.ACC_SYNTHETIC);
+        Label start = new Label();
+        Label end = new Label();
+        method.visitCode();
+        method.visitLabel(start);
+        method.visitInsn(Opcodes.RETURN);
+        method.visitLabel(end);
+        method.visitLocalVariable("sourceName", "Ljava/lang/Object;", null, start, end, 1);
+        method.visitMaxs(0, 2);
+        method.visitEnd();
+        writer.visitEnd();
 
-    private static byte[] readResource(String resourcePath) throws Exception {
-        InputStream is = ClassStubGeneratorTest.class.getResourceAsStream(resourcePath);
-        if (is == null) {
-            return null;
-        }
-        try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            byte[] buffer = new byte[8192];
-            int n;
-            while ((n = is.read(buffer)) != -1) {
-                baos.write(buffer, 0, n);
+        byte[] first = ClassStubGenerator.generateStubClass(writer.toByteArray(), null);
+        byte[] second = ClassStubGenerator.generateStubClass(writer.toByteArray(), null);
+
+        Assert.assertArrayEquals(first, second);
+        final boolean[] unnamedParameter = {false};
+        final boolean[] originalLocalName = {false};
+        final boolean[] inventedLocalName = {false};
+        new ClassReader(first).accept(new ClassVisitor(Opcodes.ASM9) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String descriptor,
+                                             String signature, String[] exceptions) {
+                MethodVisitor visitor = super.visitMethod(access, name, descriptor, signature, exceptions);
+                if (!"bridge".equals(name)) {
+                    return visitor;
+                }
+                return new MethodVisitor(Opcodes.ASM9, visitor) {
+                    @Override
+                    public void visitParameter(String name, int access) {
+                        unnamedParameter[0] = name == null;
+                        super.visitParameter(name, access);
+                    }
+
+                    @Override
+                    public void visitLocalVariable(String name, String descriptor, String signature,
+                                                   org.objectweb.asm.Label start, org.objectweb.asm.Label end,
+                                                   int index) {
+                        originalLocalName[0] |= "sourceName".equals(name) && index == 1;
+                        inventedLocalName[0] |= "arg0".equals(name);
+                        super.visitLocalVariable(name, descriptor, signature, start, end, index);
+                    }
+                };
             }
-            return baos.toByteArray();
-        } finally {
-            is.close();
-        }
+        }, 0);
+        Assert.assertTrue("MethodParameters name must remain absent", unnamedParameter[0]);
+        Assert.assertTrue("original LocalVariableTable parameter name must be preserved", originalLocalName[0]);
+        Assert.assertFalse("stub must not invent an arg0 LocalVariableTable name", inventedLocalName[0]);
     }
 
-    /** 独立 ClassLoader，避免与系统 ClassLoader 冲突。 */
-    private static class IsolatedClassLoader extends ClassLoader {
-        IsolatedClassLoader() {
+    @Test
+    public void laterSlotReuseDoesNotReplaceParameterMetadata() {
+        ClassWriter writer = new ClassWriter(0);
+        writer.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, "test/SlotReuse", null,
+                "java/lang/Object", null);
+        MethodVisitor method = writer.visitMethod(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                "reuse", "(Ljava/lang/String;)V", null, null);
+        method.visitParameter("declaredName", 0);
+        Label start = new Label();
+        Label reusedStart = new Label();
+        Label end = new Label();
+        method.visitCode();
+        method.visitLabel(start);
+        method.visitInsn(Opcodes.NOP);
+        method.visitLabel(reusedStart);
+        method.visitInsn(Opcodes.RETURN);
+        method.visitLabel(end);
+        method.visitLocalVariable("laterLocal", "Ljava/lang/String;", null, reusedStart, end, 0);
+        method.visitMaxs(0, 1);
+        method.visitEnd();
+        writer.visitEnd();
+
+        byte[] stub = ClassStubGenerator.generateStubClass(writer.toByteArray(), null);
+        final boolean[] laterLocal = {false};
+        new ClassReader(stub).accept(new ClassVisitor(Opcodes.ASM9) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String descriptor,
+                                             String signature, String[] exceptions) {
+                MethodVisitor visitor = super.visitMethod(access, name, descriptor, signature, exceptions);
+                if (!"reuse".equals(name)) {
+                    return visitor;
+                }
+                return new MethodVisitor(Opcodes.ASM9, visitor) {
+                    @Override
+                    public void visitLocalVariable(String name, String descriptor, String signature,
+                                                   Label start, Label end, int index) {
+                        laterLocal[0] |= "laterLocal".equals(name) && index == 0;
+                        super.visitLocalVariable(name, descriptor, signature, start, end, index);
+                    }
+                };
+            }
+        }, 0);
+        Assert.assertFalse("a later same-slot local must not be promoted to parameter metadata", laterLocal[0]);
+    }
+
+    static byte[] subjectClass() {
+        ClassWriter writer = new ClassWriter(0);
+        writer.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, CLASS_NAME.replace('.', '/'), null,
+                "java/lang/Object", null);
+
+        MethodVisitor constructor = writer.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
+        constructor.visitCode();
+        constructor.visitVarInsn(Opcodes.ALOAD, 0);
+        constructor.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
+        constructor.visitInsn(Opcodes.RETURN);
+        constructor.visitMaxs(1, 1);
+        constructor.visitEnd();
+
+        addConstantMethod(writer, "number", "()I", Opcodes.BIPUSH, 42, Opcodes.IRETURN);
+        addConstantMethod(writer, "flag", "()Z", Opcodes.ICONST_1, 0, Opcodes.IRETURN);
+
+        MethodVisitor text = writer.visitMethod(Opcodes.ACC_PUBLIC, "text", "()Ljava/lang/String;", null, null);
+        text.visitCode();
+        text.visitLdcInsn("sensitive method body");
+        text.visitInsn(Opcodes.ARETURN);
+        text.visitMaxs(1, 1);
+        text.visitEnd();
+
+        writer.visitMethod(Opcodes.ACC_PUBLIC | Opcodes.ACC_NATIVE, "nativeCall", "()V", null, null).visitEnd();
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static void addConstantMethod(ClassWriter writer, String name, String descriptor,
+                                          int constantOpcode, int operand, int returnOpcode) {
+        MethodVisitor method = writer.visitMethod(Opcodes.ACC_PUBLIC, name, descriptor, null, null);
+        method.visitCode();
+        if (constantOpcode == Opcodes.BIPUSH) {
+            method.visitIntInsn(constantOpcode, operand);
+        } else {
+            method.visitInsn(constantOpcode);
+        }
+        method.visitInsn(returnOpcode);
+        method.visitMaxs(1, 1);
+        method.visitEnd();
+    }
+
+    private static final class IsolatedClassLoader extends ClassLoader {
+        private IsolatedClassLoader() {
             super(null);
         }
 
-        Class<?> defineClass(String name, byte[] b) {
-            return defineClass(name, b, 0, b.length);
+        private Class<?> define(String name, byte[] bytes) {
+            return defineClass(name, bytes, 0, bytes.length);
         }
     }
 }

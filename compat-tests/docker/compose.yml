@@ -1,0 +1,30 @@
+services:
+  compat:
+    build:
+      context: ../..
+      dockerfile: compat-tests/docker/Dockerfile
+    working_dir: /workspace
+    volumes:
+      - ../..:/workspace
+      - maven-cache:/root/.m2
+      - cargo-cache:/root/.cargo/registry
+      - cargo-git-cache:/root/.cargo/git
+    environment:
+      COMPAT_FIXTURE: ${COMPAT_FIXTURE:-jdk21}
+      COMPAT_EXTRA_ARGS: ${COMPAT_EXTRA_ARGS:-}
+    command:
+      - /bin/bash
+      - -lc
+      - >-
+        python3 /workspace/compat-tests/run.py
+        --repo /workspace
+        --jdk-home /opt/java/openjdk
+        --fixture "$${COMPAT_FIXTURE}"
+        $${COMPAT_EXTRA_ARGS}
+    init: true
+    stop_grace_period: 15s
+
+volumes:
+  maven-cache:
+  cargo-cache:
+  cargo-git-cache:

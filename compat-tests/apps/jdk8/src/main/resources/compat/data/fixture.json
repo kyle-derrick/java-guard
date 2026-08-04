@@ -1,0 +1,5 @@
+{
+  "fixture": "jdk8",
+  "features": ["aop", "cache", "async", "events", "reflection", "serialization", "resources", "spi"],
+  "metadata": {"layout": "multi-package", "strictChecks": true}
+}

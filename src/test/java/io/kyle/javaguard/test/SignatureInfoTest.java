@@ -10,7 +10,6 @@ import org.bouncycastle.crypto.util.OpenSSHPublicKeyUtil;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemWriter;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -79,7 +78,6 @@ public class SignatureInfoTest {
         }
     }
 
-    @Ignore("OpenSSH key fixture verification is temporarily disabled")
     @Test
     public void parsesSshKeygenOpenSshPrivateAndPublicKeys() throws Exception {
         File privateKeyFile = copyFixture("matching");
@@ -94,7 +92,6 @@ public class SignatureInfoTest {
         Assert.assertArrayEquals(MATCHING_PUBLIC_KEY, info.getPrivateKey().generatePublicKey().getEncoded());
     }
 
-    @Ignore("OpenSSH key fixture verification is temporarily disabled")
     @Test
     public void derivesSshKeygenPublicKeyFromOpenSshPrivateKey() throws Exception {
         AppConfig config = new AppConfig();
@@ -105,7 +102,6 @@ public class SignatureInfoTest {
         Assert.assertArrayEquals(MATCHING_PUBLIC_KEY, info.getPublicKey().getEncoded());
     }
 
-    @Ignore("OpenSSH key fixture verification is temporarily disabled")
     @Test
     public void rejectsMismatchedSshKeygenPublicKey() throws Exception {
         AppConfig config = new AppConfig();

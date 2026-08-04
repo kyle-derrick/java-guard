@@ -58,15 +58,53 @@ jobs:
           fi
 
           echo "version=$POM_VERSION" >> "$GITHUB_OUTPUT"
-          echo "jar=target/java-guard-$POM_VERSION.jar" >> "$GITHUB_OUTPUT"
-          echo "maven_sbom=target/java-guard-maven-sbom.json" >> "$GITHUB_OUTPUT"
-          echo "launcher_sbom=target/jg-launcher-cargo-sbom.json" >> "$GITHUB_OUTPUT"
+          echo "jar=target/release-assets/java-guard-$POM_VERSION.jar" >> "$GITHUB_OUTPUT"
+          echo "maven_sbom=target/release-assets/java-guard-maven-sbom.json" >> "$GITHUB_OUTPUT"
+          echo "launcher_sbom=target/release-assets/jg-launcher-cargo-sbom.json" >> "$GITHUB_OUTPUT"
 
-      - name: Build release package
+      - name: Build release package with JDK 8
         run: mvn --batch-mode --no-transfer-progress clean verify
 
-      - name: Name Maven SBOM
-        run: mv target/java-guard-sbom.json "${{ steps.version.outputs.maven_sbom }}"
+      - name: Stage immutable Java release inputs
+        shell: bash
+        run: |
+          mkdir -p target/release-assets
+          cp "target/java-guard-${{ steps.version.outputs.version }}.jar" "${{ steps.version.outputs.jar }}"
+          cp target/java-guard-sbom.json "${{ steps.version.outputs.maven_sbom }}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up JDK 25 compatibility runtime
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Run native JDK 25 Spring compatibility gate
+        shell: bash
+        run: |
+          python compat-tests/run.py \
+            --java-guard-jar "${{ steps.version.outputs.jar }}" \
+            --jdk-home "$JAVA_HOME" \
+            --fixture jdk25 \
+            --expected-class-major 69 \
+            --work-dir "$RUNNER_TEMP/java-guard-compat-jdk25" \
+            --report-dir "compat-tests/reports/release-jdk25"
+
+      - name: Upload JDK 25 compatibility report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-compat-ubuntu-jdk25
+          path: compat-tests/reports/release-jdk25/
+          if-no-files-found: warn
 
       - name: Install cargo-cyclonedx
         run: cargo install cargo-cyclonedx --version 0.5.9 --locked
@@ -78,14 +116,37 @@ jobs:
             --format json \
             --target all \
             --override-filename jg-launcher-cargo-sbom
-          mv jg-launcher-cargo-sbom.json ../target/jg-launcher-cargo-sbom.json
+          mv jg-launcher-cargo-sbom.json ../target/release-assets/jg-launcher-cargo-sbom.json
+
+      - name: Validate release assets
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import pathlib
+
+          expected = {
+              pathlib.Path("${{ steps.version.outputs.maven_sbom }}"): ("java-guard", "${{ steps.version.outputs.version }}"),
+              pathlib.Path("${{ steps.version.outputs.launcher_sbom }}"): ("jg-launcher", "${{ steps.version.outputs.version }}"),
+          }
+          for path, (name, version) in expected.items():
+              document = json.loads(path.read_text(encoding="utf-8"))
+              if document.get("bomFormat") != "CycloneDX":
+                  raise SystemExit(f"{path} is not a CycloneDX SBOM")
+              component = document.get("metadata", {}).get("component", {})
+              if component.get("name") != name or component.get("version") != version:
+                  raise SystemExit(f"{path} component mismatch: {component!r}")
+          PY
 
       - name: Smoke-test executable JAR
         run: java -jar "${{ steps.version.outputs.jar }}" --help
 
       - name: Generate SHA-256 checksum
         shell: bash
-        run: sha256sum "${{ steps.version.outputs.jar }}" > "${{ steps.version.outputs.jar }}.sha256"
+        run: |
+          cd target/release-assets
+          sha256sum "java-guard-${{ steps.version.outputs.version }}.jar" \
+            > "java-guard-${{ steps.version.outputs.version }}.jar.sha256"
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7

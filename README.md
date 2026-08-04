@@ -25,8 +25,9 @@
 - **安全启动器**：通过 Rust 实现的 Native 启动器防止解密逻辑暴露。
 - **签名校验**：集成 ED25519 签名验证确保代码完整性。
 - **零侵入集成**：无需修改业务代码，透明化保护流程。
+- **可编译 Class Stub**：保留 API 元数据并生成默认方法体；无名称的 `MethodParameters` 条目保持无名称，且不会被复制到名称不能为空的 LocalVariableTable。
 - **JVM 集成**：直接调用 JVM 启动应用，而非通过子进程调用 Java。
-- **Java 8 字节码目标**：项目以 Java 8 为编译目标；自动化 CI 在 Ubuntu 上使用 JDK 8 执行 `mvn clean verify`，并仅对该次构建生成的 CLI JAR 在 JDK 8、11、17、21 上执行 `--help` 冒烟测试。
+- **Java 8 字节码目标**：项目本身以 Java 8 为编译目标；兼容性自动化针对 JDK 主版本 8、11、17、21、25 验证 Native launcher 生成、运行环境打包、加密 Spring Boot 应用启动及失败路径。
 - **Java 环境打包**：生成启动器时，可将其写入指定 JDK/JRE 并生成平台压缩包。
 
 ## 📥 获取发行包
@@ -38,8 +39,8 @@
 若使用已发布的 JAR，可忽略 Maven 要求并直接跳至 [3. 加密 JAR 并生成 launcher](#3-加密-jar-并生成-launcher)。
 
 ### 环境要求
-- JDK 8（源码构建基线）；自动化 CI 生成的 CLI JAR 仅在 JDK 8、11、17、21 上进行 `--help` 冒烟测试
-- Maven 3.1+（仅源码构建 Java Guard 时需要）
+- JDK 8（源码构建基线）；兼容性 fixture 覆盖目标/运行时 JDK 主版本 8、11、17、21、25
+- Maven 3.1+（从源码构建 Java Guard 或兼容性 fixture 时需要）
 - 当前 stable Rust/Cargo（仅使用 `-l` 编译 Native 启动器时需要）
 - 对应平台的本机 C 编译工具链
 
@@ -114,6 +115,12 @@ java -jar target/java-guard-*.jar \
   -l \
   your-application.jar
 
+# 仅生成 launcher/运行环境包；无需输入 JAR
+java -jar target/java-guard-*.jar \
+  -c ./config.yml \
+  -o ./out \
+  -l
+
 # Linux/macOS shell 启动命令（当前仅在 Linux 验证）
 ./out/bin/jg-launcher -jar out/your-application.jar
 
@@ -126,7 +133,7 @@ java -jar target/java-guard-*.jar \
 - Windows：`out/jg-<Java环境名>.zip`
 - Linux/macOS：`out/jg-<Java环境名>.tar.gz`
 
-不传 `-l` 时，仅处理输入 JAR，不编译 launcher，也不打包 Java 环境。
+`-l` 可以在没有输入 JAR 时单独使用，根据配置中的密钥和 Java 环境只生成 launcher 与运行环境包；若同时传入一个或多个 JAR，则会处理这些 JAR 并生成 launcher/运行环境包。不传 `-l` 时必须至少提供一个输入 JAR，且只处理这些 JAR。
 
 ### 命令行参数
 
@@ -135,7 +142,7 @@ java -jar target/java-guard-*.jar \
 | `-c, --config <file>` | 配置文件，默认 `./config.yml` |
 | `-m, --mode <mode>` | 处理模式：`encrypt`、`decrypt` 或 `signature`，默认 `encrypt` |
 | `-o, --output <dir>` | 输出目录；未指定时使用配置值，默认 `./out` |
-| `-l, --launcher` | 显式启用 Native launcher 编译和 Java 环境打包 |
+| `-l, --launcher` | 启用 Native launcher 编译和 Java 环境打包；可不传输入 JAR，仅生成 launcher/运行环境包 |
 | `--skip-deps` | 跳过释放 JAR 内可能包含的离线 Cargo 依赖；正常在线构建通常无需使用 |
 | `-h, --help` | 显示帮助 |
 
@@ -143,9 +150,10 @@ java -jar target/java-guard-*.jar \
 ```yaml
 # ./config.yml
 matches:
-  - "com/yourcompany/*"       # 加密路径匹配规则
+  - "com/yourcompany/*"       # * 可跨越 /，递归匹配该前缀下的全部层级
   - "BOOT-INF/classes/com/yourcompany/*"
   - "META-INF/resources/*"
+  # - "*"                     # 匹配整个归档，并递归处理匹配到的嵌套 JAR
 
 key: your_encryption_key       # AES 密钥；加密时可省略并自动生成
 privateKey: key/id_ed25519     # ED25519 私钥路径
@@ -158,7 +166,7 @@ bufferSize: 1048576            # 可选：资源处理缓冲区大小
 printEncryptEntry: true        # 可选：打印加密条目
 ```
 
-`oriJava` 可以是 JDK/JRE 目录，也可以是 `.zip`、`.tar.gz` 或 `.tgz` 压缩包。若省略，则按前述环境变量优先级自动选择。
+`oriJava` 可以是 JDK/JRE 目录，也可以是 `.zip`、`.tar.gz` 或 `.tgz` 压缩包。若省略，则按前述环境变量优先级自动选择。通配符 `*` 的语义是 `.*`，会匹配 `/`，因此 `com/example/*` 会递归覆盖该前缀下的子包；单独的 `'*'` 覆盖归档内全部 entry，匹配到嵌套 JAR 时也会进入其中递归处理。
 
 ## 🧩 加密依赖开发场景
 
@@ -204,7 +212,7 @@ java -jar java-guard-0.4.3.jar \
 - Shade 重定位、最小化、插桩、AOT 或其他字节码重写可能丢失加密载荷或改变类名，不保证可用；WAR、thin JAR、exploded deployment 和 Native Image 也不属于当前默认支持范围。
 - 外层 JAR 的 `signature` 必须是最后一个打包步骤；签名后修改 manifest、嵌套依赖或其他内容都会导致校验失败。
 - 加密 class 通过 JVM 级 JVMTI hook 解密，通常不受 Boot nested-JAR ClassLoader 实现影响。加密资源目前仅在访问经过 `URL.openConnection()`、返回 `jar:` `JarURLConnection` 并通过 `getInputStream()` 读取时透明解密；直接使用 `JarFile`/`ZipFile`、自定义协议或其他 URLConnection 的路径需要单独验证。
-- 默认 Spring Boot 可执行 JAR 已手工验证 Spring Boot 2.1.9、3.3.13，以及 3.4 系列中一个未记录确切补丁号的版本；这不表示全部 3.4.x 版本均已验证。仓库尚未建立 Spring Boot 多版本自动化矩阵，建议针对目标 Spring Boot/JDK 版本进行发布前启动测试。
+- 兼容性 fixture 自动验证默认可执行 JAR 启动，覆盖 Spring Boot 2.1.9.RELEASE、2.7.18、3.3.13、3.4.13、4.1.0，分别匹配 JDK 主版本 8、11、17、21、25。这是有意选择的一组 fixture，不表示所有 Spring Boot 补丁版本或打包布局均兼容；发布前应针对实际目标 Spring Boot/JDK 组合运行测试。
 - 不应向开发者分发 AES 密钥、ED25519 私钥、供应方配置文件或生成目录中的 `jg-launcher-source`。
 
 ### 安全边界
@@ -234,15 +242,17 @@ G --> H
 | URL 类无感扩展 | 动态扩展字节码，解决加密资源访问问题 |
 | JDK/JRE 打包 | 把应用专用 launcher 写入 Java 环境并生成平台压缩包 |
 
-## ✅ 验证范围
-- **自动化 CI**：仅在 Ubuntu 上使用 JDK 8 执行 `mvn clean verify`，并对同一次构建生成的 CLI JAR 在 JDK 8、11、17、21 上运行 `--help`；不包含 Native launcher 编译、加密应用启动或 JDK/JRE 打包验证。
-- **手工端到端验证**：已在 Windows 和 Linux 完成 Native launcher 编译、加密应用实际启动以及 JDK/JRE 打包的完整流程验证。
-- **Spring Boot 手工验证**：默认可执行 JAR 已验证 Spring Boot 2.1.9、3.3.13，以及 3.4 系列中一个未记录确切补丁号的版本；不得据此推断全部 3.4.x 版本均已验证。
-- **尚未验证**：macOS 尚未完成手工验证。launcher 会按当前 Rust target 编译，使用时应确保 launcher 与被打包 JDK/JRE 的操作系统和 CPU 架构一致。
+## ✅ 兼容性自动化与验证范围
+
+CI 在多个 JDK 版本和 Windows、Linux 环境中验证 Native 启动器与 Java 运行环境打包、JAR 加密与签名校验，以及受保护 Spring Boot 应用的启动。测试使用任务内生成的临时 AES/ED25519 密钥，不发布生成的密钥、配置或其他秘密材料；远端运行状态以 [GitHub Actions](https://github.com/kyle-derrick/java-guard/actions) 为准。
+
+兼容性 fixture 覆盖 JDK 8、11、17、21、25，以及对应的 Spring Boot 2.1.9.RELEASE、2.7.18、3.3.13、3.4.13、4.1.0。这是一组自动化验证目标，不表示所有 Spring Boot 补丁版本或打包布局均兼容；发布前仍应测试实际使用的 Spring Boot/JDK 组合。macOS 尚未验证，launcher 与被打包 JDK/JRE 必须使用相同操作系统和 CPU 架构。
+
+本地运行方式、验证项和 CI 说明详见 [compat-tests/README.md](compat-tests/README.md)。
 
 ## 🚀 后续计划
-- **自动化现有验证**：将现有 Windows/Linux Native launcher 编译、加密应用实际启动、JDK/JRE 打包和 Spring Boot 手工验证纳入自动化测试，并记录测试环境的 CPU 架构。
-- **扩展平台与路径覆盖**：补充 macOS，以及代表性的 Spring Boot 可执行 JAR 布局、嵌套依赖和加密资源读取路径测试。
+- **验证并稳定远端矩阵**：持续验证已配置的 Windows/Linux Native 与 Linux Docker 流程。
+- **扩展平台与路径覆盖**：补充 macOS，以及更多 Spring Boot 可执行 JAR 布局、嵌套依赖和加密资源读取路径测试。
 - **JRE 环境及 classpath 下 JAR 文件签名校验**：增强运行时安全校验机制
 - **反汇编检测与防护机制**：增加对代码反汇编行为的检测和防护能力
 

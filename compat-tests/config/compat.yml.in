@@ -1,0 +1,13 @@
+# Generated into compat-tests/work/private. Never put rendered values in reports.
+matches:
+  # Match the whole archive; nested JAR entries are processed recursively.
+  - '*'
+
+key: @AES_KEY@
+privateKey: @PRIVATE_KEY@
+publicKey: @PUBLIC_KEY@
+oriJava: @ORIGINAL_JAVA@
+output: @OUTPUT_DIR@
+zipLevel: 6
+bufferSize: 1048576
+printEncryptEntry: false

@@ -168,9 +168,15 @@ gradle-app.setting
 # Cache of project
 .gradletasknamecache
 
+# Compatibility test outputs (includes ephemeral keys/configuration)
+/compat-tests/work/
+/compat-tests/reports/
+
 # Eclipse Gradle plugin generated files
 # Eclipse Core
 .project
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
 
+__pycache__/
+*.py[cod]

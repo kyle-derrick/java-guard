@@ -1,0 +1,5 @@
+# Preserve test key fixtures byte-for-byte on every platform.
+src/test/resources/io/kyle/javaguard/test/fixtures/openssh-ed25519/matching -text
+src/test/resources/io/kyle/javaguard/test/fixtures/openssh-ed25519/matching.pub -text
+src/test/resources/io/kyle/javaguard/test/fixtures/openssh-ed25519/other -text
+src/test/resources/io/kyle/javaguard/test/fixtures/openssh-ed25519/other.pub -text

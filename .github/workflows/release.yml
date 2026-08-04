@@ -95,6 +95,7 @@ jobs:
           python compat-tests/run.py \
             --java-guard-jar "${{ steps.version.outputs.jar }}" \
             --jdk-home "$JAVA_HOME" \
+            --tool-jdk-home "$JAVA_HOME" \
             --fixture jdk25 \
             --expected-class-major 69 \
             --work-dir "$RUNNER_TEMP/java-guard-compat-jdk25" \

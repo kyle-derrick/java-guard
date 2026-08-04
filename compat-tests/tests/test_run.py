@@ -14,6 +14,7 @@ import time
 import unittest
 import zipfile
 from pathlib import Path
+from types import SimpleNamespace
 
 
 RUNNER_PATH = Path(__file__).resolve().parents[1] / "run.py"
@@ -63,41 +64,6 @@ class RunnerHelpersTest(unittest.TestCase):
                                   "--protected-jar", "protected.jar"])
         self.assertTrue(args.launcher_only)
 
-    @unittest.skipIf(runner.IS_WINDOWS, "symbolic-link runtime layout is Unix-specific")
-    def test_build_view_materializes_runtime_symlinks(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            packaged = root / "packaged"
-            build_view = root / "build-view"
-            bin_dir = packaged / "bin"
-            security = packaged / "lib" / "security"
-            bin_dir.mkdir(parents=True)
-            security.mkdir(parents=True)
-            launcher = bin_dir / runner.java_name()
-            java_ori = bin_dir / runner.java_ori_name()
-            launcher.write_bytes(b"launcher")
-            java_ori.write_bytes(b"java-original")
-            real_cacerts = security / "real-cacerts"
-            real_cacerts.write_bytes(b"unit trust store")
-            (security / "cacerts").symlink_to("real-cacerts")
-
-            fake = object.__new__(runner.Runner)
-            fake._packaged_root = packaged
-            fake._packaged_launcher = launcher
-            fake._packaged_launcher_hash = runner.sha256(launcher)
-            fake.build_view = build_view
-            fake.work = root
-            fake.command = lambda *_args, **_kwargs: None
-
-            fake._create_build_view()
-
-            copied_cacerts = build_view / "lib" / "security" / "cacerts"
-            self.assertFalse(copied_cacerts.is_symlink())
-            self.assertEqual(b"unit trust store", copied_cacerts.read_bytes())
-            self.assertTrue((security / "cacerts").is_symlink())
-            self.assertEqual(b"java-original", (build_view / "bin" / runner.java_name()).read_bytes())
-            self.assertEqual(runner.sha256(launcher), fake._packaged_launcher_hash)
-
     @unittest.skipIf(runner.IS_WINDOWS, "TAR symbolic links are Unix-specific")
     def test_safe_extract_preserves_contained_symlink(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -129,6 +95,30 @@ class RunnerHelpersTest(unittest.TestCase):
                 target.addfile(link)
             with self.assertRaisesRegex(runner.CompatError, "archive link escapes destination"):
                 runner.safe_extract(archive, root / "extracted")
+
+    def test_fixture_build_prefers_explicit_tool_jdk(self):
+        fake = object.__new__(runner.Runner)
+        fake._build_java_home = Path("packaged-build-view")
+        fake.args = SimpleNamespace(tool_jdk_home=Path("setup-java-home"),
+                                    maven_args=[], build_timeout=30)
+        fake.maven = ["mvn"]
+        fake.fixture = Path("fixture")
+        seen = {}
+        fake.tool_env = lambda home: {"SELECTED_JAVA_HOME": str(home)}
+        fake.command = lambda name, cmd, cwd, env, timeout: seen.update(
+            name=name, cmd=cmd, cwd=cwd, env=env, timeout=timeout)
+        fake._fixture_jar = None
+        fake.result = {"artifacts": {}}
+        original_find_fixture_jar = runner.find_fixture_jar
+        original_describe_file = runner.describe_file
+        try:
+            runner.find_fixture_jar = lambda _fixture: Path("fixture.jar")
+            runner.describe_file = lambda path: {"path": str(path)}
+            fake._build_fixture()
+        finally:
+            runner.find_fixture_jar = original_find_fixture_jar
+            runner.describe_file = original_describe_file
+        self.assertEqual("setup-java-home", seen["env"]["SELECTED_JAVA_HOME"])
 
     def test_output_pump_redacts_log_and_console(self):
         with tempfile.TemporaryDirectory() as directory:

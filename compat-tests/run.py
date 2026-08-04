@@ -312,11 +312,9 @@ class Runner:
         assert self._packaged_root is not None
         if self.build_view.exists():
             shutil.rmtree(self.build_view, onerror=remove_readonly)
-        # The extracted package remains immutable test input. Maven gets a
-        # self-contained copy with runtime symlinks materialized, then java_ori
-        # is restored as java to avoid accidental launcher use. This prevents
-        # setup-java trust-store links from becoming invalid in the copied JDK.
-        shutil.copytree(self._packaged_root, self.build_view)
+        # The extracted package remains immutable test input.  Maven gets a copy
+        # where java_ori is restored as java, avoiding accidental launcher use.
+        shutil.copytree(self._packaged_root, self.build_view, symlinks=True)
         java = self.build_view / "bin" / java_name()
         java_ori = self.build_view / "bin" / java_ori_name()
         shutil.copy2(java_ori, java)
@@ -329,7 +327,7 @@ class Runner:
 
     def _build_fixture(self) -> None:
         assert self._build_java_home is not None
-        env = self.tool_env(self._build_java_home)
+        env = self.tool_env(self.args.tool_jdk_home or self._build_java_home)
         cmd = self.maven + ["--batch-mode", "--no-transfer-progress", "clean", "package"]
         if self.args.maven_args:
             cmd.extend(self.args.maven_args)

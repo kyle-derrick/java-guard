@@ -99,6 +99,7 @@ jobs:
           python compat-tests/run.py \
             --java-guard-jar "dist/java-guard.jar" \
             --jdk-home "$JAVA_HOME" \
+            --tool-jdk-home "$JAVA_HOME" \
             --fixture "jdk${{ matrix.java }}" \
             --expected-class-major "${{ matrix.class_major }}" \
             --work-dir "compat-tests/work/${{ runner.os }}-jdk${{ matrix.java }}" \
@@ -183,6 +184,7 @@ jobs:
           python compat-tests/run.py \
             --java-guard-jar "dist/java-guard.jar" \
             --jdk-home "$JAVA_HOME" \
+            --tool-jdk-home "$JAVA_HOME" \
             --fixture "jdk${{ matrix.java }}" \
             --expected-class-major "${{ matrix.class_major }}" \
             --work-dir "compat-tests/work/${{ runner.os }}-jdk${{ matrix.java }}" \

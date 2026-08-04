@@ -1,10 +1,10 @@
 # ./config.yml
 matches:
   - "*/com/yourcompany/*"     # Encryption path pattern
-#  - "*.sql"
-#  - "*.json"
-#  - "*.yml"
-#  - "*.properties"
+  - "*.sql"
+  - "*.json"
+  - "*.yml"
+  - "*.properties"
 
 key: your_encryption_key       # AES key (optional, generated automatically during encryption)
 privateKey: key/id_ed25519     # ED25519 private key path

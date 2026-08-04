@@ -17,13 +17,17 @@ use std::{env, io};
 #[allow(unused)]
 pub struct JvmWrapper {
     pub library: Rc<Library>,
-    pub get_default_java_vm_init_args: unsafe extern "system" fn (args: *mut c_void) -> jint,
-    pub create_java_vm: unsafe extern "system" fn (
+    pub get_default_java_vm_init_args: unsafe extern "system" fn(args: *mut c_void) -> jint,
+    pub create_java_vm: unsafe extern "system" fn(
         pvm: *mut *mut JavaVM,
         penv: *mut *mut c_void,
         args: *mut c_void,
     ) -> jint,
-    pub get_created_java_vms: unsafe extern "system" fn (vm_buf: *mut *mut JavaVM, buf_len: jsize, n_vms: *mut jsize) -> jint,
+    pub get_created_java_vms: unsafe extern "system" fn(
+        vm_buf: *mut *mut JavaVM,
+        buf_len: jsize,
+        n_vms: *mut jsize,
+    ) -> jint,
 }
 
 struct __InitArgs<'a> {
@@ -53,8 +57,12 @@ fn search_file(dir_path: &Path) -> Result<Option<String>, MessageError> {
         }
     };
 
-    let path = with_message!(glob(&query), &format!("could not find java env in {}", query))?
-        .filter_map(|x| x.ok()).next();
+    let path = with_message!(
+        glob(&query),
+        &format!("could not find java env in {}", query)
+    )?
+    .filter_map(|x| x.ok())
+    .next();
 
     let path = match path {
         Some(path) => path,
@@ -62,33 +70,26 @@ fn search_file(dir_path: &Path) -> Result<Option<String>, MessageError> {
     };
 
     let parent_path = path.parent().unwrap();
-    Ok(match parent_path.to_str() {
-        Some(p) => Some(p.to_owned()),
-        None => None,
-    })
+    Ok(parent_path.to_str().map(str::to_owned))
 }
 
 impl JvmWrapper {
     pub fn load_jvm() -> StartJvmResult<JvmWrapper> {
         let current_exe = env::current_exe().expect("find java env failed");
         let curr_app_parent_path = current_exe.parent().expect("find java env failed");
-        let jvm_path = match search_file(curr_app_parent_path).expect("error when search java env") {
-            Some(path) => {
-                path
-            }
-            None => {
-                curr_app_parent_path.parent()
-                    .and_then(|p| search_file(p).expect("error when search java env failed"))
-                    .unwrap_or_else(|| {
-                        java_locator::locate_jvm_dyn_library()
-                            .map_err(StartJvmError::NotFound).expect("error when search java env with java_locator")
-                })
-            }
+        let jvm_path = match search_file(curr_app_parent_path).expect("error when search java env")
+        {
+            Some(path) => path,
+            None => curr_app_parent_path
+                .parent()
+                .and_then(|p| search_file(p).expect("error when search java env failed"))
+                .unwrap_or_else(|| {
+                    java_locator::locate_jvm_dyn_library()
+                        .map_err(StartJvmError::NotFound)
+                        .expect("error when search java env with java_locator")
+                }),
         };
-        let path = [
-            jvm_path.as_str(),
-            java_locator::get_jvm_dyn_lib_file_name(),
-        ]
+        let path = [jvm_path.as_str(), java_locator::get_jvm_dyn_lib_file_name()]
             .iter()
             .collect::<PathBuf>();
         Self::load_jvm_with(path)
@@ -115,17 +116,19 @@ impl JvmWrapper {
                 .get(b"JNI_GetCreatedJavaVMs\0")
                 .map_err(|error| StartJvmError::LoadError(libjvm_path_string.to_owned(), error))?;
 
-
             Ok(JvmWrapper {
                 library: libjvm.clone(),
                 get_default_java_vm_init_args: *default_args_fn,
                 create_java_vm: *create_fn,
-                get_created_java_vms: *get_created_fn
+                get_created_java_vms: *get_created_fn,
             })
         }
     }
 
-    pub fn create_java_vm(&self, args: InitArgs) -> jni::errors::Result<(jni::JavaVM, jni::JNIEnv<'_>)> {
+    pub fn create_java_vm(
+        &self,
+        args: InitArgs,
+    ) -> jni::errors::Result<(jni::JavaVM, jni::JNIEnv<'_>)> {
         let mut ptr: *mut sys::JavaVM = ::std::ptr::null_mut();
         let mut env: *mut sys::JNIEnv = ::std::ptr::null_mut();
 
@@ -147,25 +150,25 @@ impl JvmWrapper {
 }
 
 #[inline]
-pub fn jni_error_handle(env: &JNIEnv,err: &jni::errors::Error, msg_prefix: &str) -> MessageError {
+pub fn jni_error_handle(env: &JNIEnv, err: &jni::errors::Error, msg_prefix: &str) -> MessageError {
     let msg = if msg_prefix.is_empty() {
-        format!("Error: {}", err.to_string())
+        format!("Error: {err}")
     } else {
-        format!("Error: {}: {}", msg_prefix, err.to_string())
+        format!("Error: {msg_prefix}: {err}")
     };
     match &err {
         Error::JavaException => {
             if let Ok(true) = env.exception_check() {
                 if let Err(err) = env.exception_describe() {
-                    eprintln!("print exception failed: {}", err.to_string());
+                    eprintln!("print exception failed: {err}");
                 }
                 if let Err(err) = env.exception_clear() {
-                    eprintln!("clear exception failed: {}", err.to_string());
+                    eprintln!("clear exception failed: {err}");
                 }
             }
         }
         Error::JniCall(inner_err) => {
-            eprintln!("ERROR: JNI call failed: {}", inner_err.to_string());
+            eprintln!("ERROR: JNI call failed: {inner_err}");
         }
         _ => {}
     }
@@ -178,35 +181,45 @@ macro_rules! jni_result_expect {
         jni_result_expect!($env, $result, "")
     };
     ($env:expr, $result:expr, $msg_prefix:expr) => {
-        $result.map_err(|e| crate::util::jvm_util::jni_error_handle($env, &e, $msg_prefix))
+        $result.map_err(|e| $crate::util::jvm_util::jni_error_handle($env, &e, $msg_prefix))
     };
 }
 
 #[inline]
 pub fn parse_classpath(classpath_str: &str) -> Vec<String> {
-    env::split_paths(&classpath_str).filter_map(|item| {
-        if let Some(item) = item.to_str() {
-            Some(item.to_string())
-        } else {
-            None
-        }
-    }).collect()
+    env::split_paths(classpath_str)
+        .filter_map(|item| item.to_str().map(str::to_owned))
+        .collect()
 }
 
 pub fn jstr_to_string(env: &mut JNIEnv, jstring: &JString) -> Result<Option<String>, MessageError> {
     if jstring.is_null() {
-        return Ok(None)
+        return Ok(None);
     }
     let jstr = jni_result_expect!(env, env.get_string(jstring))?;
-    Ok(Some(with_message!(jstr.to_str(), "failed to convert string to string")?.to_string()))
+    Ok(Some(
+        with_message!(jstr.to_str(), "failed to convert string to string")?.to_string(),
+    ))
 }
 
-pub fn get_sys_property(env: &mut JNIEnv, sys_cls: &JClass, key: &str) -> Result<Option<String>, MessageError> {
+pub fn get_sys_property(
+    env: &mut JNIEnv,
+    sys_cls: &JClass,
+    key: &str,
+) -> Result<Option<String>, MessageError> {
     let ket_string = jni_result_expect!(env, env.new_string(key))?;
-    let result = jni_result_expect!(env, env.call_static_method(sys_cls, "getProperty", "(Ljava/lang/String;)Ljava/lang/String;",
-                        &[JValue::Object(&ket_string)]), &format!("get system property [{key}] failed"))?;
+    let result = jni_result_expect!(
+        env,
+        env.call_static_method(
+            sys_cls,
+            "getProperty",
+            "(Ljava/lang/String;)Ljava/lang/String;",
+            &[JValue::Object(&ket_string)]
+        ),
+        &format!("get system property [{key}] failed")
+    )?;
     jni_result_expect!(env, env.delete_local_ref(ket_string))?;
-    if let JValueOwned::Object(obj) =  result {
+    if let JValueOwned::Object(obj) = result {
         let jstring = JString::from(obj);
         let value_result = jstr_to_string(env, &jstring);
         if let Err(err) = &value_result {
@@ -218,7 +231,9 @@ pub fn get_sys_property(env: &mut JNIEnv, sys_cls: &JClass, key: &str) -> Result
         // let jstr = jni_result_expect!(env, env.get_string(&jstring))?;
         // Ok(with_message!(jstr.to_str(), "failed to convert string to string")?.to_string())
     } else {
-        Err(MessageError::new("failed to get system property, result type is not string"))
+        Err(MessageError::new(
+            "failed to get system property, result type is not string",
+        ))
     }
 }
 
@@ -239,7 +254,9 @@ pub fn print_version(full: bool) {
         .expect("init Jvm args failed");
 
     let wrapper = JvmWrapper::load_jvm().expect("failed to load Java VM!");
-    let (jvm, mut env) = wrapper.create_java_vm(init_args).expect("failed to create Java VM!");
+    let (jvm, mut env) = wrapper
+        .create_java_vm(init_args)
+        .expect("failed to create Java VM!");
 
     if let Err(err) = print_version_info(full, &mut env) {
         eprintln!("{}", err);
@@ -286,9 +303,14 @@ pub fn print_version_info(full: bool, env: &mut JNIEnv) -> Result<(), MessageErr
         let vm_info = get_sys_property(env, &sys_cls, "java.vm.info")?;
 
         let version_date = get_sys_property(env, &sys_cls, "java.version.date")?;
-        let vm_specification_version = get_sys_property(env, &sys_cls, "java.vm.specification.version")?;
+        let vm_specification_version =
+            get_sys_property(env, &sys_cls, "java.vm.specification.version")?;
 
-        _write!(stderr, "java version \"{}\"", version.ok_or_else(|| MessageError::new("version is null"))?)?;
+        _write!(
+            stderr,
+            "java version \"{}\"",
+            version.ok_or_else(|| MessageError::new("version is null"))?
+        )?;
         if let Some(version_date) = version_date {
             _write!(stderr, " {}", version_date)?;
             if let Some(vm_specification_version) = vm_specification_version {
@@ -298,8 +320,19 @@ pub fn print_version_info(full: bool, env: &mut JNIEnv) -> Result<(), MessageErr
 
         _writeln!(stderr)?;
         if let Some(runtime_version) = runtime_version {
-            _writeln!(stderr, "{} (build {})", get_sys_property(env, &sys_cls, "java.runtime.name")?.ok_or_else(|| MessageError::new("runtime name is null"))?, runtime_version)?;
-            _write!(stderr, "{} (build {}", vm_name.ok_or_else(|| MessageError::new("vm name is null"))?, vm_version.ok_or_else(|| MessageError::new("vm version is null"))?)?;
+            _writeln!(
+                stderr,
+                "{} (build {})",
+                get_sys_property(env, &sys_cls, "java.runtime.name")?
+                    .ok_or_else(|| MessageError::new("runtime name is null"))?,
+                runtime_version
+            )?;
+            _write!(
+                stderr,
+                "{} (build {}",
+                vm_name.ok_or_else(|| MessageError::new("vm name is null"))?,
+                vm_version.ok_or_else(|| MessageError::new("vm version is null"))?
+            )?;
             if let Some(vm_info) = vm_info {
                 _write!(stderr, ", {}", vm_info)?;
             }

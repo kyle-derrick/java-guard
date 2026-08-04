@@ -18,11 +18,27 @@ pub type jvmtiEventClassFileLoadHook = unsafe extern "system" fn(
 pub type jvmtiEnv = *const c_void;
 
 extern "system" {
-    pub fn init_vm_and_set_callback(vm: *const JavaVM, class_file_load_hook: jvmtiEventClassFileLoadHook, version: jint) -> c_int;
+    pub fn init_vm_and_set_callback(
+        vm: *const JavaVM,
+        class_file_load_hook: jvmtiEventClassFileLoadHook,
+        version: jint,
+    ) -> c_int;
     pub fn get_jvmti_from_vm(vm: *const JavaVM) -> jvmtiEnv;
-    pub fn jvmti_allocate(jvmti_env: jvmtiEnv, size: jlong, mem_ptr: *mut *mut std::os::raw::c_uchar) -> c_int;
-    pub fn jvmti_retransform_class(jvmti: jvmtiEnv, class_count: jint, classes: *const jni_sys::jclass) -> c_int;
-    pub fn jvmti_get_class_loader(jvmti: jvmtiEnv, class: jni_sys::jclass, class_loader: *mut jobject) -> c_int;
+    pub fn jvmti_allocate(
+        jvmti_env: jvmtiEnv,
+        size: jlong,
+        mem_ptr: *mut *mut std::os::raw::c_uchar,
+    ) -> c_int;
+    pub fn jvmti_retransform_class(
+        jvmti: jvmtiEnv,
+        class_count: jint,
+        classes: *const jni_sys::jclass,
+    ) -> c_int;
+    pub fn jvmti_get_class_loader(
+        jvmti: jvmtiEnv,
+        class: jni_sys::jclass,
+        class_loader: *mut jobject,
+    ) -> c_int;
     pub fn struct_test() -> c_int;
     pub fn test_base(i: c_int) -> c_int;
 }

@@ -44,9 +44,12 @@ fn generate_code_from_bytes(
             let bytes_index = bytes_index + offset;
             let sub_sign = rng.gen::<u8>();
             let b = b ^ sign ^ sub_sign;
-            code_list.push(format!(
-                "  bytes[{bytes_index}] = (|a, b| {b}u8 ^ a ^ b)(sign, {sub_sign}u8);"
-            ));
+            code_list.push(match (b, sub_sign) {
+                (0, 0) => format!("  bytes[{bytes_index}] = sign;"),
+                (0, _) => format!("  bytes[{bytes_index}] = sign ^ {sub_sign}u8;"),
+                (_, 0) => format!("  bytes[{bytes_index}] = {b}u8 ^ sign;"),
+                _ => format!("  bytes[{bytes_index}] = {b}u8 ^ sign ^ {sub_sign}u8;"),
+            });
         }
         code_list.join("\n")
     }
@@ -172,8 +175,8 @@ pub fn get_common_func_code() -> String {
     r#"
 #[allow(unused)]
 fn handle_bytes(bytes: &mut [u8], bs: &[u8], signs: &[u8], sign: u8) {
-  for (i, item) in (&bs).iter().enumerate() {
-    bytes[i] = (|a, b| item ^ a ^ b)(sign, signs[i%signs.len()]);
+  for (i, item) in bs.iter().enumerate() {
+    bytes[i] = item ^ sign ^ signs[i%signs.len()];
   }
 }"#
     .to_string()

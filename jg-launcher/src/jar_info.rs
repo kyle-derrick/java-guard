@@ -147,7 +147,7 @@ impl JarInfo {
         public_key: ring::signature::UnparsedPublicKey<B>,
     ) -> Result<(), ring::error::Unspecified> {
         let content =
-            fs::read(&self.path).unwrap_or_else(|_| panic!("cannot read jar file: {}", &self.path));
+            fs::read(&self.path).unwrap_or_else(|_| panic!("cannot read jar file: {}", self.path));
         public_key.verify(&content[..self.jar_data_end_index], &self.signature)
     }
 
@@ -173,9 +173,9 @@ mod tests {
     use ring::signature::{UnparsedPublicKey, ED25519};
 
     const RFC8032_TEST_PUBLIC_KEY: [u8; 32] = [
-        0xd7, 0x5a, 0x98, 0x01, 0x82, 0xb1, 0x0a, 0xb7, 0xd5, 0x4b, 0xfe, 0xd3, 0xc9, 0x64,
-        0x07, 0x3a, 0x0e, 0xe1, 0x72, 0xf3, 0xda, 0xa6, 0x23, 0x25, 0xaf, 0x02, 0x1a, 0x68,
-        0xf7, 0x07, 0x51, 0x1a,
+        0xd7, 0x5a, 0x98, 0x01, 0x82, 0xb1, 0x0a, 0xb7, 0xd5, 0x4b, 0xfe, 0xd3, 0xc9, 0x64, 0x07,
+        0x3a, 0x0e, 0xe1, 0x72, 0xf3, 0xda, 0xa6, 0x23, 0x25, 0xaf, 0x02, 0x1a, 0x68, 0xf7, 0x07,
+        0x51, 0x1a,
     ];
 
     #[test]
@@ -187,11 +187,8 @@ mod tests {
         let jar = JarInfo::parse(path);
 
         assert_eq!(jar.main_class(), "fixture.Main");
-        jar.verify_with_public_key(UnparsedPublicKey::new(
-            &ED25519,
-            RFC8032_TEST_PUBLIC_KEY,
-        ))
-        .expect("Java-generated fixture signature must verify in Rust");
+        jar.verify_with_public_key(UnparsedPublicKey::new(&ED25519, RFC8032_TEST_PUBLIC_KEY))
+            .expect("Java-generated fixture signature must verify in Rust");
     }
 
     fn signed_comment(existing_comment: &[u8], signature: &[u8], marked: bool) -> Vec<u8> {

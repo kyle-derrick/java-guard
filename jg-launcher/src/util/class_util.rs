@@ -1,4 +1,6 @@
-use crate::base::common::{INTERNAL_URL_CONNECTION_CLASS, INTERNAL_URL_CONNECTION_DESC, INTERNAL_URL_CONNECTION_METHOD};
+use crate::base::common::{
+    INTERNAL_URL_CONNECTION_CLASS, INTERNAL_URL_CONNECTION_DESC, INTERNAL_URL_CONNECTION_METHOD,
+};
 use crate::base::opcode::opcodes;
 use crate::util::byte_utils;
 use jclass::attribute_info::CodeAttribute;
@@ -22,15 +24,37 @@ pub fn url_extended_processing(class_data: &[u8]) -> Option<Vec<u8>> {
     // INTERNAL_URL_CONNECTION_CLASS
     // INTERNAL_URL_CONNECTION_METHOD
     // INTERNAL_URL_CONNECTION_DESC
-    let url_class_utf8_index = info.constant_pool.add_constant(ConstantValue::ConstantUtf8(INTERNAL_URL_CONNECTION_CLASS.to_string()));
-    let url_method_utf8_index = info.constant_pool.add_constant(ConstantValue::ConstantUtf8(INTERNAL_URL_CONNECTION_METHOD.to_string()));
-    let url_desc_utf8_index = info.constant_pool.add_constant(ConstantValue::ConstantUtf8(INTERNAL_URL_CONNECTION_DESC.to_string()));
-    let url_class_index = info.constant_pool.add_constant(ConstantValue::ConstantClass(url_class_utf8_index));
-    let url_desc_index = info.constant_pool.add_constant(ConstantValue::ConstantNameAndType(url_method_utf8_index, url_desc_utf8_index));
-    let url_method_index = info.constant_pool.add_constant(ConstantValue::ConstantMethodref(url_class_index, url_desc_index));
+    let url_class_utf8_index = info.constant_pool.add_constant(ConstantValue::ConstantUtf8(
+        INTERNAL_URL_CONNECTION_CLASS.to_string(),
+    ));
+    let url_method_utf8_index = info.constant_pool.add_constant(ConstantValue::ConstantUtf8(
+        INTERNAL_URL_CONNECTION_METHOD.to_string(),
+    ));
+    let url_desc_utf8_index = info.constant_pool.add_constant(ConstantValue::ConstantUtf8(
+        INTERNAL_URL_CONNECTION_DESC.to_string(),
+    ));
+    let url_class_index = info
+        .constant_pool
+        .add_constant(ConstantValue::ConstantClass(url_class_utf8_index));
+    let url_desc_index = info
+        .constant_pool
+        .add_constant(ConstantValue::ConstantNameAndType(
+            url_method_utf8_index,
+            url_desc_utf8_index,
+        ));
+    let url_method_index = info
+        .constant_pool
+        .add_constant(ConstantValue::ConstantMethodref(
+            url_class_index,
+            url_desc_index,
+        ));
 
     for method in &mut info.methods {
-        if check_name(&info.constant_pool, method.name, URL_OPEN_CONNECTION_METHOD_NAME) {
+        if check_name(
+            &info.constant_pool,
+            method.name,
+            URL_OPEN_CONNECTION_METHOD_NAME,
+        ) {
             for attr in &mut method.attributes {
                 if check_name(&info.constant_pool, attr.name, CODE_TAG) {
                     let mut code_attr = match CodeAttribute::new_with_data(&attr.data) {
@@ -44,7 +68,11 @@ pub fn url_extended_processing(class_data: &[u8]) -> Option<Vec<u8>> {
                     let end_code = code_attr.codes[end_code_index];
                     code_attr.codes[end_code_index] = opcodes::INVOKESTATIC;
                     let method_index_bytes = url_method_index.to_be_bytes();
-                    code_attr.codes.extend_from_slice(&[method_index_bytes[0], method_index_bytes[1], end_code]);
+                    code_attr.codes.extend_from_slice(&[
+                        method_index_bytes[0],
+                        method_index_bytes[1],
+                        end_code,
+                    ]);
                     // 包装后的返回序列不增加操作数栈峰值，因此保留 max_stack。 / The wrapped return sequence does not raise the operand-stack peak, so max_stack is retained.
 
                     for code_attr in &mut code_attr.attributes {
@@ -57,7 +85,8 @@ pub fn url_extended_processing(class_data: &[u8]) -> Option<Vec<u8>> {
                             let length = length as u16;
                             for item in &table {
                                 if (item.start_pc + item.length) == length {
-                                    code_attr.data[item.length_index..item.length_index+2].copy_from_slice(&(item.length + 3).to_be_bytes());
+                                    code_attr.data[item.length_index..item.length_index + 2]
+                                        .copy_from_slice(&(item.length + 3).to_be_bytes());
                                 }
                             }
                         }
@@ -104,11 +133,11 @@ fn check_name(const_pool: &ConstantPool, name_index: u16, name: &str) -> bool {
 #[derive(Debug)]
 pub struct LocalVariableEntry {
     pub start_pc: u16,
-    pub length: u16,          // 作用域长度（字节码偏移）
-    pub length_index: usize,           // 数据偏移
+    pub length: u16,         // 作用域长度（字节码偏移）
+    pub length_index: usize, // 数据偏移
 }
 
-fn parse_local_variable_table(data: &[u8]) -> (i32,Vec<LocalVariableEntry>) {
+fn parse_local_variable_table(data: &[u8]) -> (i32, Vec<LocalVariableEntry>) {
     if data.len() < 2 {
         eprintln!("WARN: URL class has invalid method");
         return (-1, Vec::with_capacity(0));
@@ -136,7 +165,7 @@ fn parse_local_variable_table(data: &[u8]) -> (i32,Vec<LocalVariableEntry>) {
             this_length = length as i32;
         }
 
-        entries.push(LocalVariableEntry{
+        entries.push(LocalVariableEntry {
             start_pc,
             length,
             length_index,

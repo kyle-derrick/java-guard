@@ -1,10 +1,14 @@
-use std::any::Any;
-use crate::base::common::{runtime_classes, MAGIC_LEN, RESOURCE_DECRYPT_NATIVE_CLASS, RESOURCE_DECRYPT_NATIVE_DESC, RESOURCE_DECRYPT_NATIVE_METHOD, SIGN_LEN, URL_CLASS_NAME};
+use crate::base::common::{
+    runtime_classes, MAGIC_LEN, RESOURCE_DECRYPT_NATIVE_CLASS, RESOURCE_DECRYPT_NATIVE_DESC,
+    RESOURCE_DECRYPT_NATIVE_METHOD, SIGN_LEN, URL_CLASS_NAME,
+};
 use crate::base::error::MessageError;
 use crate::util::aes_util::decrypt_resource;
 use crate::util::byte_utils::byte_be_to_u32_fast;
 use crate::util::class_util::url_extended_processing;
-use crate::util::jvmti_util::{get_jvmti_from_vm, init_vm_and_set_callback, jvmti_allocate, jvmti_get_class_loader};
+use crate::util::jvmti_util::{
+    get_jvmti_from_vm, init_vm_and_set_callback, jvmti_allocate, jvmti_get_class_loader,
+};
 use crate::{jni_result_expect, with_message};
 use jni::objects::ReleaseMode::CopyBack;
 use jni::objects::{JByteArray, JObject};
@@ -14,12 +18,13 @@ use jni_sys::{jbyteArray, jint, jlong, jobject};
 use lz4::block::decompress;
 use ring::aead::chacha20_poly1305_openssh::TAG_LEN;
 use ring::aead::NONCE_LEN;
+use std::any::Any;
 use std::ffi::{c_void, CStr};
 use std::panic;
 use std::ptr::null_mut;
 
-const BYTE_H_SIGN:u8 = 0x80;
-const BYTE_L_SIGN:u8 = 0x7F;
+const BYTE_H_SIGN: u8 = 0x80;
+const BYTE_L_SIGN: u8 = 0x7F;
 
 pub fn set_callbacks(jvm: &JavaVM, version: i32) {
     let result = unsafe {
@@ -31,14 +36,14 @@ pub fn set_callbacks(jvm: &JavaVM, version: i32) {
 }
 
 pub fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv) -> Result<(), MessageError> {
-    let url_class = jni_result_expect!(env, env.find_class(URL_CLASS_NAME), "url class cannot found!")?;
-    let jvmti = unsafe {
-        get_jvmti_from_vm(jvm.get_java_vm_pointer())
-    };
+    let url_class = jni_result_expect!(
+        env,
+        env.find_class(URL_CLASS_NAME),
+        "url class cannot found!"
+    )?;
+    let jvmti = unsafe { get_jvmti_from_vm(jvm.get_java_vm_pointer()) };
     let mut class_loader: jobject = null_mut();
-    let result = unsafe {
-        jvmti_get_class_loader(jvmti, url_class.as_raw(), &mut class_loader)
-    };
+    let result = unsafe { jvmti_get_class_loader(jvmti, url_class.as_raw(), &mut class_loader) };
     if result != 0 {
         return Err(MessageError::new("ERROR: cannot found url class's loader!"));
     }
@@ -60,7 +65,9 @@ pub fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv) -> Result<(), MessageErr
             eprintln!("WARN: runtime class is damaged");
             break;
         }
-        let name = String::from_utf8_lossy(&classes[start..name_end]).to_string().replace(".", "/");
+        let name = String::from_utf8_lossy(&classes[start..name_end])
+            .to_string()
+            .replace(".", "/");
 
         let class_len = byte_be_to_u32_fast(classes, name_end);
         let start = index;
@@ -70,25 +77,37 @@ pub fn load_ext_runtime(jvm: &JavaVM, env: &mut JNIEnv) -> Result<(), MessageErr
             break;
         }
         let class_data = &classes[start..index];
-        let class_loader = unsafe {
-            JObject::from_raw(class_loader)
-        };
-        let class_obj = jni_result_expect!(env, env.define_class(&name, &class_loader, class_data), "cannot load extend runtime class")?;
+        let class_loader = unsafe { JObject::from_raw(class_loader) };
+        let class_obj = jni_result_expect!(
+            env,
+            env.define_class(&name, &class_loader, class_data),
+            "cannot load extend runtime class"
+        )?;
 
-        if &name == RESOURCE_DECRYPT_NATIVE_CLASS {
+        if name == RESOURCE_DECRYPT_NATIVE_CLASS {
             let native_method = NativeMethod {
                 name: JNIString::from(RESOURCE_DECRYPT_NATIVE_METHOD),
                 sig: JNIString::from(RESOURCE_DECRYPT_NATIVE_DESC),
                 fn_ptr: resource_decrypt_native as *mut c_void,
             };
-            jni_result_expect!(env, env.register_native_methods(class_obj, &[native_method]), "cannot bind ext runtime clas")?;
+            jni_result_expect!(
+                env,
+                env.register_native_methods(class_obj, &[native_method]),
+                "cannot bind ext runtime clas"
+            )?;
         }
     }
     Ok(())
 }
 
 #[allow(unused)]
-extern "system" fn resource_decrypt_native(env: *mut sys::JNIEnv, object: jobject, data: jbyteArray, off: jint, len: jint) -> jint {
+extern "system" fn resource_decrypt_native(
+    env: *mut sys::JNIEnv,
+    object: jobject,
+    data: jbyteArray,
+    off: jint,
+    len: jint,
+) -> jint {
     // 防止 Rust 展开越过 JNI FFI 边界；失败时返回原长度。 / Prevent Rust unwinding across the JNI FFI boundary; return the original length on failure.
     match panic::catch_unwind(|| _resource_decrypt_native(env, object, data, off, len)) {
         Ok(r) => r,
@@ -99,7 +118,13 @@ extern "system" fn resource_decrypt_native(env: *mut sys::JNIEnv, object: jobjec
     }
 }
 
-fn _resource_decrypt_native(env: *mut sys::JNIEnv, _object: jobject, data: jbyteArray, off: jint, len: jint) -> jint {
+fn _resource_decrypt_native(
+    env: *mut sys::JNIEnv,
+    _object: jobject,
+    data: jbyteArray,
+    off: jint,
+    len: jint,
+) -> jint {
     if env.is_null() || data.is_null() {
         return len;
     }
@@ -107,14 +132,10 @@ fn _resource_decrypt_native(env: *mut sys::JNIEnv, _object: jobject, data: jbyte
         return len;
     }
 
-    let mut env = match unsafe {
-        JNIEnv::from_raw(env)
-    } {
-        Ok(env) => {
-            env
-        }
+    let mut env = match unsafe { JNIEnv::from_raw(env) } {
+        Ok(env) => env,
         Err(err) => {
-            eprintln!("ERROR: native method: cannot get env: {}", err.to_string());
+            eprintln!("ERROR: native method: cannot get env: {err}");
             return len;
         }
     };
@@ -152,7 +173,7 @@ fn _resource_decrypt_native(env: *mut sys::JNIEnv, _object: jobject, data: jbyte
     result
 }
 
-fn print_err(err: Box<dyn Any+Send>) {
+fn print_err(err: Box<dyn Any + Send>) {
     if let Some(msg) = err.downcast_ref::<&str>() {
         eprintln!("ERROR: native method: unknown err: {}", msg);
     } else if let Some(msg) = err.downcast_ref::<String>() {
@@ -176,14 +197,26 @@ extern "system" fn jg_class_file_load_hook(
     new_class_data: *mut *mut std::os::raw::c_uchar,
 ) {
     // 防止 Rust 展开越过 JVMTI FFI 回调边界。 / Prevent Rust unwinding across the JVMTI FFI callback boundary.
-    if let Err(err) = panic::catch_unwind(|| _jg_class_file_load_hook(jvmti_env, jni_env, class_being_redefined,
-                                                                      loader, name, protection_domain,
-                                                                      class_data_len, class_data, new_class_data_len,
-                                                                      new_class_data)) {
+    if let Err(err) = panic::catch_unwind(|| {
+        _jg_class_file_load_hook(
+            jvmti_env,
+            jni_env,
+            class_being_redefined,
+            loader,
+            name,
+            protection_domain,
+            class_data_len,
+            class_data,
+            new_class_data_len,
+            new_class_data,
+        )
+    }) {
         print_err(err);
     }
 }
 
+// The signature mirrors the JVMTI ClassFileLoadHook callback parameters.
+#[allow(clippy::too_many_arguments)]
 fn _jg_class_file_load_hook(
     jvmti_env: *mut c_void,
     _jni_env: *mut jni_sys::JNIEnv,
@@ -201,9 +234,7 @@ fn _jg_class_file_load_hook(
     }
 
     let is_url = match unsafe { CStr::from_ptr(name) }.to_str() {
-        Ok(name) => {
-            name == URL_CLASS_NAME
-        },
+        Ok(name) => name == URL_CLASS_NAME,
         Err(err) => {
             eprintln!("WARN: class name to str failed: {}", err);
             false
@@ -216,8 +247,15 @@ fn _jg_class_file_load_hook(
         if class_data_len <= 5 {
             return;
         }
-        let ptr = class_data.add(class_data_len - 5) as *const u8;
-        (*ptr == BYTE_H_SIGN, (*ptr & BYTE_L_SIGN) == 0 && *ptr.add(1) == b'J' && *ptr.add(2) == b'G' && *ptr.add(3) == b'C' && *ptr.add(4) == 0)
+        let ptr = class_data.add(class_data_len - 5);
+        (
+            *ptr == BYTE_H_SIGN,
+            (*ptr & BYTE_L_SIGN) == 0
+                && *ptr.add(1) == b'J'
+                && *ptr.add(2) == b'G'
+                && *ptr.add(3) == b'C'
+                && *ptr.add(4) == 0,
+        )
     };
 
     if !(is_encrypt_class || is_url) {
@@ -226,7 +264,7 @@ fn _jg_class_file_load_hook(
 
     let class_data_arr = unsafe {
         // JNIEnv::from_raw(jni_env).unwrap(),
-        std::slice::from_raw_parts(class_data as *const u8, class_data_len)
+        std::slice::from_raw_parts(class_data, class_data_len)
     };
 
     if is_encrypt_class {
@@ -237,7 +275,12 @@ fn _jg_class_file_load_hook(
                         ori_class_data = extended_class_data;
                     }
                 }
-                set_new_class_data(jvmti_env, &ori_class_data, new_class_data_len, new_class_data);
+                set_new_class_data(
+                    jvmti_env,
+                    &ori_class_data,
+                    new_class_data_len,
+                    new_class_data,
+                );
                 return;
             }
             Err(e) => {
@@ -246,11 +289,20 @@ fn _jg_class_file_load_hook(
         };
     }
     if let Some(extended_class_data) = url_extended_processing(class_data_arr) {
-        set_new_class_data(jvmti_env, &extended_class_data, new_class_data_len, new_class_data);
+        set_new_class_data(
+            jvmti_env,
+            &extended_class_data,
+            new_class_data_len,
+            new_class_data,
+        );
     }
 }
 
-fn decrypt_class(class_data_arr: &[u8], class_data_len: usize, has_sign: bool) -> Result<Vec<u8>, MessageError> {
+fn decrypt_class(
+    class_data_arr: &[u8],
+    class_data_len: usize,
+    has_sign: bool,
+) -> Result<Vec<u8>, MessageError> {
     let len_index = if has_sign {
         class_data_len - MAGIC_LEN - SIGN_LEN - size_of::<u32>()
     } else {
@@ -270,20 +322,41 @@ fn decrypt_class(class_data_arr: &[u8], class_data_len: usize, has_sign: bool) -
 
     let len = byte_be_to_u32_fast(de_data, 0) as i32;
     if len < 0 {
-        return Err(MessageError::new(&format!("compress data too long: {}", len as u32)))
+        return Err(MessageError::new(&format!(
+            "compress data too long: {}",
+            len as u32
+        )));
     }
-    with_message!(decompress(&de_data[size_of::<u32>()..], Some(len)), "data decompress failed")
+    with_message!(
+        decompress(&de_data[size_of::<u32>()..], Some(len)),
+        "data decompress failed"
+    )
 }
 
-fn set_new_class_data(jvmti_env: *mut c_void, class_data: &[u8], new_class_data_len: *mut jint, new_class_data: *mut *mut std::os::raw::c_uchar) -> bool {
+fn set_new_class_data(
+    jvmti_env: *mut c_void,
+    class_data: &[u8],
+    new_class_data_len: *mut jint,
+    new_class_data: *mut *mut std::os::raw::c_uchar,
+) -> bool {
     let new_class_data_bytes_len = class_data.len();
     let mut new_class_data_ptr = null_mut();
-    if 0 == unsafe { jvmti_allocate(jvmti_env, new_class_data_bytes_len as jlong, &mut new_class_data_ptr) } {
+    if 0 == unsafe {
+        jvmti_allocate(
+            jvmti_env,
+            new_class_data_bytes_len as jlong,
+            &mut new_class_data_ptr,
+        )
+    } {
         eprintln!("allocate decrypted class data failed");
         return false;
     }
     unsafe {
-        std::ptr::copy_nonoverlapping(class_data.as_ptr(), new_class_data_ptr, new_class_data_bytes_len);
+        std::ptr::copy_nonoverlapping(
+            class_data.as_ptr(),
+            new_class_data_ptr,
+            new_class_data_bytes_len,
+        );
         *new_class_data = new_class_data_ptr;
         *new_class_data_len = new_class_data_bytes_len as jint;
     }

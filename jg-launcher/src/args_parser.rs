@@ -1,12 +1,12 @@
 #![allow(unused)]
 use crate::base::common::{KEY_VERSION, VERSION};
 use crate::jar_info::JarInfo;
+use crate::util::cfg_parser;
 use crate::util::jvm_util::{parse_classpath, print_version};
+use std::collections::HashSet;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::{env, process, process::exit, sync::OnceLock};
-use std::collections::HashSet;
-use crate::util::cfg_parser;
 
 const SERVER_ARG_KEY: &str = "-server";
 const CP_ARG_KEY: &str = "-cp";
@@ -79,21 +79,21 @@ impl LaunchTarget {
     pub fn sun_mode(&self) -> i32 {
         match self {
             LaunchTarget::Class(_) => 1,
-            LaunchTarget::Jar(_) => 2
+            LaunchTarget::Jar(_) => 2,
         }
     }
 
     pub fn main_class(&self) -> &str {
         match self {
             LaunchTarget::Class(name) => name,
-            LaunchTarget::Jar(jar) => jar.main_class()
+            LaunchTarget::Jar(jar) => jar.main_class(),
         }
     }
 
     pub fn target_value(&self) -> &str {
         match self {
             LaunchTarget::Class(name) => name,
-            LaunchTarget::Jar(jar) => jar.path()
+            LaunchTarget::Jar(jar) => jar.path(),
         }
     }
 
@@ -126,9 +126,8 @@ struct ParseArgsContext {
 
 #[allow(unused)]
 impl LauncherArg {
-
     pub fn get() -> &'static LauncherArg {
-        LAUNCHER_ARG.get_or_init(|| __parse_args())
+        LAUNCHER_ARG.get_or_init(__parse_args)
     }
 
     #[allow(unused)]
@@ -154,30 +153,31 @@ impl LauncherArg {
 }
 
 fn usage() -> ! {
-/*
-    println!(r#"
-usage: jg-launcher [options] -jar <jar file> [args...]
-   // or  jg-launcher [options] <class> [args...]
-   // but class must be in jar file
+    /*
+        println!(r#"
+    usage: jg-launcher [options] -jar <jar file> [args...]
+       // or  jg-launcher [options] <class> [args...]
+       // but class must be in jar file
 
-   Class not currently supported run class!!!!!!
+       Class not currently supported run class!!!!!!
 
- options:
-    -server
-    // [-cp -classpath --class-path] <directory and zip/jar file>
-    //               like java -classpath argument
-    //               (not currently supported!!!!!!)
-    -D<name>=<value>
-                  system property
-    -verbose:[class|module|gc|jni]
-                  enable detailed output
-    -version
-    --version     version info
-    -? -h -help
-                  print usage
-    -X            additional options"#);
- */
-    println!(r#"
+     options:
+        -server
+        // [-cp -classpath --class-path] <directory and zip/jar file>
+        //               like java -classpath argument
+        //               (not currently supported!!!!!!)
+        -D<name>=<value>
+                      system property
+        -verbose:[class|module|gc|jni]
+                      enable detailed output
+        -version
+        --version     version info
+        -? -h -help
+                      print usage
+        -X            additional options"#);
+     */
+    println!(
+        r#"
 usage: jg-launcher [options] -jar <jar file> [args...]
 
  options:
@@ -197,12 +197,16 @@ usage: jg-launcher [options] -jar <jar file> [args...]
     -jgv        jg version info
     -? -h -help
                   print usage
-    "#);
+    "#
+    );
     #[cfg(not(feature = "dev"))]
-    println!(r#"
-note: launching a class directly is not currently supported."#);
+    println!(
+        r#"
+note: launching a class directly is not currently supported."#
+    );
     #[cfg(feature = "dev")]
-    println!(r#"
+    println!(
+        r#"
     -p <module path>
     --module-path <module path>...
                   a path-separated list of elements, each containing
@@ -247,7 +251,8 @@ note: launching a class directly is not currently supported."#);
     -esa | -enablesystemassertions
                   enable system assertions
     -dsa | -disablesystemassertions
-                  disable system assertions"#);
+                  disable system assertions"#
+    );
     exit(0);
 }
 
@@ -280,148 +285,172 @@ fn __parse_args() -> LauncherArg {
             classpath: context.classpath,
             vm_args: context.vm_args,
             target,
-            app_args: context.app_args
+            app_args: context.app_args,
         }
     } else {
         usage()
     }
 }
 
-fn __parse_args_item<I>(arg: String, arg_iter: &mut I, context: &mut ParseArgsContext) where I: Iterator<Item=String>  {
-        if context.target.is_none() {
-            match arg.as_str() {
-                SERVER_ARG_KEY => {
-                    context.server = true;
-                },
-                CP_ARG_KEY | CLASSPATH_ARG_KEY | CLASS_PATH_ARG_KEY => {
-                    let classpath_str = arg_iter.next().expect("classpath arg not found");
-                    context.classpath = Some(parse_classpath(&classpath_str));
-
-                    #[cfg(not(feature = "dev"))]
-                    panic!("Not currently supported class path")
-                },
-                VERSION_ARG_KEY => {
-                    print_version(false);
-                    exit(0)
-                },
-                FULL_VERSION_ARG_KEY => {
-                    print_version(true);
-                    exit(0)
-                }
-                JG_VERSION_ARG_KEY => {
-                    println!("jg-launcher version: {}", VERSION);
-                    println!("jg-launcher key version: {}", KEY_VERSION);
-                    #[cfg(feature = "dev")]
-                    println!("jg-launcher is [dev] version!");
-                    exit(0)
-                },
-                HELP_ARG_KEY | HELP_H_ARG_KEY | HELP_C_ARG_KEY => {
-                    usage()
-                },
-                JAR_ARG_KEY => {
-                    let jar_info = JarInfo::parse(&arg_iter.next().expect("not set jar file: -jar <jar file>"));
-                    #[cfg(not(feature = "dev"))]
-                    jar_info.verify();
-                    context.target = Some(LaunchTarget::Jar(jar_info))
-                },
-                MODULES_PATH_ARG_KEY | MODULES_PATH_SHORT_ARG_KEY | ADD_MODULES_ARG_KEY |
-                ENABLE_NATIVE_ACCESS_ARG_KEY | UPGRADE_MODULE_PATH_ARG_KEY |
-                DESCRIBE_MODULE_ARG_KEY | DESCRIBE_MODULE_SHORT_ARG_KEY | ADD_OPENS_ARG_KEY => {
-                    context.vm_args.push([arg.as_str(), &arg_iter.next().expect(&format!("arg {} not found value", arg))].join("="));
-
-                    #[cfg(not(feature = "dev"))]
-                    panic!("Not currently supported {}", arg)
-                },
-                LIST_MODULES_ARG_KEY | VALIDATE_MODULES_ARG_KEY | SHOW_MODULE_RESOLUTION_ARG_KEY => {
-                    context.vm_args.push(arg.clone());
-
-                    #[cfg(not(feature = "dev"))]
-                    panic!("Not currently supported {}", arg)
-                }
-                EA_ARG_KEY | ENABLEASSERTIONS_ARG_KEY | DA_ARG_KEY | DISABLEASSERTIONS_ARG_KEY |
-                ESA_ARG_KEY | ENABLESYSTEMASSERTIONS_ARG_KEY | DSA_ARG_KEY | DISABLESYSTEMASSERTIONS_ARG_KEY => {
-                    context.vm_args.push(arg.clone());
-
-                    #[cfg(not(feature = "dev"))]
-                    panic!("Not currently supported {}", arg)
-                }
-                DISABLE_CFG_FILES_ARG_KEY => {
-                    context.can_load_cfg_file = false;
-                }
-                _ => {
-                    if arg.starts_with(ADD_OPENS_PREFIX_ARG_KEY) {
-                        #[cfg(not(feature = "dev"))]
-                        panic!("Not currently supported {}", arg)
-                    } else if arg.starts_with(EA_ARG_PREFIX) || arg.starts_with(ENABLEASSERTIONS_ARG_PREFIX) ||
-                        arg.starts_with(DA_ARG_PREFIX) || arg.starts_with(DISABLEASSERTIONS_ARG_PREFIX) {
-                        #[cfg(not(feature = "dev"))]
-                        panic!("Not currently supported {}", arg)
-                    } else if context.can_load_cfg_file && arg.starts_with(CFG_FILE_PREFIX) {
-                        let cfg_name = &arg[1..];
-                        if !context.cfg_files.contains(cfg_name) {
-                            context.cfg_files.insert(cfg_name.to_string());
-                            let cfg_vm_args = cfg_parser::parser(&arg[1..]).expect("Failed to parse cfg file");
-                            // println!("parsed cfg: {:?}", cfg_vm_args);
-                            let mut cfg_vm_args_iter = cfg_vm_args.into_iter();
-                            while let Some(item) = cfg_vm_args_iter.next() {
-                                __parse_args_item(item, &mut cfg_vm_args_iter, context);
-                            }
-                        }
-                        return;
-                    } else if arg.starts_with(VERBOSE_ARG_PREFIX) {
-                        return;
-                    } else if arg.starts_with(SYSTEM_PROPERTY_ARG_PREFIX) {
-                        #[cfg(not(feature = "dev"))]
-                        // 非开发构建自行建立受保护的类路径，忽略外部覆盖。 / Non-dev builds construct the protected classpath, so external overrides are ignored.
-                        if arg.starts_with("-Djava.class.path") {
-                            return;
-                        }
-                    } else if arg.eq_ignore_ascii_case(RE_DISABLE_ATTACH_MECHANISM) ||
-                        arg.eq_ignore_ascii_case(DEBUG_ARG) ||
-                        arg.starts_with(RUNJDWP_ARG_PREFIX) {
-                        #[cfg(not(feature = "dev"))]
-                        // 非开发构建过滤重新附加和调试选项，避免绕过启动器限制。 / Non-dev builds filter re-attach and debug options to prevent bypassing launcher restrictions.
-                        return;
-                    } else if arg.eq(NOVERIFY_ARG_PREFIX) {
-                        #[cfg(feature = "dev")]
-                        context.vm_args.push(NOVERIFY_ARG_FINAL.to_string());
-                        return;;
-                    } else if arg.starts_with(AGENTLIB_ARG_PREFIX) ||
-                        arg.starts_with(AGENTPATH_ARG_PREFIX) ||
-                        arg.starts_with(JAVAAGENT_ARG_PREFIX) {
-                        #[cfg(not(feature = "dev"))]
-                        // 非开发构建拒绝代理注入，避免修改受保护类。 / Non-dev builds reject agent injection to prevent protected classes from being modified.
-                        panic!("agent options are not allowed");
-                    } else if arg.starts_with('-') {
-                        if !arg.starts_with(VM_ARG_PREFIX) {
-                            panic!("not support vm arg: {arg}");
-                        }
-                    } else if context.target.is_none() {
-                        // TODO: 确定类目标的最终支持策略。 / Decide the final support policy for class targets.
-                        context.target = Some(LaunchTarget::Class(arg));
-                        return;;
-                        // panic!("Not currently supported run class")
-                    }
-                    context.vm_args.push(arg.clone());
-                }
+fn __parse_args_item<I>(arg: String, arg_iter: &mut I, context: &mut ParseArgsContext)
+where
+    I: Iterator<Item = String>,
+{
+    if context.target.is_none() {
+        match arg.as_str() {
+            SERVER_ARG_KEY => {
+                context.server = true;
             }
-        } else {
-            context.app_args.push(arg.clone());
+            CP_ARG_KEY | CLASSPATH_ARG_KEY | CLASS_PATH_ARG_KEY => {
+                let classpath_str = arg_iter.next().expect("classpath arg not found");
+                context.classpath = Some(parse_classpath(&classpath_str));
+
+                #[cfg(not(feature = "dev"))]
+                panic!("Not currently supported class path")
+            }
+            VERSION_ARG_KEY => {
+                print_version(false);
+                exit(0)
+            }
+            FULL_VERSION_ARG_KEY => {
+                print_version(true);
+                exit(0)
+            }
+            JG_VERSION_ARG_KEY => {
+                println!("jg-launcher version: {}", VERSION);
+                println!("jg-launcher key version: {}", KEY_VERSION);
+                #[cfg(feature = "dev")]
+                println!("jg-launcher is [dev] version!");
+                exit(0)
+            }
+            HELP_ARG_KEY | HELP_H_ARG_KEY | HELP_C_ARG_KEY => usage(),
+            JAR_ARG_KEY => {
+                let jar_info =
+                    JarInfo::parse(&arg_iter.next().expect("not set jar file: -jar <jar file>"));
+                #[cfg(not(feature = "dev"))]
+                jar_info.verify();
+                context.target = Some(LaunchTarget::Jar(jar_info))
+            }
+            MODULES_PATH_ARG_KEY
+            | MODULES_PATH_SHORT_ARG_KEY
+            | ADD_MODULES_ARG_KEY
+            | ENABLE_NATIVE_ACCESS_ARG_KEY
+            | UPGRADE_MODULE_PATH_ARG_KEY
+            | DESCRIBE_MODULE_ARG_KEY
+            | DESCRIBE_MODULE_SHORT_ARG_KEY
+            | ADD_OPENS_ARG_KEY => {
+                context.vm_args.push(
+                    [
+                        arg.as_str(),
+                        &arg_iter
+                            .next()
+                            .unwrap_or_else(|| panic!("arg {arg} not found value")),
+                    ]
+                    .join("="),
+                );
+
+                #[cfg(not(feature = "dev"))]
+                panic!("Not currently supported {}", arg)
+            }
+            LIST_MODULES_ARG_KEY | VALIDATE_MODULES_ARG_KEY | SHOW_MODULE_RESOLUTION_ARG_KEY => {
+                context.vm_args.push(arg.clone());
+
+                #[cfg(not(feature = "dev"))]
+                panic!("Not currently supported {}", arg)
+            }
+            EA_ARG_KEY
+            | ENABLEASSERTIONS_ARG_KEY
+            | DA_ARG_KEY
+            | DISABLEASSERTIONS_ARG_KEY
+            | ESA_ARG_KEY
+            | ENABLESYSTEMASSERTIONS_ARG_KEY
+            | DSA_ARG_KEY
+            | DISABLESYSTEMASSERTIONS_ARG_KEY => {
+                context.vm_args.push(arg.clone());
+
+                #[cfg(not(feature = "dev"))]
+                panic!("Not currently supported {}", arg)
+            }
+            DISABLE_CFG_FILES_ARG_KEY => {
+                context.can_load_cfg_file = false;
+            }
+            _ => {
+                if arg.starts_with(ADD_OPENS_PREFIX_ARG_KEY)
+                    || arg.starts_with(EA_ARG_PREFIX)
+                    || arg.starts_with(ENABLEASSERTIONS_ARG_PREFIX)
+                    || arg.starts_with(DA_ARG_PREFIX)
+                    || arg.starts_with(DISABLEASSERTIONS_ARG_PREFIX)
+                {
+                    #[cfg(not(feature = "dev"))]
+                    panic!("Not currently supported {}", arg)
+                } else if context.can_load_cfg_file && arg.starts_with(CFG_FILE_PREFIX) {
+                    let cfg_name = &arg[1..];
+                    if !context.cfg_files.contains(cfg_name) {
+                        context.cfg_files.insert(cfg_name.to_string());
+                        let cfg_vm_args =
+                            cfg_parser::parser(&arg[1..]).expect("Failed to parse cfg file");
+                        // println!("parsed cfg: {:?}", cfg_vm_args);
+                        let mut cfg_vm_args_iter = cfg_vm_args.into_iter();
+                        while let Some(item) = cfg_vm_args_iter.next() {
+                            __parse_args_item(item, &mut cfg_vm_args_iter, context);
+                        }
+                    }
+                    return;
+                } else if arg.starts_with(VERBOSE_ARG_PREFIX) {
+                    return;
+                } else if arg.starts_with(SYSTEM_PROPERTY_ARG_PREFIX) {
+                    #[cfg(not(feature = "dev"))]
+                    // 非开发构建自行建立受保护的类路径，忽略外部覆盖。 / Non-dev builds construct the protected classpath, so external overrides are ignored.
+                    if arg.starts_with("-Djava.class.path") {
+                        return;
+                    }
+                } else if arg.eq_ignore_ascii_case(RE_DISABLE_ATTACH_MECHANISM)
+                    || arg.eq_ignore_ascii_case(DEBUG_ARG)
+                    || arg.starts_with(RUNJDWP_ARG_PREFIX)
+                {
+                    #[cfg(not(feature = "dev"))]
+                    // 非开发构建过滤重新附加和调试选项，避免绕过启动器限制。 / Non-dev builds filter re-attach and debug options to prevent bypassing launcher restrictions.
+                    return;
+                } else if arg.eq(NOVERIFY_ARG_PREFIX) {
+                    #[cfg(feature = "dev")]
+                    context.vm_args.push(NOVERIFY_ARG_FINAL.to_string());
+                    return;
+                } else if arg.starts_with(AGENTLIB_ARG_PREFIX)
+                    || arg.starts_with(AGENTPATH_ARG_PREFIX)
+                    || arg.starts_with(JAVAAGENT_ARG_PREFIX)
+                {
+                    #[cfg(not(feature = "dev"))]
+                    // 非开发构建拒绝代理注入，避免修改受保护类。 / Non-dev builds reject agent injection to prevent protected classes from being modified.
+                    panic!("agent options are not allowed");
+                } else if arg.starts_with('-') {
+                    if !arg.starts_with(VM_ARG_PREFIX) {
+                        panic!("not support vm arg: {arg}");
+                    }
+                } else if context.target.is_none() {
+                    // TODO: 确定类目标的最终支持策略。 / Decide the final support policy for class targets.
+                    context.target = Some(LaunchTarget::Class(arg));
+                    return;
+                    // panic!("Not currently supported run class")
+                }
+                context.vm_args.push(arg.clone());
+            }
         }
+    } else {
+        context.app_args.push(arg.clone());
+    }
 }
 
-
-fn init_launcher(target: &LaunchTarget, vm_args: &mut Vec<String>, app_args: &Vec<String>) {
+fn init_launcher(target: &LaunchTarget, vm_args: &mut Vec<String>, app_args: &[String]) {
     #[cfg(windows)]
     {
         // 初始化通用控件配置。 / Initialize the common-controls configuration.
-        let mut init_ctrls = winapi::um::commctrl::INITCOMMONCONTROLSEX {
+        let init_ctrls = winapi::um::commctrl::INITCOMMONCONTROLSEX {
             dwSize: std::mem::size_of::<winapi::um::commctrl::INITCOMMONCONTROLSEX>() as u32, // 必须设置结构体大小。 / The structure size is required.
             dwICC: winapi::um::commctrl::ICC_WIN95_CLASSES, // 指定要初始化的控件类别。 / Select the control classes to initialize.
         };
 
         // 初始化 Windows 通用控件。 / Initialize Windows common controls.
-        let result = unsafe { winapi::um::commctrl::InitCommonControlsEx(&mut init_ctrls) };
+        let result = unsafe { winapi::um::commctrl::InitCommonControlsEx(&init_ctrls) };
 
         if result == 0 {
             eprintln!("ERROR: InitCommonControlsEx failed!");
@@ -431,9 +460,14 @@ fn init_launcher(target: &LaunchTarget, vm_args: &mut Vec<String>, app_args: &Ve
 
     let name = match target {
         LaunchTarget::Class(class) => class,
-        LaunchTarget::Jar(jar) => jar.path()
+        LaunchTarget::Jar(jar) => jar.path(),
     };
-    vm_args.push(format!("{}{} {}", JAVA_COMMAND_VM_ARG_PREFIX, name, app_args.join(" ")));
+    vm_args.push(format!(
+        "{}{} {}",
+        JAVA_COMMAND_VM_ARG_PREFIX,
+        name,
+        app_args.join(" ")
+    ));
     vm_args.push(JAVA_LAUNCHER_ARG.to_string());
     vm_args.push(format!("{}{}", JAVA_LAUNCHER_PID_ARG_PREFIX, process::id()));
     #[cfg(not(feature = "dev"))]

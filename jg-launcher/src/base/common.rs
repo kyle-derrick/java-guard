@@ -9,8 +9,8 @@ const PATH_LIST_SEPARATOR: char = ':';
 #[cfg(windows)]
 const PATH_LIST_SEPARATOR: char = ';';
 
-pub const MAGIC_LEN:usize = 5;
-pub const SIGN_LEN:usize = 64;
+pub const MAGIC_LEN: usize = 5;
+pub const SIGN_LEN: usize = 64;
 
 #[cfg(not(feature = "dev"))]
 pub const SIGN_LEN_HEX_LEN: usize = 4;
@@ -30,6 +30,6 @@ pub const ENCRYPT_BLOCK: usize = 8 * 1024;
 include!(concat!(env!("OUT_DIR"), "/_common.rs"));
 
 #[cfg(not(feature = "dev"))]
-pub(crate) fn pub_key_pair() -> UnparsedPublicKey<[u8;32]> {
+pub(crate) fn pub_key_pair() -> UnparsedPublicKey<[u8; 32]> {
     UnparsedPublicKey::new(&ED25519, pub_key())
 }

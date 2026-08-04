@@ -20,7 +20,10 @@ const LF_CHAR: char = '\n';
 // }
 
 pub(crate) fn parser(path: &str) -> Result<Vec<String>, MessageError> {
-    let content = with_message!(fs::read_to_string(path), &format!("Failed to read vm cfg file: {}", path))?;
+    let content = with_message!(
+        fs::read_to_string(path),
+        &format!("Failed to read vm cfg file: {}", path)
+    )?;
     // let mut state = ParseState::Default;
     let mut line_first = true;
     let mut items = Vec::new();
@@ -155,10 +158,7 @@ mod test {
 
     #[test]
     pub fn test_parser() {
-        let path = concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/tests/fixtures/vm-options.cfg"
-        );
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/vm-options.cfg");
 
         assert_eq!(
             parser(path).unwrap(),

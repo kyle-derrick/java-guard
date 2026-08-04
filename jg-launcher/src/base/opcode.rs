@@ -219,56 +219,56 @@ pub mod array_type {
 
 /* how many values are pushed on the operand stack. */
 pub const STACK_GROW: &[i16] = &[
-    0, // nop, 0
-    1, // aconst_null, 1
-    1, // iconst_m1, 2
-    1, // iconst_0, 3
-    1, // iconst_1, 4
-    1, // iconst_2, 5
-    1, // iconst_3, 6
-    1, // iconst_4, 7
-    1, // iconst_5, 8
-    2, // lconst_0, 9
-    2, // lconst_1, 10
-    1, // fconst_0, 11
-    1, // fconst_1, 12
-    1, // fconst_2, 13
-    2, // dconst_0, 14
-    2, // dconst_1, 15
-    1, // bipush, 16
-    1, // sipush, 17
-    1, // ldc, 18
-    1, // ldc_w, 19
-    2, // ldc2_w, 20
-    1, // iload, 21
-    2, // lload, 22
-    1, // fload, 23
-    2, // dload, 24
-    1, // aload, 25
-    1, // iload_0, 26
-    1, // iload_1, 27
-    1, // iload_2, 28
-    1, // iload_3, 29
-    2, // lload_0, 30
-    2, // lload_1, 31
-    2, // lload_2, 32
-    2, // lload_3, 33
-    1, // fload_0, 34
-    1, // fload_1, 35
-    1, // fload_2, 36
-    1, // fload_3, 37
-    2, // dload_0, 38
-    2, // dload_1, 39
-    2, // dload_2, 40
-    2, // dload_3, 41
-    1, // aload_0, 42
-    1, // aload_1, 43
-    1, // aload_2, 44
-    1, // aload_3, 45
+    0,  // nop, 0
+    1,  // aconst_null, 1
+    1,  // iconst_m1, 2
+    1,  // iconst_0, 3
+    1,  // iconst_1, 4
+    1,  // iconst_2, 5
+    1,  // iconst_3, 6
+    1,  // iconst_4, 7
+    1,  // iconst_5, 8
+    2,  // lconst_0, 9
+    2,  // lconst_1, 10
+    1,  // fconst_0, 11
+    1,  // fconst_1, 12
+    1,  // fconst_2, 13
+    2,  // dconst_0, 14
+    2,  // dconst_1, 15
+    1,  // bipush, 16
+    1,  // sipush, 17
+    1,  // ldc, 18
+    1,  // ldc_w, 19
+    2,  // ldc2_w, 20
+    1,  // iload, 21
+    2,  // lload, 22
+    1,  // fload, 23
+    2,  // dload, 24
+    1,  // aload, 25
+    1,  // iload_0, 26
+    1,  // iload_1, 27
+    1,  // iload_2, 28
+    1,  // iload_3, 29
+    2,  // lload_0, 30
+    2,  // lload_1, 31
+    2,  // lload_2, 32
+    2,  // lload_3, 33
+    1,  // fload_0, 34
+    1,  // fload_1, 35
+    1,  // fload_2, 36
+    1,  // fload_3, 37
+    2,  // dload_0, 38
+    2,  // dload_1, 39
+    2,  // dload_2, 40
+    2,  // dload_3, 41
+    1,  // aload_0, 42
+    1,  // aload_1, 43
+    1,  // aload_2, 44
+    1,  // aload_3, 45
     -1, // iaload, 46
-    0, // laload, 47
+    0,  // laload, 47
     -1, // faload, 48
-    0, // daload, 49
+    0,  // daload, 49
     -1, // aaload, 50
     -1, // baload, 51
     -1, // caload, 52
@@ -308,13 +308,13 @@ pub const STACK_GROW: &[i16] = &[
     -3, // sastore, 86
     -1, // pop, 87
     -2, // pop2, 88
-    1, // dup, 89
-    1, // dup_x1, 90
-    1, // dup_x2, 91
-    2, // dup2, 92
-    2, // dup2_x1, 93
-    2, // dup2_x2, 94
-    0, // swap, 95
+    1,  // dup, 89
+    1,  // dup_x1, 90
+    1,  // dup_x2, 91
+    2,  // dup2, 92
+    2,  // dup2_x1, 93
+    2,  // dup2_x2, 94
+    0,  // swap, 95
     -1, // iadd, 96
     -2, // ladd, 97
     -1, // fadd, 98
@@ -335,10 +335,10 @@ pub const STACK_GROW: &[i16] = &[
     -2, // lrem, 113
     -1, // frem, 114
     -2, // drem, 115
-    0, // ineg, 116
-    0, // lneg, 117
-    0, // fneg, 118
-    0, // dneg, 119
+    0,  // ineg, 116
+    0,  // lneg, 117
+    0,  // fneg, 118
+    0,  // dneg, 119
     -1, // ishl, 120
     -1, // lshl, 121
     -1, // ishr, 122
@@ -351,22 +351,22 @@ pub const STACK_GROW: &[i16] = &[
     -2, // lor, 129
     -1, // ixor, 130
     -2, // lxor, 131
-    0, // iinc, 132
-    1, // i2l, 133
-    0, // i2f, 134
-    1, // i2d, 135
+    0,  // iinc, 132
+    1,  // i2l, 133
+    0,  // i2f, 134
+    1,  // i2d, 135
     -1, // l2i, 136
     -1, // l2f, 137
-    0, // l2d, 138
-    0, // f2i, 139
-    1, // f2l, 140
-    1, // f2d, 141
+    0,  // l2d, 138
+    0,  // f2i, 139
+    1,  // f2l, 140
+    1,  // f2d, 141
     -1, // d2i, 142
-    0, // d2l, 143
+    0,  // d2l, 143
     -1, // d2f, 144
-    0, // i2b, 145
-    0, // i2c, 146
-    0, // i2s, 147
+    0,  // i2b, 145
+    0,  // i2c, 146
+    0,  // i2s, 147
     -3, // lcmp, 148
     -1, // fcmpl, 149
     -1, // fcmpg, 150
@@ -386,9 +386,9 @@ pub const STACK_GROW: &[i16] = &[
     -2, // if_icmple, 164
     -2, // if_acmpeq, 165
     -2, // if_acmpne, 166
-    0, // goto, 167
-    1, // jsr, 168
-    0, // ret, 169
+    0,  // goto, 167
+    1,  // jsr, 168
+    0,  // ret, 169
     -1, // tableswitch, 170
     -1, // lookupswitch, 171
     -1, // ireturn, 172
@@ -396,29 +396,29 @@ pub const STACK_GROW: &[i16] = &[
     -1, // freturn, 174
     -2, // dreturn, 175
     -1, // areturn, 176
-    0, // return, 177
-    0, // getstatic, 178            depends on the type
-    0, // putstatic, 179            depends on the type
-    0, // getfield, 180             depends on the type
-    0, // putfield, 181             depends on the type
-    0, // invokevirtual, 182        depends on the type
-    0, // invokespecial, 183        depends on the type
-    0, // invokestatic, 184         depends on the type
-    0, // invokeinterface, 185      depends on the type
-    0, // invokedynaimc, 186        depends on the type
-    1, // new, 187
-    0, // newarray, 188
-    0, // anewarray, 189
-    0, // arraylength, 190
+    0,  // return, 177
+    0,  // getstatic, 178            depends on the type
+    0,  // putstatic, 179            depends on the type
+    0,  // getfield, 180             depends on the type
+    0,  // putfield, 181             depends on the type
+    0,  // invokevirtual, 182        depends on the type
+    0,  // invokespecial, 183        depends on the type
+    0,  // invokestatic, 184         depends on the type
+    0,  // invokeinterface, 185      depends on the type
+    0,  // invokedynaimc, 186        depends on the type
+    1,  // new, 187
+    0,  // newarray, 188
+    0,  // anewarray, 189
+    0,  // arraylength, 190
     -1, // athrow, 191              stack is cleared
-    0, // checkcast, 192
-    0, // instanceof, 193
+    0,  // checkcast, 192
+    0,  // instanceof, 193
     -1, // monitorenter, 194
     -1, // monitorexit, 195
-    0, // wide, 196                 depends on the following opcode
-    0, // multianewarray, 197       depends on the dimensions
+    0,  // wide, 196                 depends on the following opcode
+    0,  // multianewarray, 197       depends on the dimensions
     -1, // ifnull, 198
     -1, // ifnonnull, 199
-    0, // goto_w, 200
-    1 // jsr_w, 201
+    0,  // goto_w, 200
+    1,  // jsr_w, 201
 ];

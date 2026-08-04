@@ -1,4 +1,3 @@
-
 #![allow(unused)]
 
 #[inline]
@@ -9,8 +8,8 @@ pub fn byte_to_u32(bs: &[u8]) -> u32 {
             let mut bs_new = [0u8; 4];
             bs_new[4 - bs.len()..].copy_from_slice(bs);
             byte_to_u32(&bs_new)
-        },
-        _ => u32::from_le_bytes(bs.try_into().unwrap())
+        }
+        _ => u32::from_le_bytes(bs.try_into().unwrap()),
     }
 }
 
@@ -19,7 +18,7 @@ pub fn byte_to_u16(bs: &[u8]) -> u16 {
     match bs.len() {
         0 => 0,
         1 => byte_to_u16(&[0, bs[0]]),
-        _ => u16::from_le_bytes(bs.try_into().unwrap())
+        _ => u16::from_le_bytes(bs.try_into().unwrap()),
     }
 }
 

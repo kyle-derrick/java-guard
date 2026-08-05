@@ -13,7 +13,6 @@ java-locator="0.1"
 jni = { version = "0.21.1" , features = ["invocation"]}
 #jni = { path = "vendor/jni" , features = ["invocation"]}
 ring = "0.17.8"
-clap = "4.5"
 zip = "8.6"
 hex = "0.4"
 #rvmti= { path = "lib/rvmti" }

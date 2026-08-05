@@ -1,0 +1,136 @@
+mod build_config;
+mod bytes_get_generator;
+
+use crate::build_config::*;
+use std::fs::File;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::{env, fs};
+
+const RUNTIME_CLASSES: &str = "runtime.classes";
+// const TRANSFORM_MOD: &str = "transform.mod";
+
+#[cfg(not(feature = "dev"))]
+const PUB_KEY_NAME: &str = "pub_key";
+const INNER_KEY_NAME: &str = "inner_key";
+const RESOURCE_KEY_NAME: &str = "resource_key";
+
+#[cfg(target_os = "windows")]
+const DEFAULT_INCLUDES: &str = "jdk_include/windows";
+
+#[cfg(target_os = "linux")]
+const DEFAULT_INCLUDES: &str = "jdk_include/linux";
+
+#[cfg(target_os = "macos")]
+const DEFAULT_INCLUDES: &str = "jdk_include/darwin";
+
+fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=build_config.rs");
+    println!("cargo:rerun-if-env-changed=ORI_JAVA");
+    println!("cargo:rerun-if-env-changed=JAVA_HOME");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_DEV");
+
+    let cargo_dir = match env::var("CARGO_MANIFEST_DIR") {
+        Ok(path) => PathBuf::from(path),
+        Err(_) => {
+            let mut path = env::current_exe().expect("cannot get project root path!");
+            let mut path_result = None;
+            while path.pop() {
+                if path
+                    .parent()
+                    .expect("jg-launcher dir get failed")
+                    .join("Cargo.toml")
+                    .exists()
+                {
+                    path_result = Some(path);
+                    break;
+                }
+            }
+            path_result.expect("not found project root path!")
+        }
+    };
+    let out_dir = env::var("OUT_DIR").expect("cannot get build out dir!");
+    println!("generate file dir: {out_dir}");
+    let out_path = Path::new(&out_dir);
+    let dest_path = out_path.join("_common.rs");
+
+    let app_version = env::var("CARGO_PKG_VERSION").unwrap();
+
+    let ext_path = Path::new(&cargo_dir).join("build").join("ext");
+    if !ext_path.exists() {
+        panic!("not found ext path!");
+    }
+    let runtime_classes_path = ext_path.join(RUNTIME_CLASSES);
+    // let transform_mod_path = ext_path.join(TRANSFORM_MOD);
+
+    if !runtime_classes_path.exists() {
+        panic!("not found file: {RUNTIME_CLASSES}");
+    }
+    fs::copy(runtime_classes_path, out_path.join(RUNTIME_CLASSES)).unwrap();
+    // fs::copy(transform_mod_path, out_path.join(TRANSFORM_MOD)).unwrap();
+    #[warn(named_arguments_used_positionally)]
+    let common_content = format!(
+        include_str!("_common.rs"),
+        version = app_version,
+        key_version = SIGN_KEY_VERSION,
+        internalUrlConnectionClass = INTERNAL_URL_CONNECTION_CLASS,
+        internalUrlConnectionMethod = INTERNAL_URL_CONNECTION_METHOD,
+        internalUrlConnectionDesc = INTERNAL_URL_CONNECTION_DESC,
+        resourceDecryptNativeClass = RESOURCE_DECRYPT_NATIVE_CLASS,
+        resourceDecryptNativeDesc = RESOURCE_DECRYPT_NATIVE_DESC,
+        resourceDecryptNativeMethod = RESOURCE_DECRYPT_NATIVE_METHOD,
+    );
+    let mut file = File::create(&dest_path).expect("cannot generate jg-common.rs");
+    let f = &mut file;
+    write_file(f, &common_content);
+
+    write_file(f, &bytes_get_generator::get_common_func_code());
+    #[cfg(not(feature = "dev"))]
+    for item in &bytes_get_generator::generate_func_code(PUB_KEY, PUB_KEY_NAME) {
+        write_file(f, item);
+    }
+    for item in &bytes_get_generator::generate_func_code(KEY, INNER_KEY_NAME) {
+        write_file(f, item);
+    }
+    for item in &bytes_get_generator::generate_func_code(RESOURCE_KEY, RESOURCE_KEY_NAME) {
+        write_file(f, item);
+    }
+
+    // jvmti
+    let mut builder = cc::Build::new();
+    let includes = if let Some(path) = jdk_includes() {
+        path
+    } else {
+        vec![PathBuf::from(DEFAULT_INCLUDES)]
+    };
+    println!(">>> jdk includes: {:?}", includes);
+    let ext_path = cargo_dir.join("c_src");
+    builder
+        .includes(&includes)
+        .include(&ext_path)
+        .file(ext_path.join("lib.c"))
+        .compile("jg-jvmti-lib");
+}
+
+fn write_file(file: &mut File, content: &str) {
+    file.write_all(content.as_bytes())
+        .expect("generate common.rs failed!");
+    file.write_all(b"\n").expect("generate common.rs failed!");
+}
+
+fn jdk_includes() -> Option<Vec<PathBuf>> {
+    let include_dir = java_locator::locate_file("jvmti.h").ok()?;
+    let mut vec = Vec::new();
+    let include_dir = Path::new(&include_dir);
+    vec.push(include_dir.to_path_buf());
+    let child = include_dir.read_dir().ok()?;
+    for entry in child {
+        let entry = entry.ok()?;
+        let path_buf = entry.path();
+        if path_buf.is_dir() {
+            vec.push(path_buf.clone())
+        }
+    }
+    Some(vec)
+}

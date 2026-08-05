@@ -1,0 +1,54 @@
+[package]
+name = "jg-launcher"
+version = "0.4.3"
+edition = "2021"
+build = "build/build.rs"
+license = "Apache-2.0"
+repository = "https://github.com/kyle-derrick/jg-launcher"
+
+[dependencies]
+libloading="0.7"
+jni-sys="0.3.1"
+java-locator="0.1"
+jni = { version = "0.21.1" , features = ["invocation"]}
+#jni = { path = "vendor/jni" , features = ["invocation"]}
+ring = "0.17.8"
+clap = "4.5"
+zip = "2.2"
+hex = "0.4"
+#rvmti= { path = "lib/rvmti" }
+base64 = "0.22.1"
+lazy_static="1.5.0"
+#file-lock = "2.1"
+jclass = "0.1"
+glob = "0.3"
+lz4 = "1.28.1"
+rand="0.8.7"
+
+[target.'cfg(windows)'.dependencies.winapi]
+version = "0.3"
+features = ["commctrl", "libloaderapi"]
+
+[target.'cfg(windows)'.dependencies]
+mimalloc = "0.1.48"
+
+[target.'cfg(unix)'.dependencies]
+tikv-jemallocator = "0.7.0"
+
+
+[build-dependencies]
+rand="0.8.7"
+cc = "1.0"
+java-locator="0.1"
+#sha2 = "0.10"
+#hex = "0.4"
+
+[profile.release]
+panic = "abort"
+strip = true
+lto = true
+codegen-units = 1
+
+[features]
+dev = []
+default = []

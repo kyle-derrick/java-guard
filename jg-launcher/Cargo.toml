@@ -10,7 +10,7 @@ repository = "https://github.com/kyle-derrick/java-guard"
 libloading="0.7"
 jni-sys="0.3.1"
 java-locator="0.1"
-jni = { version = "0.21.1" , features = ["invocation"]}
+jni = { version = "0.22.4" , features = ["invocation"]}
 #jni = { path = "vendor/jni" , features = ["invocation"]}
 ring = "0.17.8"
 clap = "4.5"

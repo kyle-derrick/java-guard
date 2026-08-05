@@ -14,8 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        with:
-          submodules: recursive
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -40,8 +38,6 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
-        with:
-          submodules: recursive
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -77,3 +73,51 @@ jobs:
           JAR="$(find dist -maxdepth 1 -name 'java-guard-*.jar' -print -quit)"
           test -n "$JAR"
           java -jar "$JAR" --help | grep -q 'usage: java-guard'
+
+  launcher:
+    name: Launcher test, build, and SBOM
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Create minimal runtime classes fixture
+        working-directory: jg-launcher
+        shell: bash
+        run: |
+          mkdir -p build/ext
+          # runtime.classes is a sequence of length-prefixed class records.
+          # An empty stream is the deterministic minimal valid fixture.
+          : > build/ext/runtime.classes
+      - name: Check Rust formatting
+        working-directory: jg-launcher
+        run: cargo fmt --all -- --check
+      - name: Run strict Clippy (default features)
+        working-directory: jg-launcher
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Run strict Clippy (all features)
+        working-directory: jg-launcher
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
+      - name: Run launcher tests
+        working-directory: jg-launcher
+        run: cargo test --locked
+      - name: Build launcher release binary
+        working-directory: jg-launcher
+        run: cargo build --release --locked
+      - name: Install CycloneDX generator
+        working-directory: jg-launcher
+        run: cargo install cargo-cyclonedx --version 0.5.9 --locked
+      - name: Generate launcher CycloneDX SBOM
+        working-directory: jg-launcher
+        run: cargo cyclonedx --format json --spec-version 1.5 --override-filename jg-launcher-sbom
+      - name: Upload launcher CycloneDX SBOM
+        uses: actions/upload-artifact@v7
+        with:
+          name: jg-launcher-sbom
+          path: jg-launcher/jg-launcher-sbom.json
+          if-no-files-found: error

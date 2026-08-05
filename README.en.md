@@ -50,7 +50,6 @@ When using a release JAR, skip the Maven requirement and go directly to [3. Encr
 ```shell
 git clone --depth 1 https://github.com/kyle-derrick/java-guard.git
 cd java-guard
-git submodule update --init --recursive
 ```
 
 #### Offline Usage

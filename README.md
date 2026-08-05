@@ -50,7 +50,6 @@
 ```shell
 git clone --depth 1 https://github.com/kyle-derrick/java-guard.git
 cd java-guard
-git submodule update --init --recursive
 ```
 
 #### 离线加密场景

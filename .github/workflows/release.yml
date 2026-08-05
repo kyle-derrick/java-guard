@@ -20,7 +20,6 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
-          submodules: recursive
           fetch-depth: 0
 
       - name: Set up JDK 8

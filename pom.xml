@@ -199,6 +199,12 @@
 
     <profiles>
         <profile>
+            <id>dev-package</id>
+            <properties>
+                <maven.test.skip>true</maven.test.skip>
+            </properties>
+        </profile>
+        <profile>
             <id>java9-plus</id>
             <activation>
                 <jdk>[9,)</jdk>

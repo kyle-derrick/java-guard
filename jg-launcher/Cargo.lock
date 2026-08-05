@@ -446,7 +446,7 @@ dependencies = [
  "java-locator",
  "jclass",
  "jni",
- "jni-sys 0.3.1",
+ "jni-sys 0.4.1",
  "lazy_static",
  "libloading",
  "lz4",

@@ -16,7 +16,7 @@ ring = "0.17.8"
 zip = "8.6"
 hex = "0.4"
 #rvmti= { path = "lib/rvmti" }
-base64 = "0.22.1"
+base64 = "0.23.0"
 lazy_static="1.5.0"
 #file-lock = "2.1"
 jclass = "0.1"

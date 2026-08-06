@@ -7,7 +7,7 @@ license = "Apache-2.0"
 repository = "https://github.com/kyle-derrick/java-guard"
 
 [dependencies]
-libloading="0.7"
+libloading="0.9"
 jni-sys="0.3.1"
 java-locator="0.1"
 jni = { version = "0.21.1" , features = ["invocation"]}

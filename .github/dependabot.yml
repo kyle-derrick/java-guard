@@ -4,13 +4,16 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
 
   - package-ecosystem: cargo
     directory: /jg-launcher
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
